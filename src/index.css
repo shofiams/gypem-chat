@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Paksa semua teks default ke font-sans (Poppins) */
+html {
+  font-family: 'Poppins', sans-serif;
+}
