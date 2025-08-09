@@ -1,11 +1,9 @@
-// src/App.jsx
 import React from 'react';
-import AppLayout from './components/headline';
-import ChatRoomLayout from './layout/chat_room_layout';
+import { RouterProvider } from 'react-router-dom';
+import { router } from './router/index.jsx';
 
 function App() {
-  // return <AppLayout />;
-  return <AppLayout />
+  return <RouterProvider router={router} />;
 }
 
 export default App;
