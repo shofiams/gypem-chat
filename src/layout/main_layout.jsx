@@ -13,90 +13,106 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
   const isStar = label === "Starred Messages";
 
   return (
-    <button
-      onClick={onClick}
-      className={`
-        relative w-full flex items-center
-        px-4 py-2 my-1
-        hover:bg-gray-100 rounded
-        transition-all duration-300 ease-in-out
-        ${isActive ? "bg-gray-100" : ""}
-      `}
-    >
-      {/* Separator line for starred messages */}
-      {isStar && (
-        <span
-          className={`
-            absolute -top-1 left-[10%]
-            h-[0.5px] bg-[#A59B9B] rounded-full
-            transition-all duration-300
-            ${isOpen ? "w-[calc(100%-32px)]" : "w-[45px]"}
-          `}
-        />
-      )}
+    <div className="px-2 my-1">
+      <button
+        onClick={onClick}
+        className={`
+          relative w-full flex px-3
+          py-2.5
+          hover:bg-gray-100 rounded-lg
+          transition-all duration-500 ease-out
+          ${isActive ? "bg-gray-100" : ""}
+        `}
+      >
+        {/* Separator line for starred messages */}
+        {isStar && (
+          <span
+            className={`
+              absolute -top-2 
+              left-1
+              h-[0.5px] bg-[#A59B9B] rounded-full
+              transition-all duration-500 ease-in-out
+              ${isOpen ? "w-[calc(95%)]" : "w-[40px]"}
+            `}
+          />
+        )}
 
-      {/* Active indicator */}
-      {isActive && (
-        <span
-          className="
-            absolute left-[8px]
-            top-1/2 -translate-y-1/2
-            bg-[#FFB400]
-            w-[3px] h-[20px]
-            rounded-full
-          "
-        />
-      )}
-
-      {/* Icon container with React Icons */}
-      <div className="relative flex items-center justify-center w-6 h-6">
-        <span className="text-gray-600" style={{ fontSize: '18px' }}>
-          {icon}
-        </span>
-
-        {/* Badge when sidebar is closed */}
-        {badge != null && !isOpen && (
+        {/* Active indicator */}
+        {isActive && (
           <span
             className="
-              absolute -top-1 -right-1
+              absolute left-0
+              top-1/2 -translate-y-1/2
+              bg-[#FFB400]
+              w-[3px] h-[20px]
+              rounded-full
+              transition-all duration-500 ease-out
+            "
+          />
+        )}
+
+        {/* Icon container */}
+        <div className="relative flex items-center justify-center w-6 h-6 flex-shrink-0">
+          <span className="text-gray-600 transition-colors duration-300 ease-out" style={{ fontSize: '18px' }}>
+            {icon}
+          </span>
+
+          {/* Badge when sidebar is closed */}
+          {badge != null && !isOpen && (
+            <span
+              className="
+                absolute -top-1 -right-1
+                w-4 h-4
+                bg-[#FFB400]
+                text-white text-[10px]
+                leading-none
+                rounded-full
+                flex items-center justify-center
+                transition-all duration-300 ease-out
+              "
+            >
+              {badge}
+            </span>
+          )}
+        </div>
+
+        {/* Label */}
+        <div className="overflow-hidden flex-1 ml-3">
+          <span 
+            className={`
+              block text-[14px] text-[#333] whitespace-nowrap
+              transition-all duration-500 ease-out text-left
+              ${isOpen 
+                ? 'opacity-100 translate-x-0' 
+                : 'opacity-0 -translate-x-4'
+              }
+            `}
+          >
+            {label}
+          </span>
+        </div>
+
+        {/* Badge when sidebar is open */}
+        {badge != null && isOpen && (
+          <span
+            className={`
+              absolute top-1/2 -translate-y-1/2
+              right-4
               w-4 h-4
               bg-[#FFB400]
               text-white text-[10px]
               leading-none
               rounded-full
               flex items-center justify-center
-            "
+              transition-all duration-500 ease-out
+              ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}
+            `}
           >
             {badge}
           </span>
         )}
-      </div>
-
-      {/* Label */}
-      {isOpen && (
-        <span className="ml-3 text-[14px] text-[#333]">
-          {label}
-        </span>
-      )}
-
-      {/* Badge when sidebar is open */}
-      {badge != null && isOpen && (
-        <span
-          className="
-            absolute top-1/2 -translate-y-1/2
-            right-4
-            w-4 h-4
-            bg-[#FFB400]
-            text-white text-[10px]
-            leading-none
-            rounded-full
-            flex items-center justify-center
-          "
-        >
-          {badge}
-        </span>
-      )}
-    </button>
+      </button>
+    </div>
   );
 };
 
@@ -104,18 +120,18 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
 const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate }) => {
   const menuItems = [
     { 
-      icon: <BsChatSquareText size={18} />, 
+      icon: <BsChatSquareText size={20} />, 
       label: "Chats", 
       badge: 10, 
       route: "/chats" 
     },
     { 
-      icon: <MdOutlineGroups size={24} />, 
+      icon: <MdOutlineGroups size={25} />, 
       label: "Group", 
       route: "/group" 
     },
     { 
-      icon: <FiEdit />, 
+      icon: <FiEdit size={20} />, 
       label: "New Message", 
       route: "/new-message" 
     },
@@ -138,24 +154,30 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate }) => {
     <aside
       className={`
         hidden md:flex flex-col bg-white border-r border-gray-200
-        ${isOpen ? 'w-64' : 'w-20'}
-        transition-all duration-300
-        relative
+        ${isOpen ? 'w-60 fixed top-16 left-0 z-50 shadow-lg' : 'w-16 relative'}
+        transition-all duration-500 ease-out
       `}
-      style={{ height: 'calc(100vh - 64px)' }} // Subtract header height
+      style={{ height: 'calc(100vh - 64px)' }} 
     >
       {/* Body */}
-      <div className="flex flex-col flex-1 overflow-hidden pt-4">
+      <div className={`flex flex-col flex-1 overflow-hidden pt-4`}>
         {/* Toggle button */}
-        <button
-          onClick={toggleSidebar}
-          className="flex items-center px-4 py-2 hover:bg-gray-100"
-        >
-          <img src={assets.menu} alt="Menu" className="w-6 h-6 object-contain" />
-        </button>
+        <div className="px-2 mb-0">
+          <button
+            onClick={toggleSidebar}
+            className={`
+              flex items-center px-3 py-2.5 hover:bg-gray-100 rounded-lg w-full
+              transition-all duration-300 ease-out
+            `}
+          >
+            <div className="flex items-center justify-center w-7 h-6 flex-shrink-0">
+              <img src={assets.menu} alt="Menu" className="object-contain" />
+            </div>
+          </button>
+        </div>
 
         {/* Navigation */}
-        <nav className="mt-4 flex flex-col justify-between flex-1">
+        <nav className="mt-4 flex flex-col justify-between flex-1 w-full">
           {/* Main menu items */}
           <div className="-mt-4">
             {menuItems.map(({ icon, label, badge, route }) => (
@@ -193,10 +215,10 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate }) => {
 // Desktop Header Component (Full-width)
 const DesktopHeader = () => {
   return (
-    <div className="hidden md:flex items-center justify-between px-6 py-4 bg-white border-b border-gray-200 h-16">
+    <div className="hidden md:flex items-center justify-between px-4 py-4 bg-white border-b border-gray-200 h-16 relative z-30">
       <div className="flex items-center">
         <img src={Logo} alt="Logo" className="w-10 h-10 object-contain" />
-        <span className="ml-3 text-[16px] font-medium text-[#4c0d68] whitespace-nowrap">
+        <span className="ml-3 mt-2 text-[16px] font-medium text-[#4c0d68] whitespace-nowrap">
           Hi! Username
         </span>
       </div>
@@ -359,7 +381,7 @@ const MainLayout = () => {
         />
 
         {/* Main Content Area */}
-        <div className="flex-1 flex flex-col">
+        <div className={`flex-1 flex flex-col transition-all duration-500 ease-out ${isSidebarOpen ? '' : 'md:ml-0'}`}>
 
           {/* Main Content Area - Where all pages render */}
           <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
