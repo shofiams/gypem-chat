@@ -9,6 +9,11 @@ import new_message from '..//assets/new_message.svg'
 import new_message_web from '../assets/new_message_web.svg'
 import star_web from '../assets/Star_web.svg'
 import menu from '../assets/Menu.svg'
+import profile_list from '../assets/profile_list.svg'
+import logo from '../assets/logo.svg'
+import centang from '../assets/centang.svg'
+import centang_abu from '../assets/centangabu.svg'
+import popup_delete from '../assets/popup_delete.svg'
 
 
 
@@ -25,5 +30,10 @@ export const assets = {
     new_message,
     menu,  
     star_web,
+    profile_list,
+    logo,
+    centang,
+    centang_abu,
+    popup_delete
     
 }
