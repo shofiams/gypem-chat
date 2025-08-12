@@ -82,7 +82,7 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
           <span 
             className={`
               block text-[14px] text-[#333] whitespace-nowrap
-              transition-all duration-500 ease-out text-left
+              transition-all duration-300 ease-out text-left
               ${isOpen 
                 ? 'opacity-100 translate-x-0' 
                 : 'opacity-0 -translate-x-4'
@@ -154,14 +154,15 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate }) => {
   return (
     <aside
       className={`
-        hidden md:flex flex-col bg-white border-r border-gray-200
-        ${isOpen ? 'w-60 fixed top-16 left-0 z-50 shadow-lg' : 'w-16 relative'}
-        transition-all duration-500 ease-out
+        hidden md:block bg-white border-r border-gray-200
+        fixed top-16 left-0 z-50 shadow-lg
+        ${isOpen ? 'w-60' : 'w-16'}
+        transition-all duration-300 ease-out
       `}
       style={{ height: 'calc(100vh - 64px)' }} 
     >
       {/* Body */}
-      <div className={`flex flex-col flex-1 overflow-hidden pt-4`}>
+      <div className={`flex flex-col flex-1 overflow-hidden pt-4 h-full`}>
         {/* Toggle button */}
         <div className="px-2 mb-0">
           <button
@@ -323,7 +324,7 @@ const MobileBottomNav = ({ activeRoute, onNavigate }) => {
                   <img
                     src={isActive ? tab.iconActive : tab.icon}
                     alt={tab.label}
-                    className={`${isActive ? "w-6 h-6 z-30" : "w-6 h-6"} transition-all duration-300`}
+                    className={`${isActive ? "w-10 h-10 z-30" : "w-10 h-10"} transition-all duration-300`}
                   />
                   {tab.badge && !isActive && (
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#FFB400] text-white text-[10px] rounded-full flex items-center justify-center">
@@ -352,7 +353,7 @@ const MobileBottomNav = ({ activeRoute, onNavigate }) => {
 // Main Layout Component
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [isNewMessageOpen, setIsNewMessageOpen] = useState(false); // ✅ state untuk popup
+  const [isNewMessageOpen, setIsNewMessageOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -362,6 +363,7 @@ const MainLayout = () => {
       return;
     }
     navigate(route);
+    setIsSidebarOpen(false);
   };
 
   const toggleSidebar = () => {
@@ -377,7 +379,7 @@ const MainLayout = () => {
       <MobileHeader onNavigate={handleNavigate} />
 
       {/* Main Layout with Sidebar and Content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Desktop Sidebar */}
         <DesktopSidebar
           isOpen={isSidebarOpen}
@@ -387,7 +389,7 @@ const MainLayout = () => {
         />
 
         {/* Main Content Area */}
-        <div className={`flex-1 flex flex-col transition-all duration-500 ease-out ${isSidebarOpen ? '' : 'md:ml-0'}`}>
+        <div className="flex flex-col flex-1 ml-16 md:ml-16">
 
           {/* Main Content Area - Where all pages render */}
           <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
@@ -404,7 +406,7 @@ const MainLayout = () => {
         onNavigate={handleNavigate}
       />
 
-      {/* ✅ New Message Popup */}
+      {/* New Message Popup */}
       <NewMessagePopup 
         isOpen={isNewMessageOpen} 
         onClose={() => setIsNewMessageOpen(false)} 
@@ -412,6 +414,5 @@ const MainLayout = () => {
     </div>
   );
 };
-
 
 export default MainLayout;
