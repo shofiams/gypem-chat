@@ -35,10 +35,10 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  {
-    path: "/new-message",
-    element: <NewMessage />,
-  },
+  // {
+  //   path: "/new-message",
+  //   element: <NewMessage />,
+  // },
   {
     path: "*",
     element: <NotFound />,

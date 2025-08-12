@@ -7,6 +7,7 @@ import { MdOutlineGroups } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
 import { FaRegStar } from "react-icons/fa";
 import { CgProfile } from "react-icons/cg";
+import NewMessagePopup from '../components/new_message'; 
 
 // Desktop Sidebar Item Component
 const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
@@ -351,10 +352,15 @@ const MobileBottomNav = ({ activeRoute, onNavigate }) => {
 // Main Layout Component
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isNewMessageOpen, setIsNewMessageOpen] = useState(false); // ✅ state untuk popup
   const navigate = useNavigate();
   const location = useLocation();
 
   const handleNavigate = (route) => {
+    if (route === "/new-message") {
+      setIsNewMessageOpen(true);
+      return;
+    }
     navigate(route);
   };
 
@@ -397,8 +403,15 @@ const MainLayout = () => {
         activeRoute={location.pathname}
         onNavigate={handleNavigate}
       />
+
+      {/* ✅ New Message Popup */}
+      <NewMessagePopup 
+        isOpen={isNewMessageOpen} 
+        onClose={() => setIsNewMessageOpen(false)} 
+      />
     </div>
   );
 };
+
 
 export default MainLayout;
