@@ -1,13 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import Logo from '../assets/logo.png';
 import { assets } from '../assets/assets';
 import { BsChatSquareText } from "react-icons/bs";
 import { MdOutlineGroups } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
-import { FaRegStar } from "react-icons/fa";
+import { FaRegStar, FaUserCircle } from "react-icons/fa";
 import { CgProfile } from "react-icons/cg";
 import NewMessagePopup from '../components/new_message'; 
+import ProfilePopup from '../components/ProfilePopup';
 
 // Desktop Sidebar Item Component
 const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
@@ -118,7 +119,7 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
 };
 
 // Desktop Sidebar Component (without header)
-const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate }) => {
+const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile }) => {
   const menuItems = [
     { 
       icon: <BsChatSquareText size={20} />, 
@@ -143,11 +144,6 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate }) => {
       icon: <FaRegStar size={20} />, 
       label: "Starred Messages", 
       route: "/starred" 
-    },
-    { 
-      icon: <CgProfile size={20} />, 
-      label: "Profile", 
-      route: "/profile" 
     },
   ];
 
@@ -207,6 +203,63 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate }) => {
                 onClick={() => onNavigate(route)}
               />
             ))}
+            
+            {/* Profile Item with Custom Styling */}
+            <div className="px-2 my-1">
+              <button
+                onClick={onProfileClick}
+                className={`
+                  relative w-full flex px-3
+                  py-2.5
+                  hover:bg-gray-100 rounded-lg
+                  transition-all duration-500 ease-out
+                  ${activeRoute === "/profile" ? "bg-gray-100" : ""}
+                `}
+              >
+                {/* Active indicator */}
+                {activeRoute === "/profile" && (
+                  <span
+                    className="
+                      absolute left-0
+                      top-1/2 -translate-y-1/2
+                      bg-[#FFB400]
+                      w-[3px] h-[20px]
+                      rounded-full
+                      transition-all duration-500 ease-out
+                    "
+                  />
+                )}
+
+                {/* Profile Icon/Image */}
+                <div className="relative flex items-center justify-center w-6 h-6 flex-shrink-0">
+                  {isDefaultProfile ? (
+                    <CgProfile className="text-gray-600 transition-colors duration-300 ease-out" style={{ fontSize: '18px' }} />
+                  ) : (
+                    <img
+                      src={profileImage}
+                      alt="Profile"
+                      className="w-5 h-5 rounded-full object-cover"
+                    />
+                  )}
+                </div>
+
+                {/* Label */}
+                <div className="overflow-hidden flex-1 ml-3">
+                  <span 
+                    className={`
+                      block text-[14px] text-[#333] whitespace-nowrap
+                      transition-all duration-300 ease-out text-left
+                      ${isOpen 
+                        ? 'opacity-100 translate-x-0' 
+                        : 'opacity-0 -translate-x-4'
+                      }
+                    `}
+                  >
+                    Profile
+                  </span>
+                </div>
+              </button>
+            </div>
           </div>
         </nav>
       </div>
@@ -247,8 +300,8 @@ const MobileHeader = ({ onNavigate }) => {
   );
 };
 
-// Mobile Bottom Navigation Component
-const MobileBottomNav = ({ activeRoute, onNavigate }) => {
+// Mobile Bottom Navigation Component - FIXED VERSION
+const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile }) => {
   const tabs = [
     {
       key: "group",
@@ -271,6 +324,7 @@ const MobileBottomNav = ({ activeRoute, onNavigate }) => {
       icon: assets.user,
       iconActive: assets.user_click,
       route: "/profile",
+      isProfile: true,
     },
   ];
 
@@ -293,14 +347,24 @@ const MobileBottomNav = ({ activeRoute, onNavigate }) => {
       </button>
 
       {/* Bottom Navigation */}
-      <div className="md:hidden fixed bottom-0 w-full bg-[#f2f2f2] py-1 border-t border-gray-200 z-10">
+      <div className="md:hidden fixed bottom-0 w-full bg-[#f2f2f2] py-1 border-t border-gray-200 z-50">
         <div className="flex items-center justify-around relative">
           {tabs.map((tab) => {
+            // FIXED: Menggunakan activeRoute === tab.route untuk semua tab, termasuk profile
             const isActive = activeRoute === tab.route;
+            
             return (
               <button
                 key={tab.key}
-                onClick={() => onNavigate(tab.route)}
+                onClick={() => {
+                  if (tab.isProfile) {
+                    // Navigate ke route profile dan buka popup
+                    onNavigate(tab.route);
+                    onProfileClick();
+                  } else {
+                    onNavigate(tab.route);
+                  }
+                }}
                 className="relative flex flex-col items-center"
               >
                 <div
@@ -317,15 +381,23 @@ const MobileBottomNav = ({ activeRoute, onNavigate }) => {
                         border-2 border-gray-300
                         flex items-center justify-center
                         shadow-xl
-                        z-20
+                        z-30
                       "
                     />
                   )}
-                  <img
-                    src={isActive ? tab.iconActive : tab.icon}
-                    alt={tab.label}
-                    className={`${isActive ? "w-10 h-10 z-30" : "w-10 h-10"} transition-all duration-300`}
-                  />
+                  {tab.isProfile && !isDefaultProfile ? (
+                    <img
+                      src={profileImage}
+                      alt={tab.label}
+                      className={`${isActive ? "w-10 h-10 z-30 rounded-full object-cover" : "w-10 h-10 rounded-full object-cover"} transition-all duration-300`}
+                    />
+                  ) : (
+                    <img
+                      src={isActive ? tab.iconActive : tab.icon}
+                      alt={tab.label}
+                      className={`${isActive ? "w-10 h-10 z-30" : "w-10 h-10"} transition-all duration-300`}
+                    />
+                  )}
                   {tab.badge && !isActive && (
                     <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#FFB400] text-white text-[10px] rounded-full flex items-center justify-center">
                       {tab.badge}
@@ -354,12 +426,38 @@ const MobileBottomNav = ({ activeRoute, onNavigate }) => {
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNewMessageOpen, setIsNewMessageOpen] = useState(false);
+  const [isProfilePopupOpen, setIsProfilePopupOpen] = useState(false);
+  const [profileImage, setProfileImage] = useState("");
+  
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Load profile image from localStorage
+  useEffect(() => {
+    const savedImage = localStorage.getItem("profileImage");
+    if (savedImage) {
+      setProfileImage(savedImage);
+    }
+  }, []);
+
+  const isDefaultProfile = profileImage === "";
+
+  const handleProfileClick = () => {
+    setIsProfilePopupOpen(!isProfilePopupOpen);
+  };
+
+  const handleProfileUpdate = (newProfileImage) => {
+    setProfileImage(newProfileImage);
+  };
 
   const handleNavigate = (route) => {
     if (route === "/new-message") {
       setIsNewMessageOpen(true);
+      return;
+    }
+    // UPDATED: Untuk profile, navigate dulu baru buka popup
+    if (route === "/profile") {
+      navigate(route);
       return;
     }
     navigate(route);
@@ -386,6 +484,9 @@ const MainLayout = () => {
           toggleSidebar={toggleSidebar}
           activeRoute={location.pathname}
           onNavigate={handleNavigate}
+          onProfileClick={handleProfileClick}
+          profileImage={profileImage}
+          isDefaultProfile={isDefaultProfile}
         />
 
         {/* Main Content Area */}
@@ -400,10 +501,13 @@ const MainLayout = () => {
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation */}
+      {/* Mobile Bottom Navigation - UPDATED */}
       <MobileBottomNav
         activeRoute={location.pathname}
         onNavigate={handleNavigate}
+        onProfileClick={handleProfileClick}
+        profileImage={profileImage}
+        isDefaultProfile={isDefaultProfile}
       />
 
       {/* New Message Popup */}
@@ -411,6 +515,15 @@ const MainLayout = () => {
         isOpen={isNewMessageOpen} 
         onClose={() => setIsNewMessageOpen(false)} 
       />
+
+      {/* Profile Popup */}
+      {isProfilePopupOpen && (
+        <ProfilePopup
+          isOpen={isProfilePopupOpen}
+          onClose={() => setIsProfilePopupOpen(false)}
+          onProfileUpdate={handleProfileUpdate}
+        />
+      )}
     </div>
   );
 };
