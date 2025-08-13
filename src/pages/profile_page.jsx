@@ -100,7 +100,7 @@ export default function ProfilePopup({
       <div
         ref={popupRef}
         className="absolute left-[70px] bottom-2 bg-white shadow-md rounded-xl z-30 text-sm font-medium
-          flex w-[650px] h-[430px]
+          flex w-[600px] h-[430px]
           max-sm:fixed max-sm:top-0 max-sm:left-0 max-sm:w-full max-sm:h-[calc(100vh-70px)] max-sm:rounded-none max-sm:shadow-none max-sm:bottom-auto max-sm:overflow-hidden max-sm:z-40"
       >
         {/* Desktop */}
@@ -137,7 +137,7 @@ export default function ProfilePopup({
                 {showEditOptionsDesktop && (
                   <div
                     ref={editRefDesktop}
-                    className="absolute top-0 left-28 bg-white shadow-lg rounded-2xl w-[140px] border border-gray-200 overflow-hidden"
+                    className="absolute top-0 left-24 bg-white shadow-lg rounded-2xl w-[140px] border border-gray-200 overflow-hidden"
                     style={{ zIndex: 9999 }}
                   >
                     <button
@@ -171,7 +171,7 @@ export default function ProfilePopup({
               </div>
 
               <p
-                className="text-orange-600 mt-2 cursor-pointer text-center"
+                className="text-yellow-500 mt-2 cursor-pointer text-center"
                 onClick={() =>
                   setShowEditOptionsDesktop(!showEditOptionsDesktop)
                 }
@@ -265,7 +265,7 @@ export default function ProfilePopup({
 
             <div className="mt-4">
               <p
-                className="text-orange-600 font-medium cursor-pointer"
+                className="text-yellow-500 font-medium cursor-pointer"
                 onClick={() =>
                   setShowEditOptionsMobile(!showEditOptionsMobile)
                 }
