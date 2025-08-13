@@ -7,6 +7,7 @@ import ProfilePage from "../pages/profile_page";
 import NewMessage from "../pages/new_message";
 import StarPage from "../pages/star_page";
 import NotFound from "../pages/not_found";
+import PesertaChatPage from "../pages/PesertaChatPage";
 
 export const router = createBrowserRouter([
   {
@@ -20,6 +21,10 @@ export const router = createBrowserRouter([
       {
         path: "chats",
         element: <ChatPage />,
+      },
+      {
+        path: "chats/:chatId",
+        element: <PesertaChatPage />,
       },
       {
         path: "group",

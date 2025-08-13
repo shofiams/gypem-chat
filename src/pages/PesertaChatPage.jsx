@@ -1,10 +1,11 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useChatContext } from "../api/use_chat_context";
 import ChatBubblePeserta from "../components/ChatBubblePeserta";
 import FileUploadPopup from "../components/FileUploadPopup";
 import { assets } from "../assets/assets";
 import groupPhoto from "../assets/admin-profile.png";
 import chatBg from "../assets/chat-bg.png";
-import Gambar from "../assets/gambar1.jpg";
 import EmojiPicker from "emoji-picker-react";
 
 const DateSeparator = ({ children }) => (
@@ -15,7 +16,26 @@ const DateSeparator = ({ children }) => (
   </div>
 );
 
-const PesertaChatPage = () => {
+const PesertaChatPage = ({ isEmbedded = false, onClose, chatId: propChatId }) => {
+  const { chatId: paramChatId } = useParams();
+  const navigate = useNavigate();
+
+  const actualChatId = isEmbedded ? propChatId : paramChatId;
+  
+  // Use ChatContext
+  const { 
+    getChatById, 
+    getChatMessages, 
+    addMessage, 
+    deleteMessage, 
+    updateMessage,
+    markChatAsRead 
+  } = useChatContext();
+  
+  // Get chat info and messages from context
+  const chatInfo = getChatById(actualChatId);
+  const contextMessages = getChatMessages(actualChatId);
+
   const [showCopiedMessage, setShowCopiedMessage] = useState(false);
   const [replyingMessage, setReplyingMessage] = useState(null);
   const [pinnedMessage, setPinnedMessage] = useState(null);
@@ -31,39 +51,61 @@ const PesertaChatPage = () => {
 
   // File upload states
   const [showFileUpload, setShowFileUpload] = useState(false);
-  const fileButtonRef = useRef(null); // ✅ NEW: Ref for file button
+  const fileButtonRef = useRef(null);
 
   // Selection mode states
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedMessages, setSelectedMessages] = useState(new Set());
 
-  const [messages, setMessages] = useState([
-    { id: 1, type: "receiver", sender: "Admin", message: "Admin message", time: "16.01" },
-    { id: 2, type: "sender", sender: "Anda", message: "User message", time: "16.01" },
-    { id: 3, type: "sender", sender: "Anda", message: "User message", time: "16.01" },
-    { id: 4, type: "receiver", sender: "Admin", message: "Admin message", time: "16.01" },
-    {
-      id: 5,
-      type: "receiver",
-      sender: "Admin",
-      message: "Thank you",
-      time: "16.01",
-      reply: { sender: "Anda", message: "User message" },
-    },
-    { id: 6, type: "sender", sender: "Anda", message: "User message", time: "16.01" },
-    { id: 7, type: "receiver", sender: "Admin", image: Gambar, time: "16.01" },
-    {
-      id: 8,
-      type: "sender",
-      sender: "Anda",
-      file: {
-        name: "Document.pdf",
-        size: "2 MB",
-        url: "/path/to/document.pdf"
-      },
-      time: "16.05"
+  // Use messages from context
+  const [messages, setMessages] = useState(contextMessages);
+
+  // Update messages when context messages change
+  useEffect(() => {
+    setMessages(contextMessages);
+  }, [contextMessages]);
+
+  // Check if chatId is valid and mark as read
+  useEffect(() => {
+    if (!actualChatId) return;
+    
+    const currentChatInfo = getChatById(actualChatId);
+    if (!currentChatInfo) {
+      if (!isEmbedded) {
+        navigate('/chats');
+      }
+      return;
     }
-  ]);
+    
+    // Mark chat as read when opening
+    markChatAsRead(actualChatId);
+  }, [actualChatId, isEmbedded]);
+
+  useEffect(() => {
+  const handleResize = () => {
+    const isMobile = window.innerWidth < 768;
+    
+    // If we're in embedded mode and switched to desktop, ensure proper state
+    if (isEmbedded && !isMobile) {
+      // Force re-render to update button visibility
+      setMessages(prev => [...prev]);
+    }
+  };
+
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, [isEmbedded]);
+
+  // Handle back navigation
+  const handleBack = () => {
+  const isMobile = window.innerWidth < 768;
+  
+  if (isEmbedded && !isMobile && onClose) {
+    onClose();
+  } else {
+    navigate('/chats');
+  }
+};
 
   const handleCopy = () => {
     setShowCopiedMessage(true);
@@ -78,7 +120,6 @@ const PesertaChatPage = () => {
     if (!message.trim()) return;
     
     const newMessage = {
-      id: messages.length + 1,
       type: "sender",
       sender: "Anda",
       message: message.trim(),
@@ -90,16 +131,16 @@ const PesertaChatPage = () => {
       ...(replyingMessage && { reply: replyingMessage })
     };
     
-    setMessages(prev => [...prev, newMessage]);
+    // Add to context instead of local state
+    addMessage(actualChatId, newMessage);
     setMessage("");
     setReplyingMessage(null);
-    setShowEmojiPicker(false); // Close emoji picker when sending message
+    setShowEmojiPicker(false);
   };
 
   // Handle file upload send
   const handleFileSend = ({ file, type, caption }) => {
     const newMessage = {
-      id: messages.length + 1,
       type: "sender",
       sender: "Anda",
       time: new Date().toLocaleTimeString('id-ID', { 
@@ -122,13 +163,14 @@ const PesertaChatPage = () => {
       if (caption) newMessage.message = caption;
     }
 
-    setMessages(prev => [...prev, newMessage]);
+    // Add to context instead of local state
+    addMessage(actualChatId, newMessage);
     setReplyingMessage(null);
   };
 
   const onEmojiClick = (emojiData) => {
     setMessage((prev) => prev + emojiData.emoji);
-    setShowEmojiPicker(false); // Close emoji picker after selecting
+    setShowEmojiPicker(false);
   };
 
   const handlePin = (msg, id) => {
@@ -195,7 +237,6 @@ const PesertaChatPage = () => {
       setDeleteType('sender');
       setShowDeleteModal(true);
     } else {
-      // Only receiver messages or mixed - direct delete
       setDeleteType('receiver');
       setShowDeleteModal(true);
     }
@@ -209,7 +250,6 @@ const PesertaChatPage = () => {
       return;
     }
     
-    // Original single delete logic
     setMessageToDelete(messageId);
     setDeleteType(messageType);
     setShowDeleteModal(true);
@@ -217,10 +257,11 @@ const PesertaChatPage = () => {
 
   const handleConfirmDelete = () => {
     if (isSelectionMode && selectedMessages.size > 0) {
-      // Delete selected messages
-      setMessages(prev => prev.filter(msg => !selectedMessages.has(msg.id)));
+      // Delete selected messages from context
+      selectedMessages.forEach(msgId => {
+        deleteMessage(actualChatId, msgId);
+      });
       
-      // Check if any deleted message was pinned
       if (pinnedMessage && selectedMessages.has(pinnedMessage.id)) {
         setPinnedMessage(null);
         setHighlightedMessageId(null);
@@ -230,8 +271,8 @@ const PesertaChatPage = () => {
       setIsSelectionMode(false);
       setSelectedMessages(new Set());
     } else if (messageToDelete) {
-      // Original single delete logic
-      setMessages(prev => prev.filter(msg => msg.id !== messageToDelete));
+      // Delete single message from context
+      deleteMessage(actualChatId, messageToDelete);
       
       if (pinnedMessage?.id === messageToDelete) {
         setPinnedMessage(null);
@@ -260,48 +301,43 @@ const PesertaChatPage = () => {
     if (isSelectionMode && selectedMessages.size > 0) {
       // Handle multiple selected messages
       if (selectedDeleteOption === 'everyone') {
-        setMessages(prev => prev.map(msg => 
-          selectedMessages.has(msg.id)
-            ? { 
-                ...msg, 
-                message: "You delete this message", 
-                isDeleted: true,
-                image: null,
-                file: null,
-                reply: null
-              }
-            : msg
-        ));
+        // Update messages to show as deleted
+        selectedMessages.forEach(msgId => {
+          updateMessage(actualChatId, msgId, {
+            message: "You delete this message", 
+            isDeleted: true,
+            image: null,
+            file: null,
+            reply: null
+          });
+        });
       } else {
-        setMessages(prev => prev.filter(msg => !selectedMessages.has(msg.id)));
+        // Delete messages completely
+        selectedMessages.forEach(msgId => {
+          deleteMessage(actualChatId, msgId);
+        });
       }
       
-      // Check pinned message
       if (pinnedMessage && selectedMessages.has(pinnedMessage.id)) {
         setPinnedMessage(null);
         setHighlightedMessageId(null);
       }
       
-      // Exit selection mode
       setIsSelectionMode(false);
       setSelectedMessages(new Set());
     } else if (messageToDelete) {
-      // Original single delete logic
       if (selectedDeleteOption === 'everyone') {
-        setMessages(prev => prev.map(msg => 
-          msg.id === messageToDelete 
-            ? { 
-                ...msg, 
-                message: "You delete this message", 
-                isDeleted: true,
-                image: null,
-                file: null,
-                reply: null
-              }
-            : msg
-        ));
+        // Update message to show as deleted
+        updateMessage(actualChatId, messageToDelete, {
+          message: "You delete this message", 
+          isDeleted: true,
+          image: null,
+          file: null,
+          reply: null
+        });
       } else {
-        setMessages(prev => prev.filter(msg => msg.id !== messageToDelete));
+        // Delete message completely
+        deleteMessage(actualChatId, messageToDelete);
       }
       
       if (pinnedMessage?.id === messageToDelete) {
@@ -325,8 +361,25 @@ const PesertaChatPage = () => {
     setSelectedDeleteOption('me');
   };
 
+  // Show loading or redirect if no chat found
+  if (!chatInfo) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <p className="text-gray-500">Chat not found</p>
+          <button 
+            onClick={() => navigate('/chats')}
+            className="mt-2 px-4 py-2 bg-[#4C0D68] text-white rounded"
+          >
+            Back to Chats
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col h-screen border rounded-lg overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header - conditionally show selection header or normal header */}
       {isSelectionMode ? (
         // Selection Mode Header
@@ -355,20 +408,31 @@ const PesertaChatPage = () => {
       ) : (
         // Normal Header
         <div className="flex items-center gap-3 p-3 border-b">
+          {/* Back Button */}
+          <button
+            onClick={handleBack}
+            className="md:hidden p-2 hover:bg-gray-100 rounded transition"
+            aria-label="Back to chats"
+          >
+            <img src={assets.ArrowLeft} alt="Back" className="w-5 h-5" />
+          </button>
+          
           <div className="relative">
             <img
-              src={groupPhoto}
+              src={chatInfo.avatar || groupPhoto}
               alt="profile"
               className="w-10 h-10 rounded-full"
             />
-            <span
-              className="absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full"
-              style={{ backgroundColor: "#FFB400" }}
-            ></span>
+            {chatInfo.isOnline && (
+              <span
+                className="absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full"
+                style={{ backgroundColor: "#FFB400" }}
+              ></span>
+            )}
           </div>
           <div>
-            <p className="font-semibold text-sm">Admin WIB</p>
-            <p className="text-xs text-gray-500">Online</p>
+            <p className="font-semibold text-sm">{chatInfo.name}</p>
+            <p className="text-xs text-gray-500">{chatInfo.isOnline ? 'Online' : 'Offline'}</p>
           </div>
           <button
             className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 transition ml-auto"
@@ -404,202 +468,178 @@ const PesertaChatPage = () => {
       )}
 
       {/* Chat Area */}
-      <div
-        className={`flex-1 overflow-y-auto p-4 relative transition-all duration-300 ${
-          showDeleteModal ? 'blur-sm' : ''
-        }`}
-        style={{
-          backgroundImage: `url(${chatBg})`,
-          backgroundSize: "cover",
-        }}
-        onClick={() => {
-          if (showEmojiPicker) setShowEmojiPicker(false);
-        }}
-      >
-        {/* Group 1 */}
-        <DateSeparator>16 Juni 2025</DateSeparator>
-        {messages.slice(0, 4).map((msg, idx, arr) => {
-          const nextMsg = arr[idx + 1];
-          const isLastFromSender = !nextMsg || nextMsg.type !== msg.type;
-          const isLastFromReceiver = !nextMsg || nextMsg.type !== msg.type;
-
-          return (
-            <div
-              key={msg.id}
-              ref={(el) => (messageRefs.current[msg.id] = el)}
-              className={highlightedMessageId === msg.id ? "animate-pulse bg-yellow-200 rounded-lg p-1 transition" : ""}
-            >
-              <ChatBubblePeserta
-                {...msg}
-                isLastFromSender={isLastFromSender}
-                isLastFromReceiver={isLastFromReceiver}
-                hideTime={!isLastFromSender}
-                onCopy={handleCopy}
-                onReply={() => handleReply(msg)}
-                onPin={() => handlePin(msg, msg.id)}
-                onUnpin={handleUnpin}
-                onDelete={() => handleDeleteRequest(msg.id, msg.type)}
-                isPinned={pinnedMessage?.id === msg.id}
-                isDeleted={msg.isDeleted}
-                // Selection mode props
-                isSelectionMode={isSelectionMode}
-                isSelected={selectedMessages.has(msg.id)}
-                onStartSelection={() => handleStartSelection(msg.id)}
-                onToggleSelection={() => handleToggleSelection(msg.id)}
-              />
-            </div>
-          );
-        })}
-
-        {/* Group 2 */}
-        <DateSeparator>Today</DateSeparator>
-        {messages.slice(4).map((msg, idx, arr) => {
-          const nextMsg = arr[idx + 1];
-          const isLastFromSender = !nextMsg || nextMsg.type !== msg.type;
-          const isLastFromReceiver = !nextMsg || nextMsg.type !== msg.type;
-
-          return (
-            <div
-              key={msg.id}
-              ref={(el) => (messageRefs.current[msg.id] = el)}
-              className={highlightedMessageId === msg.id ? "animate-pulse bg-yellow-200 rounded-lg p-1 transition" : ""}
-            >
-              <ChatBubblePeserta
-                {...msg}
-                isLastFromSender={isLastFromSender}
-                isLastFromReceiver={isLastFromReceiver}
-                hideTime={!isLastFromSender}
-                onCopy={handleCopy}
-                onReply={() => handleReply(msg)}
-                onPin={() => handlePin(msg, msg.id)}
-                onUnpin={handleUnpin}
-                onDelete={() => handleDeleteRequest(msg.id, msg.type)}
-                isPinned={pinnedMessage?.id === msg.id}
-                isDeleted={msg.isDeleted}
-                // Selection mode props
-                isSelectionMode={isSelectionMode}
-                isSelected={selectedMessages.has(msg.id)}
-                onStartSelection={() => handleStartSelection(msg.id)}
-                onToggleSelection={() => handleToggleSelection(msg.id)}
-              />
-            </div>
-          );
-        })}
-
-        {/* Copy Notification */}
-        {showCopiedMessage && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#4C0D68] text-white px-4 py-2 rounded-[20px] text-sm shadow-lg">
-            Pesan disalin
-          </div>
-        )}
-      </div>
-
-      {/* Reply Preview - hide in selection mode */}
-      {replyingMessage && !isSelectionMode && (
-        <div className={`flex items-center justify-between bg-gray-100 px-3 py-2 border-l-4 border-[#4C0D68] transition-all duration-300 ${
-          showDeleteModal ? 'blur-sm' : ''
-        }`}>
-          <div>
-            <p className="text-xs font-semibold text-[#4C0D68]">
-              {replyingMessage.sender || "Anda"}
-            </p>
-            <p className="text-xs text-gray-600 truncate w-48">
-              {replyingMessage.message || replyingMessage.file?.name || "Gambar"}
-            </p>
-          </div>
-          <button
-            onClick={() => setReplyingMessage(null)}
-            className="hover:opacity-80 transition"
-          >
-            <img src={assets.Cancel} alt="Cancel" className="w-6 h-6" />
-          </button>
-        </div>
-      )}
-
-      {/* Input - hide in selection mode */}
-      {!isSelectionMode && (
+      <div className="flex-1 flex flex-col min-h-0">
         <div
-          className={`relative p-3 flex items-center gap-2 border-t transition-all duration-300 ${
+          className={`flex-1 overflow-y-auto p-4 relative transition-all duration-300 ${
             showDeleteModal ? 'blur-sm' : ''
           }`}
-          style={{ borderColor: "#4C0D68" }}
+          style={{
+            backgroundImage: `url(${chatBg})`,
+            backgroundSize: "cover",
+          }}
+          onClick={() => {
+            if (showEmojiPicker) setShowEmojiPicker(false);
+          }}
         >
-          <div className="relative">
-            <div
+          {/* Show messages if available */}
+          {messages.length > 0 ? (
+            <>
+              <DateSeparator>Today</DateSeparator>
+              {messages.map((msg, idx, arr) => {
+                const nextMsg = arr[idx + 1];
+                const isLastFromSender = !nextMsg || nextMsg.type !== msg.type;
+                const isLastFromReceiver = !nextMsg || nextMsg.type !== msg.type;
+
+                return (
+                  <div
+                    key={msg.id}
+                    ref={(el) => (messageRefs.current[msg.id] = el)}
+                    className={highlightedMessageId === msg.id ? "animate-pulse bg-yellow-200 rounded-lg p-1 transition" : ""}
+                  >
+                    <ChatBubblePeserta
+                      {...msg}
+                      isLastFromSender={isLastFromSender}
+                      isLastFromReceiver={isLastFromReceiver}
+                      hideTime={!isLastFromSender}
+                      onCopy={handleCopy}
+                      onReply={() => handleReply(msg)}
+                      onPin={() => handlePin(msg, msg.id)}
+                      onUnpin={handleUnpin}
+                      onDelete={() => handleDeleteRequest(msg.id, msg.type)}
+                      isPinned={pinnedMessage?.id === msg.id}
+                      isDeleted={msg.isDeleted}
+                      isSelectionMode={isSelectionMode}
+                      isSelected={selectedMessages.has(msg.id)}
+                      onStartSelection={() => handleStartSelection(msg.id)}
+                      onToggleSelection={() => handleToggleSelection(msg.id)}
+                    />
+                  </div>
+                );
+              })}
+            </>
+          ) : (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center text-gray-500">
+                <p className="mb-2">No messages yet</p>
+                <p className="text-sm">Start the conversation!</p>
+              </div>
+            </div>
+          )}
+
+          {/* Copy Notification */}
+          {showCopiedMessage && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#4C0D68] text-white px-4 py-2 rounded-[20px] text-sm shadow-lg">
+              Pesan disalin
+            </div>
+          )}
+        </div>
+
+        {/* Reply Preview - hide in selection mode */}
+        {replyingMessage && !isSelectionMode && (
+          <div className={`flex items-center justify-between bg-gray-100 px-3 py-2 border-l-4 border-[#4C0D68] transition-all duration-300 ${
+            showDeleteModal ? 'blur-sm' : ''
+          }`}>
+            <div>
+              <p className="text-xs font-semibold text-[#4C0D68]">
+                {replyingMessage.sender || "Anda"}
+              </p>
+              <p className="text-xs text-gray-600 truncate w-48">
+                {replyingMessage.message || replyingMessage.file?.name || "Gambar"}
+              </p>
+            </div>
+            <button
+              onClick={() => setReplyingMessage(null)}
+              className="hover:opacity-80 transition"
+            >
+              <img src={assets.Cancel} alt="Cancel" className="w-6 h-6" />
+            </button>
+          </div>
+        )}
+
+        {/* Input - hide in selection mode */}
+        {!isSelectionMode && (
+          <div
+            className={`relative p-3 flex items-center gap-2 border-t transition-all duration-300 ${
+              showDeleteModal ? 'blur-sm' : ''
+            }`}
+            style={{ borderColor: "#bababa" }}
+          >
+            <div className="relative">
+              <div
+                className={`rounded-md p-1 cursor-pointer transition-colors ${
+                  showEmojiPicker 
+                    ? "bg-gray-200 border border-gray-300 hover:bg-gray-300" 
+                    : "hover:bg-gray-100"
+                }`}
+                onClick={() => setShowEmojiPicker((prev) => !prev)}
+              >
+                <img
+                  src={assets.Happy}
+                  alt="emoji"
+                  className={`w-6 h-6 ${showEmojiPicker ? 'opacity-60' : 'opacity-100'}`}
+                />
+              </div>
+
+              {showEmojiPicker && (
+                <div 
+                  className="absolute bottom-10 left-0 z-50 shadow-lg"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <EmojiPicker onEmojiClick={onEmojiClick} />
+                </div>
+              )}
+            </div>
+
+            {/* File button - conditional wrapper based on showFileUpload */}
+            <div 
+              ref={fileButtonRef}
               className={`rounded-md p-1 cursor-pointer transition-colors ${
-                showEmojiPicker 
+                showFileUpload 
                   ? "bg-gray-200 border border-gray-300 hover:bg-gray-300" 
                   : "hover:bg-gray-100"
               }`}
-              onClick={() => setShowEmojiPicker((prev) => !prev)}
+              onClick={() => setShowFileUpload(true)}
             >
               <img
-                src={assets.Happy}
-                alt="emoji"
-                className={`w-6 h-6 ${showEmojiPicker ? 'opacity-60' : 'opacity-100'}`}
+                src={assets.File}
+                alt="file"
+                className={`w-6 h-6 ${showFileUpload ? 'opacity-60' : 'opacity-100'}`}
               />
             </div>
 
-            {showEmojiPicker && (
-              <div 
-                className="absolute bottom-10 left-0 z-50 shadow-lg"
-                onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside picker
-              >
-                <EmojiPicker onEmojiClick={onEmojiClick} />
-              </div>
-            )}
-          </div>
-
-          {/* File button - conditional wrapper based on showFileUpload */}
-          <div 
-            ref={fileButtonRef}
-            className={`rounded-md p-1 cursor-pointer transition-colors ${
-              showFileUpload 
-                ? "bg-gray-200 border border-gray-300 hover:bg-gray-300" 
-                : "hover:bg-gray-100"
-            }`}
-            onClick={() => setShowFileUpload(true)}
-          >
-            <img
-              src={assets.File}
-              alt="file"
-              className={`w-6 h-6 ${showFileUpload ? 'opacity-60' : 'opacity-100'}`}
-            />
-          </div>
-
-          <div
-            className="flex items-center flex-1 border rounded-full px-3 py-1"
-            style={{ borderColor: "#4C0D68" }}
-          >
-            <input
-              type="text"
-              placeholder="write down the message"
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  handleSend();
-                  setShowEmojiPicker(false); // Close emoji picker when pressing enter
-                }
-              }}
-              className="flex-1 text-sm outline-none"
-            />
-            <button 
-              onClick={handleSend}
-              disabled={!message.trim()}
-              className={`transition-opacity ${!message.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
+            <div
+              className="flex items-center flex-1 border rounded-full px-3 py-1"
+              style={{ borderColor: "#4C0D68" }}
             >
-              <img
-                src={assets.Send}
-                alt="send"
-                className="w-6 h-6 cursor-pointer"
+              <input
+                type="text"
+                placeholder="write down the message"
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') {
+                    handleSend();
+                    setShowEmojiPicker(false);
+                  }
+                }}
+                className="flex-1 text-sm outline-none"
               />
-            </button>
+              <button 
+                onClick={handleSend}
+                disabled={!message.trim()}
+                className={`transition-opacity ${!message.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
+              >
+                <img
+                  src={assets.Send}
+                  alt="send"
+                  className="w-6 h-6 cursor-pointer"
+                />
+              </button>
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* File Upload Popup with fileButtonRef */}
+        )}
+      </div>
+      {/* File Upload Popup */}
       <FileUploadPopup
         isOpen={showFileUpload}
         onClose={() => setShowFileUpload(false)}
@@ -607,7 +647,7 @@ const PesertaChatPage = () => {
         fileButtonRef={fileButtonRef}
       />
 
-      {/* Delete Confirmation Modal - updated for multiple messages */}
+      {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 flex items-center justify-center z-[9999]">
           <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl border border-gray-200">

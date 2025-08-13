@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import Logo from '../assets/logo.png';
 import { assets } from '../assets/assets';
@@ -356,6 +356,7 @@ const MainLayout = () => {
   const [isNewMessageOpen, setIsNewMessageOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const isChatRoute = location.pathname.startsWith('/chats/') && location.pathname !== '/chats';
 
   const handleNavigate = (route) => {
     if (route === "/new-message") {
@@ -370,13 +371,28 @@ const MainLayout = () => {
     setIsSidebarOpen(prev => !prev);
   };
 
+  useEffect(() => {
+  const handleResize = () => {
+    const currentIsMobile = window.innerWidth < 768;
+    
+    // If switching from mobile to desktop and we're on a specific chat route
+    if (!currentIsMobile && location.pathname.startsWith('/chats/') && location.pathname !== '/chats') {
+      // Navigate to main chats page so the split layout can take over
+      navigate('/chats');
+    }
+  };
+
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, [navigate, location.pathname]);
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Full-width Desktop Header */}
       <DesktopHeader onNavigate={handleNavigate} />
       
       {/* Mobile Header */}
-      <MobileHeader onNavigate={handleNavigate} />
+      {!isChatRoute && <MobileHeader onNavigate={handleNavigate} />}
 
       {/* Main Layout with Sidebar and Content */}
       <div className="flex flex-1 overflow-hidden relative">
@@ -392,7 +408,7 @@ const MainLayout = () => {
         <div className="flex flex-col flex-1 ml-16 md:ml-16">
 
           {/* Main Content Area - Where all pages render */}
-          <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+          <main className={`flex-1 overflow-y-auto ${isChatRoute ? 'pb-0' : 'pb-20'} md:pb-0`}>
             <div className="h-full bg-white">
               <Outlet />
             </div>
@@ -401,10 +417,11 @@ const MainLayout = () => {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <MobileBottomNav
-        activeRoute={location.pathname}
-        onNavigate={handleNavigate}
-      />
+      {!isChatRoute && (<MobileBottomNav
+          activeRoute={location.pathname}
+          onNavigate={handleNavigate}
+        />
+      )}
 
       {/* New Message Popup */}
       <NewMessagePopup 

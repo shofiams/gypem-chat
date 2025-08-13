@@ -1,0 +1,208 @@
+const getLastMessage = (chatId) => {
+  const msgs = INITIAL_MESSAGES[chatId] ?? [];
+  if (!Array.isArray(msgs) || msgs.length === 0)
+    return { message: "", time: "" };
+  const last = msgs[msgs.length - 1];
+  return {
+    message: last.message ?? "",
+    time: last.time ?? "",
+    type: last.type ?? "",
+  };
+};
+
+// Mock messages for each chat - in real app, this would be loaded from API based on chatId
+export const INITIAL_MESSAGES = {
+  1: [
+    {
+      id: 1,
+      type: "receiver",
+      sender: "Class All",
+      message: "Welcome to Class All!",
+      time: "16.01",
+    },
+    {
+      id: 2,
+      type: "sender",
+      sender: "Anda",
+      message: "Thank you!",
+      time: "16.02",
+    },
+    {
+      id: 3,
+      type: "receiver",
+      sender: "Class All",
+      image:
+        "/gambar1.jpg",
+      message: "Check out this image!",
+      time: "16.03",
+    },
+    {
+      id: 4,
+      type: "sender",
+      sender: "Anda",
+      file: {
+        name: "Demokrasi Nasional.pdf",
+        url: "/gypem-chat/public/DEMOKRASI NASIONAL.pdf",
+      },
+      message: "Here's the document you requested",
+      time: "16.04",
+    },
+  ],
+  2: [
+    {
+      id: 1,
+      type: "receiver",
+      sender: "Olympiad Moon",
+      message: "Ready for the competition?",
+      time: "16.01",
+    },
+    {
+      id: 2,
+      type: "sender",
+      sender: "Anda",
+      message: "Yes, I'm ready!",
+      time: "16.02",
+    },
+  ],
+  3: [
+    {
+      id: 1,
+      type: "receiver",
+      sender: "Olympiade Star",
+      message: "Good luck everyone!",
+      time: "16.01",
+    },
+    {
+      id: 2,
+      type: "sender",
+      sender: "Anda",
+      message: "Thanks, you too!",
+      time: "16.02",
+    },
+  ],
+  4: [
+    {
+      id: 1,
+      type: "receiver",
+      sender: "Admin Gypem",
+      message: "System update completed",
+      time: "16.01",
+    },
+    {
+      id: 2,
+      type: "sender",
+      sender: "Anda",
+      message: "Great, thanks for the update",
+      time: "16.02",
+    },
+  ],
+  5: [
+    {
+      id: 1,
+      type: "receiver",
+      sender: "Admin WITA",
+      message: "Meeting scheduled for tomorrow",
+      time: "16.01",
+    },
+    {
+      id: 2,
+      type: "sender",
+      sender: "Anda",
+      message: "I'll be there",
+      time: "16.02",
+    },
+  ],
+  6: [
+    {
+      id: 1,
+      type: "receiver",
+      sender: "Admin WIB",
+      message: "Mongols",
+      time: "16.01",
+    },
+    {
+      id: 2,
+      type: "sender",
+      sender: "Anda",
+      message: "What about them?",
+      time: "16.02",
+    },
+  ],
+};
+
+// Mock data - in real app, this would be loaded from API
+export const INITIAL_CHATS = [
+  {
+    id: 1,
+    name: "Class All",
+    lastMessage: "Welcome to Class All!",
+    time: "10:15",
+    unreadCount: 3,
+    avatar: null,
+    isOnline: false,
+    showCentang: false,
+    showCentangAbu: false,
+  },
+  {
+    id: 2,
+    name: "Olympiad Moon",
+    lastMessage: "Pesan terkirim",
+    time: "10:15",
+    unreadCount: 1,
+    avatar: null,
+    isOnline: true,
+    showCentang: true,
+    showCentangAbu: false,
+  },
+  {
+    id: 3,
+    name: "Olympiade Star",
+    lastMessage: "Belum dibaca nih",
+    time: "10:15",
+    unreadCount: 11,
+    avatar: null,
+    isOnline: false,
+    showCentang: false,
+    showCentangAbu: true,
+  },
+  {
+    id: 4,
+    name: "Admin Gypem",
+    lastMessage: "Sudah dibaca",
+    time: "10:15",
+    unreadCount: 0,
+    avatar: null,
+    isOnline: true,
+    showCentang: true,
+    showCentangAbu: false,
+  },
+  {
+    id: 5,
+    name: "Admin WITA",
+    lastMessage: "Gimana sih itu...",
+    time: "10:09",
+    unreadCount: 0,
+    avatar: null,
+    isOnline: false,
+    showCentang: false,
+    showCentangAbu: true,
+  },
+  {
+    id: 6,
+    name: "Admin WIB",
+    lastMessage: "Mongols",
+    time: "10:02",
+    unreadCount: 0,
+    avatar: null,
+    isOnline: false,
+    showCentang: false,
+    showCentangAbu: false,
+  },
+].map((chat) => {
+  const last = getLastMessage(chat.id);
+  return {
+    ...chat,
+    lastMessage: last.message,
+    lastMessageTime: last.time,
+  };
+});

@@ -1,8 +1,10 @@
-// src/pages/chat_page.jsx
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useChatContext } from '../api/use_chat_context';
 import { assets } from '../assets/assets';
 import { MdDoneAll } from 'react-icons/md';
 import { FiX, FiSearch, FiTrash2 } from 'react-icons/fi';
+import PesertaChatPage from './PesertaChatPage';
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -18,7 +20,8 @@ const ChatItem = ({
   showCentangAbu,
   onContextMenu,
   isSelected,
-  highlightQuery // <-- pass from parent; used only for lastMessage
+  highlightQuery,
+  onClick
 }) => {
   const highlightLastMessage = (text, query) => {
     if (!query) return text;
@@ -31,7 +34,7 @@ const ChatItem = ({
     const pattern = tokens.map(escapeRegex).join('|');
     const regex = new RegExp(`(${pattern})`, 'gi');
 
-    const parts = String(text).split(regex); // split keeps matches (because of capturing group)
+    const parts = String(text).split(regex);
     return parts.map((part, i) => {
       if (!part) return part;
       // check if this part is one of the matched tokens (case-insensitive)
@@ -50,13 +53,21 @@ const ChatItem = ({
 
   return (
     <div
+      onClick={() => onClick && onClick(id)}
       onContextMenu={(e) => onContextMenu && onContextMenu(e, id)}
       className={`
         flex items-center px-3 py-2 cursor-pointer border-b border-gray-100 last:border-b-0 min-h-[52px]
         ${isSelected ? 'bg-[#efe6f3]' : 'hover:bg-gray-50'}
+        transition-colors duration-150
       `}
       role="button"
       tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onClick && onClick(id);
+        }
+      }}
     >
       <div className="relative flex-shrink-0">
         <img
@@ -72,7 +83,6 @@ const ChatItem = ({
       <div className="flex-1 ml-3 min-w-0">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            {/* NAME stays unchanged */}
             <h3 className="font-medium text-gray-900 truncate text-[13px] leading-tight mb-[2px]">
               {name}
             </h3>
@@ -110,15 +120,13 @@ const ChatItem = ({
 };
 
 export default function ChatPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { getAllChats, deleteChat, activeChatId, setActiveChat, clearActiveChat } = useChatContext();
+  
   const [searchQuery, setSearchQuery] = useState('');
-  const [chats, setChats] = useState([
-    { id: 1, name: "Class All", lastMessage: "Hi, I have a problem with the...", time: "10:15", unreadCount: 3, avatar: null, isOnline: false, showCentang: false, showCentangAbu: false },
-    { id: 2, name: "Olympiad Moon", lastMessage: "Pesan terkirim", time: "10:15", unreadCount: 1, avatar: null, isOnline: true, showCentang: true, showCentangAbu: false },
-    { id: 3, name: "Olympiade Star", lastMessage: "Belum dibaca nih", time: "10:15", unreadCount: 11, avatar: null, isOnline: false, showCentang: false, showCentangAbu: true },
-    { id: 4, name: "Admin Gypem", lastMessage: "Sudah dibaca", time: "10:15", unreadCount: 0, avatar: null, isOnline: true, showCentang: true, showCentangAbu: false },
-    { id: 5, name: "Admin WITA", lastMessage: "Gimana sih itu...", time: "10:09", unreadCount: 0, avatar: null, isOnline: false, showCentang: false, showCentangAbu: true },
-    { id: 6, name: "Admin WIB", lastMessage: "Mongols", time: "10:02", unreadCount: 0, avatar: null, isOnline: false, showCentang: false, showCentangAbu: false },
-  ]);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const chats = getAllChats();
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chatId: null });
@@ -141,9 +149,21 @@ export default function ChatPage() {
 
   const clearSearch = useCallback(() => setSearchQuery(''), []);
 
+  // Add navigation handler
+  const handleChatClick = (chatId) => {
+  const currentIsMobile = window.innerWidth < 768;
+  if (currentIsMobile) {
+    navigate(`/chats/${chatId}`);
+  } else {
+    setActiveChat(chatId);
+  }
+};
+
   // handle right click: show context menu
   const handleContextMenu = (e, chatId) => {
     e.preventDefault();
+    e.stopPropagation();
+    
     const menuWidth = 160;
     const menuHeight = 50;
     let clickX = e.clientX;
@@ -157,18 +177,17 @@ export default function ChatPage() {
     setContextMenu({ visible: true, x: clickX, y: clickY, chatId });
   };
 
-  // open confirm modal (called when user clicks Delete in context menu)
+  // open confirm modal
   const openConfirm = (chatId) => {
     setConfirmOpen(true);
     setChatToDelete(chatId);
-    // close context menu
     setContextMenu({ visible: false, x: 0, y: 0, chatId: null });
   };
 
   // actually delete chat
   const doDelete = () => {
     if (chatToDelete != null) {
-      setChats(prev => prev.filter(c => c.id !== chatToDelete));
+      deleteChat(chatToDelete);
     }
     closeConfirm();
   };
@@ -178,13 +197,39 @@ export default function ChatPage() {
     setChatToDelete(null);
   };
 
-  // close menu on click outside or Esc; close modal on Esc too
+  useEffect(() => {
+  const handleResize = () => {
+    const currentIsMobile = window.innerWidth < 768;
+    setIsMobile(currentIsMobile);
+    
+    if (!currentIsMobile && location.pathname.startsWith('/chats/') && location.pathname !== '/chats') {
+      const chatId = location.pathname.split('/chats/')[1];
+      navigate('/chats');
+      setActiveChat(chatId);
+    }
+  };
+
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, [navigate, setActiveChat, location.pathname]);
+
+  useEffect(() => {
+    const handleKeydown = (e) => {
+      if (e.key === 'Escape' && activeChatId && !isMobile) {
+        clearActiveChat();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeydown);
+    return () => window.removeEventListener('keydown', handleKeydown);
+  }, [activeChatId, isMobile, clearActiveChat]);
+
+  // close menu on click outside or Esc
   useEffect(() => {
     function onDown(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
         setContextMenu(cm => ({ ...cm, visible: false, chatId: null }));
       }
-      // if modal open and click outside modal content -> close modal
       if (confirmOpen && confirmRef.current && !confirmRef.current.contains(e.target)) {
         closeConfirm();
       }
@@ -263,7 +308,7 @@ export default function ChatPage() {
         </div>
 
         {/* CHAT LIST */}
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto min-h-0">
           {filteredChats.length === 0 ? (
             <div className="p-3 text-sm text-gray-500">No chats</div>
           ) : (
@@ -281,8 +326,9 @@ export default function ChatPage() {
                   showCentang={chat.showCentang}
                   showCentangAbu={chat.showCentangAbu}
                   onContextMenu={handleContextMenu}
+                  onClick={handleChatClick}
                   isSelected={contextMenu.visible && contextMenu.chatId === chat.id}
-                  highlightQuery={searchQuery} // only used for lastMessage highlighting
+                  highlightQuery={searchQuery}
                 />
               ))}
             </div>
@@ -291,18 +337,26 @@ export default function ChatPage() {
       </aside>
 
       {/* RIGHT PANEL */}
-      <main className="flex-1 flex items-center justify-center p-6">
-        <div className="w-full h-full max-w-[720px] min-h-[420px] border border-gray-200 rounded-lg bg-gray-50 flex flex-col items-center justify-center p-6">
-          <div className="w-32 h-32 mb-4 bg-white rounded-md flex items-center justify-center overflow-hidden">
-            <img src={assets.logo || assets.user} alt="placeholder" className="w-full h-full object-contain opacity-60" />
-          </div>
+      <main className="flex-1 hidden md:block">
+        {activeChatId ? (
+          <PesertaChatPage 
+            chatId={activeChatId} 
+            isEmbedded={true}
+            onClose={clearActiveChat}
+          />
+        ) : (
+          <div className="w-full h-full border border-gray-200 bg-gray-50 flex flex-col items-center justify-center p-6">
+            <div className="w-32 h-32 mb-4 bg-white rounded-md flex items-center justify-center overflow-hidden">
+              <img src={assets.logo || assets.user} alt="placeholder" className="w-full h-full object-contain opacity-60" />
+            </div>
 
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">Gypem Indonesia</h3>
-          <p className="text-center text-gray-500 max-w-md text-sm">
-            Silahkan tunggu pesan dari peserta sebelum memulai percakapan.
-            Admin hanya dapat membalas pesan jika peserta telah mengirimkan pesan terlebih dahulu.
-          </p>
-        </div>
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Gypem Indonesia</h3>
+            <p className="text-center text-gray-500 max-w-md text-sm">
+              Silahkan tunggu pesan dari peserta sebelum memulai percakapan.
+              Admin hanya dapat membalas pesan jika peserta telah mengirimkan pesan terlebih dahulu.
+            </p>
+          </div>
+        )}
       </main>
 
       {/* CONTEXT MENU */}
@@ -327,7 +381,6 @@ export default function ChatPage() {
       {/* CONFIRM MODAL */}
       {confirmOpen && (
         <div className="fixed inset-0 z-60 flex items-center justify-center">
-          {/* Overlay: semi-transparent + slight blur */}
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
 
           {/* Modal card */}
@@ -340,7 +393,6 @@ export default function ChatPage() {
                 Delete chat with <span className="font-semibold">&ldquo;{(chats.find(c=>c.id===chatToDelete)?.name) || ''}&rdquo;</span> ?
               </h4>
 
-              {/* Larger image without blue background */}
               <div className="mx-auto w-28 h-28 rounded-lg flex items-center justify-center mb-5 overflow-hidden">
                 <img
                   src={assets.popup_delete}
