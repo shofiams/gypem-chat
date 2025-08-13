@@ -36,7 +36,6 @@ const PesertaChatPage = ({ isEmbedded = false, onClose, chatId: propChatId }) =>
   const chatInfo = getChatById(actualChatId);
   const contextMessages = getChatMessages(actualChatId);
 
-  const [showCopiedMessage, setShowCopiedMessage] = useState(false);
   const [replyingMessage, setReplyingMessage] = useState(null);
   const [pinnedMessage, setPinnedMessage] = useState(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
@@ -107,10 +106,7 @@ const PesertaChatPage = ({ isEmbedded = false, onClose, chatId: propChatId }) =>
   }
 };
 
-  const handleCopy = () => {
-    setShowCopiedMessage(true);
-    setTimeout(() => setShowCopiedMessage(false), 5000);
-  };
+  const handleCopy = () => {};
 
   const handleReply = (message) => {
     setReplyingMessage(message);
@@ -523,13 +519,6 @@ const PesertaChatPage = ({ isEmbedded = false, onClose, chatId: propChatId }) =>
                 <p className="mb-2">No messages yet</p>
                 <p className="text-sm">Start the conversation!</p>
               </div>
-            </div>
-          )}
-
-          {/* Copy Notification */}
-          {showCopiedMessage && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#4C0D68] text-white px-4 py-2 rounded-[20px] text-sm shadow-lg">
-              Pesan disalin
             </div>
           )}
         </div>
