@@ -8,7 +8,7 @@ import { FiEdit } from "react-icons/fi";
 import { FaRegStar, FaUserCircle } from "react-icons/fa";
 import { CgProfile } from "react-icons/cg";
 import NewMessagePopup from '../components/new_message'; 
-import ProfilePopup from '../components/ProfilePopup';
+import ProfilePopup from '../pages/profile_page';
 
 // Desktop Sidebar Item Component
 const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
@@ -431,6 +431,13 @@ const MainLayout = () => {
   
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Auto-redirect to /chats if on root path
+  useEffect(() => {
+    if (location.pathname === '/' || location.pathname === '') {
+      navigate('/chats', { replace: true });
+    }
+  }, [location.pathname, navigate]);
 
   // Load profile image from localStorage
   useEffect(() => {
