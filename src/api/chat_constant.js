@@ -31,8 +31,7 @@ export const INITIAL_MESSAGES = {
       id: 3,
       type: "receiver",
       sender: "Class All",
-      image:
-        "/gambar1.jpg",
+      image: "/gambar1.jpg",
       message: "Check out this image!",
       time: "16.03",
     },
@@ -128,6 +127,41 @@ export const INITIAL_MESSAGES = {
       time: "16.02",
     },
   ],
+  // ADD: Group chat messages with multiple senders
+  7: [
+    {
+      id: 1,
+      sender: "Admin B",
+      message: "Admin message",
+      time: "15:01",
+      type: "receiver",
+    },
+    {
+      id: 2,
+      sender: "Admin A", 
+      message: "Thank you",
+      time: "16:01",
+      type: "receiver",
+      reply: {
+        sender: "Admin B",
+        message: "Admin message",
+      },
+    },
+    {
+      id: 3,
+      sender: "Pimpinan A",
+      message: "The leader added an answer",
+      time: "16:01", 
+      type: "receiver",
+    },
+    {
+      id: 4,
+      sender: "Admin A",
+      message: "The chairman gave a message of advice",
+      time: "16:01",
+      type: "receiver",
+    },
+  ],
 };
 
 // Mock data - in real app, this would be loaded from API
@@ -142,6 +176,9 @@ export const INITIAL_CHATS = [
     isOnline: false,
     showCentang: false,
     showCentangAbu: false,
+    type: "group",
+    members: ["Pak Ketua", "Pimpinan A", "Pimpinan B", "Admin A", "Admin B", "Admin WITA"],
+    isReadOnly: true,
   },
   {
     id: 2,
@@ -153,6 +190,9 @@ export const INITIAL_CHATS = [
     isOnline: true,
     showCentang: true,
     showCentangAbu: false,
+    type: "group",
+    members: ["Pak Ketua", "Pimpinan A", "Pimpinan B", "Admin A", "Admin B", "Admin WITA"],
+    isReadOnly: true,
   },
   {
     id: 3,
@@ -164,6 +204,9 @@ export const INITIAL_CHATS = [
     isOnline: false,
     showCentang: false,
     showCentangAbu: true,
+    type: "group",
+    members: ["Pak Ketua", "Pimpinan A", "Pimpinan B", "Admin A", "Admin B", "Admin WITA"],
+    isReadOnly: true,
   },
   {
     id: 4,
@@ -175,6 +218,7 @@ export const INITIAL_CHATS = [
     isOnline: true,
     showCentang: true,
     showCentangAbu: false,
+    type: "one-to-one",
   },
   {
     id: 5,
@@ -186,6 +230,7 @@ export const INITIAL_CHATS = [
     isOnline: false,
     showCentang: false,
     showCentangAbu: true,
+    type: "one-to-one",
   },
   {
     id: 6,
@@ -197,6 +242,22 @@ export const INITIAL_CHATS = [
     isOnline: false,
     showCentang: false,
     showCentangAbu: false,
+    type: "one-to-one",
+  },
+  // ADD: Group chat example
+  {
+    id: 7,
+    name: "Class All",
+    lastMessage: "The chairman gave a message of advice",
+    time: "16:01",
+    unreadCount: 0,
+    avatar: null,
+    isOnline: false,
+    showCentang: false,
+    showCentangAbu: false,
+    type: "group",
+    members: ["Pak Ketua", "Pimpinan A", "Pimpinan B", "Admin A", "Admin B", "Admin WITA"],
+    isReadOnly: true,
   },
 ].map((chat) => {
   const last = getLastMessage(chat.id);

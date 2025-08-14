@@ -5,6 +5,7 @@ import { assets } from '../assets/assets';
 import { MdDoneAll } from 'react-icons/md';
 import { FiX, FiSearch, FiTrash2 } from 'react-icons/fi';
 import PesertaChatPage from './PesertaChatPage';
+import GroupChatPeserta from './GroupChatPeserta';
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -122,7 +123,7 @@ const ChatItem = ({
 export default function ChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { getAllChats, deleteChat, activeChatId, setActiveChat, clearActiveChat } = useChatContext();
+  const { getAllChats, getChatById, deleteChat, activeChatId, setActiveChat, clearActiveChat } = useChatContext();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -151,10 +152,18 @@ export default function ChatPage() {
 
   // Add navigation handler
   const handleChatClick = (chatId) => {
+  const chat = getChatById(chatId);
   const currentIsMobile = window.innerWidth < 768;
+  
   if (currentIsMobile) {
-    navigate(`/chats/${chatId}`);
+    // Mobile: Navigate berdasarkan tipe chat
+    if (chat?.type === 'group') {
+      navigate(`/group/${chatId}`);
+    } else {
+      navigate(`/chats/${chatId}`);
+    }
   } else {
+    // Desktop: Set active chat
     setActiveChat(chatId);
   }
 };
@@ -339,22 +348,29 @@ export default function ChatPage() {
       {/* RIGHT PANEL */}
       <main className="flex-1 hidden md:block">
         {activeChatId ? (
-          <PesertaChatPage 
-            chatId={activeChatId} 
-            isEmbedded={true}
-            onClose={clearActiveChat}
-          />
+          (() => {
+            const activeChat = getChatById(activeChatId);
+            if (activeChat?.type === 'group') {
+              return (
+                <GroupChatPeserta 
+                  chatId={activeChatId} 
+                  isEmbedded={true}
+                  onClose={clearActiveChat}
+                />
+              );
+            } else {
+              return (
+                <PesertaChatPage 
+                  chatId={activeChatId} 
+                  isEmbedded={true}
+                  onClose={clearActiveChat}
+                />
+              );
+            }
+          })()
         ) : (
           <div className="w-full h-full border border-gray-200 bg-gray-50 flex flex-col items-center justify-center p-6">
-            <div className="w-32 h-32 mb-4 bg-white rounded-md flex items-center justify-center overflow-hidden">
-              <img src={assets.logo || assets.user} alt="placeholder" className="w-full h-full object-contain opacity-60" />
-            </div>
-
-            <h3 className="text-lg font-semibold text-gray-800 mb-2">Gypem Indonesia</h3>
-            <p className="text-center text-gray-500 max-w-md text-sm">
-              Silahkan tunggu pesan dari peserta sebelum memulai percakapan.
-              Admin hanya dapat membalas pesan jika peserta telah mengirimkan pesan terlebih dahulu.
-            </p>
+            {/* konten placeholder tetap sama */}
           </div>
         )}
       </main>
