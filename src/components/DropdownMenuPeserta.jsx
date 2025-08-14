@@ -13,10 +13,13 @@ const DropdownMenuPeserta = ({
   onSelect,
   onDelete,
   isStarred,
-  isPinned
+  isPinned,
+  isSender, // Sender status
+  hasMessage // Message existence check
 }) => {
   if (!open) return null;
 
+  // Build menu items conditionally
   const menuItems = [
     { label: "reply", icon: assets.Reply, action: onReply },
     isStarred
@@ -26,7 +29,8 @@ const DropdownMenuPeserta = ({
       ? { label: "unpin", icon: assets.Unpin, action: onUnpin }
       : { label: "pin", icon: assets.Pin, action: onPin },
     { label: "copy", icon: assets.Copy, action: onCopy },
-    { label: "edit", icon: assets.Edit, action: onEdit },
+    // Show edit only for sender messages with text
+    ...(isSender && hasMessage ? [{ label: "edit", icon: assets.Edit, action: onEdit }] : []),
     { label: "select", icon: assets.Select, action: onSelect },
     { label: "delete", icon: assets.Trash, action: onDelete },
   ];

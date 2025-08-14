@@ -59,6 +59,10 @@ const PesertaChatPage = ({ isEmbedded = false, onClose, chatId: propChatId }) =>
   // Use messages from context
   const [messages, setMessages] = useState(contextMessages);
 
+  // Edit mode states
+  const [editingMessage, setEditingMessage] = useState(null);
+  const [editText, setEditText] = useState("");
+
   // Update messages when context messages change
   useEffect(() => {
     setMessages(contextMessages);
@@ -134,6 +138,35 @@ const PesertaChatPage = ({ isEmbedded = false, onClose, chatId: propChatId }) =>
     setShowEmojiPicker(false);
   };
 
+  // Handle edit message
+  const handleEdit = (messageId) => {
+    const messageToEdit = messages.find(msg => msg.id === messageId);
+    if (messageToEdit && messageToEdit.message) {
+      setEditingMessage(messageId);
+      setEditText(messageToEdit.message);
+    }
+  };
+
+  // Save edited message
+  const handleSaveEdit = () => {
+    if (!editText.trim()) return;
+    
+    // Update message in context instead of local state
+    updateMessage(actualChatId, editingMessage, {
+      message: editText.trim(),
+      isEdited: true
+    });
+    
+    setEditingMessage(null);
+    setEditText("");
+  };
+
+  // Cancel edit
+  const handleCancelEdit = () => {
+    setEditingMessage(null);
+    setEditText("");
+  };
+
   // Handle file upload send
   const handleFileSend = ({ file, type, caption }) => {
     const newMessage = {
@@ -165,7 +198,12 @@ const PesertaChatPage = ({ isEmbedded = false, onClose, chatId: propChatId }) =>
   };
 
   const onEmojiClick = (emojiData) => {
-    setMessage((prev) => prev + emojiData.emoji);
+    if (editingMessage) {
+      // Add emoji to edit text if editing
+      setEditText((prev) => prev + emojiData.emoji);
+    } else {
+      setMessage((prev) => prev + emojiData.emoji);
+    }
     setShowEmojiPicker(false);
   };
 
@@ -502,6 +540,8 @@ const PesertaChatPage = ({ isEmbedded = false, onClose, chatId: propChatId }) =>
                       onPin={() => handlePin(msg, msg.id)}
                       onUnpin={handleUnpin}
                       onDelete={() => handleDeleteRequest(msg.id, msg.type)}
+                      onEdit={() => handleEdit(msg.id)} 
+                      isEdited={msg.isEdited}
                       isPinned={pinnedMessage?.id === msg.id}
                       isDeleted={msg.isDeleted}
                       isSelectionMode={isSelectionMode}
@@ -545,6 +585,30 @@ const PesertaChatPage = ({ isEmbedded = false, onClose, chatId: propChatId }) =>
           </div>
         )}
 
+        {/* Edit Preview - hide in selection mode */}
+        {editingMessage && !isSelectionMode && (
+          <div
+            className={`flex items-center justify-between bg-[#4C0D68]/10 px-3 py-2 border-l-4 border-[#4C0D68] transition-all duration-300 ${
+              showDeleteModal ? 'blur-sm' : ''
+            }`}
+          >
+            <div>
+              <p className="text-xs font-semibold text-[#4C0D68]">
+                Editing Message
+              </p>
+              <p className="text-xs text-gray-600 truncate w-48">
+                {messages.find(msg => msg.id === editingMessage)?.message}
+              </p>
+            </div>
+            <button
+              onClick={handleCancelEdit}
+              className="hover:opacity-80 transition"
+            >
+              <img src={assets.Cancel} alt="Cancel" className="w-6 h-6" />
+            </button>
+          </div>
+        )}
+
         {/* Input - hide in selection mode */}
         {!isSelectionMode && (
           <div
@@ -580,21 +644,23 @@ const PesertaChatPage = ({ isEmbedded = false, onClose, chatId: propChatId }) =>
             </div>
 
             {/* File button - conditional wrapper based on showFileUpload */}
-            <div 
-              ref={fileButtonRef}
-              className={`rounded-md p-1 cursor-pointer transition-colors ${
-                showFileUpload 
-                  ? "bg-gray-200 border border-gray-300 hover:bg-gray-300" 
-                  : "hover:bg-gray-100"
-              }`}
-              onClick={() => setShowFileUpload(true)}
-            >
-              <img
-                src={assets.File}
-                alt="file"
-                className={`w-6 h-6 ${showFileUpload ? 'opacity-60' : 'opacity-100'}`}
-              />
-            </div>
+            {!editingMessage && (
+              <div 
+                ref={fileButtonRef}
+                className={`rounded-md p-1 cursor-pointer transition-colors ${
+                  showFileUpload 
+                    ? "bg-gray-200 border border-gray-300 hover:bg-gray-300" 
+                    : "hover:bg-gray-100"
+                }`}
+                onClick={() => setShowFileUpload(true)}
+              >
+                <img
+                  src={assets.File}
+                  alt="file"
+                  className={`w-6 h-6 ${showFileUpload ? 'opacity-60' : 'opacity-100'}`}
+                />
+              </div>
+            )}
 
             <div
               className="flex items-center flex-1 border rounded-full px-3 py-1"
@@ -602,25 +668,39 @@ const PesertaChatPage = ({ isEmbedded = false, onClose, chatId: propChatId }) =>
             >
               <input
                 type="text"
-                placeholder="write down the message"
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
+                placeholder={editingMessage ? "Edit your message..." : "write down the message"}
+                value={editingMessage ? editText : message}
+                onChange={(e) => {
+                  if (editingMessage) {
+                    setEditText(e.target.value);
+                  } else {
+                    setMessage(e.target.value);
+                  }
+                }}
                 onKeyPress={(e) => {
                   if (e.key === 'Enter') {
-                    handleSend();
-                    setShowEmojiPicker(false);
+                    if (editingMessage) {
+                      handleSaveEdit();
+                    } else {
+                      handleSend();
+                      setShowEmojiPicker(false);
+                    }
                   }
                 }}
                 className="flex-1 text-sm outline-none"
               />
               <button 
-                onClick={handleSend}
-                disabled={!message.trim()}
-                className={`transition-opacity ${!message.trim() ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-80'}`}
+                onClick={editingMessage ? handleSaveEdit : handleSend}
+                disabled={editingMessage ? !editText.trim() : !message.trim()}
+                className={`transition-opacity ${
+                  (editingMessage ? !editText.trim() : !message.trim()) 
+                    ? 'opacity-50 cursor-not-allowed' 
+                    : 'hover:opacity-80'
+                }`}
               >
                 <img
-                  src={assets.Send}
-                  alt="send"
+                  src={editingMessage ? assets.Check || assets.Send : assets.Send}
+                  alt={editingMessage ? "save" : "send"}
                   className="w-6 h-6 cursor-pointer"
                 />
               </button>

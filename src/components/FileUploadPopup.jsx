@@ -102,7 +102,7 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
               className="w-full flex items-center gap-1 p-2 hover:bg-gray-50 rounded-lg transition-colors"
             >
               <img src={assets.Doc} alt="Documents" className="w-8 h-7" />
-              <span className="text-sm font-medium text-gray-800">Dokumen</span>
+              <span className="text-sm font-medium text-gray-800">Documen</span>
             </button>
           </div>
 
@@ -117,7 +117,7 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
           <input
             ref={documentInputRef}
             type="file"
-            accept=".pdf,.doc,.docx,.txt,.xls,.xlsx,.ppt,.pptx"
+            accept=".pdf,.doc"
             onChange={handleDocumentChange}
             className="hidden"
           />
@@ -130,20 +130,15 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
   return (
     <div className="fixed inset-0 bg-white z-50 flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
+        <div className="flex items-center justify-end p-4 border-b border-gray-200 bg-white">
         <button
-          onClick={handleClose}
-          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+            onClick={handleClose}
+            className="px-3 py-1 text-lg text-gray-600 hover:bg-gray-100 rounded transition"
         >
-          <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
+            Cancel
         </button>
-        <h3 className="font-semibold text-lg text-gray-800">
-          {fileType === 'image' ? 'Send Image' : 'Send Document'}
-        </h3>
-        <div className="w-10"></div>
-      </div>
+        </div>
+
 
       {/* Preview Area */}
       <div className="flex-1 flex items-center justify-center p-6 bg-gray-50">
@@ -176,11 +171,7 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
 
       {/* Caption Input - styled like the chat input in the image */}
       <div className="p-4 border-t border-gray-200 bg-white">
-        <div className="flex items-center gap-3 bg-gray-50 rounded-full p-2">
-          <button className="p-2 hover:bg-gray-200 rounded-full transition-colors">
-            <img src={assets.Happy} alt="emoji" className="w-5 h-5" />
-          </button>
-          
+        <div className="flex items-center gap-3 bg-gray-50 rounded-full p-2">          
           <input
             type="text"
             placeholder="Caption"
@@ -188,7 +179,6 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
             onChange={(e) => setCaption(e.target.value)}
             className="flex-1 text-sm outline-none bg-transparent py-2 px-2 text-gray-700 placeholder-gray-400"
           />
-          
           <button
             onClick={handleSend}
             className="p-0 hover:bg-opacity-80 rounded-full transition-all"

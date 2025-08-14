@@ -36,7 +36,7 @@ import Doc from '../assets/Doc.svg'
 import Happy from '../assets/happy.svg'
 import Send from '../assets/Send.svg'
 import ArrowLeft from "../assets/arrow-left.svg";
-import PinFill from "../assets/Pin_light.svg";
+import PinFill from "../assets/Pin_fill.svg";
 
 
 

@@ -14,12 +14,19 @@ export default function ChatBubblePeserta({ ...props }) {
     isLastFromReceiver,
     onReply,
     onDelete,
+    onEdit,
     isDeleted,
-    // ✅ NEW: Selection mode props
+    isEdited,
     isSelectionMode,
     isSelected,
     onStartSelection,
-    onToggleSelection
+    onToggleSelection,
+    isLastBubble,
+    // ✅ NEW: Props untuk menampilkan nama pengirim
+    sender,
+    showSenderName = false, // Default false, akan true jika dipanggil dari grup chat
+    getSenderColor, // Function untuk mendapatkan warna berdasarkan nama pengirim
+    isGroupChat = false // Untuk membedakan apakah ini grup chat atau personal chat
   } = props;
 
   const isSender = type === "sender";
@@ -28,10 +35,56 @@ export default function ChatBubblePeserta({ ...props }) {
   const [isStarred, setIsStarred] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState('below');
+  const [isMobile, setIsMobile] = useState(false);
+  const [showDropdownButton, setShowDropdownButton] = useState(false);
+  
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
+  const bubbleRef = useRef(null);
+  const longPressTimer = useRef(null);
+
+  // Mobile detection
+  useEffect(() => {
+    const checkMobile = () => {
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth <= 768;
+      setIsMobile(isTouchDevice || isSmallScreen);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const toggleDropdown = () => setDropdownOpen((prev) => !prev);
+
+  const calculateDropdownPosition = () => {
+    if (!buttonRef.current) return 'below';
+    
+    const buttonRect = buttonRef.current.getBoundingClientRect();
+    const viewportHeight = window.innerHeight;
+    const spaceBelow = viewportHeight - buttonRect.bottom;
+    const spaceAbove = buttonRect.top;
+    const dropdownHeight = 280;
+    
+    if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
+      return 'above';
+    }
+    
+    if (isLastBubble && spaceAbove > 200) {
+      return 'above';
+    }
+    
+    return 'below';
+  };
+
+  useEffect(() => {
+    if (dropdownOpen) {
+      const position = calculateDropdownPosition();
+      setDropdownPosition(position);
+    }
+  }, [dropdownOpen, isLastBubble]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -42,11 +95,70 @@ export default function ChatBubblePeserta({ ...props }) {
         !buttonRef.current.contains(event.target)
       ) {
         setDropdownOpen(false);
+        if (isMobile) {
+          setShowDropdownButton(false);
+        }
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isMobile]);
+
+  // Handle long press for mobile
+  const handleTouchStart = (e) => {
+    if (!isMobile || isSelectionMode) return;
+    
+    longPressTimer.current = setTimeout(() => {
+      e.preventDefault();
+      setShowDropdownButton(true);
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  const handleTouchMove = () => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+  };
+
+  // Handle bubble click for mobile
+  const handleBubbleClick = (e) => {
+    if (isSelectionMode && onToggleSelection) {
+      onToggleSelection();
+      return;
+    }
+
+    if (isMobile && !isSelectionMode && !isDeleted) {
+      e.preventDefault();
+      setShowDropdownButton(prev => !prev);
+    }
+  };
+
+  const handleMouseEnter = () => {
+    if (!isMobile && !isSelectionMode) {
+      setIsHovering(true);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (!isMobile && !isSelectionMode) {
+      setIsHovering(false);
+    }
+  };
 
   // Menu Actions
   const handleReply = () => {
@@ -59,6 +171,7 @@ export default function ChatBubblePeserta({ ...props }) {
       });
     }
     setDropdownOpen(false);
+    if (isMobile) setShowDropdownButton(false);
   };
 
   const handlePin = () => {
@@ -67,6 +180,7 @@ export default function ChatBubblePeserta({ ...props }) {
     }
     setIsPinned(true);
     setDropdownOpen(false);
+    if (isMobile) setShowDropdownButton(false);
   };
 
   const handleUnpin = () => {
@@ -75,16 +189,19 @@ export default function ChatBubblePeserta({ ...props }) {
       props.onUnpin();
     }
     setDropdownOpen(false);
+    if (isMobile) setShowDropdownButton(false);
   };
 
   const handleStar = () => {
     setIsStarred(true);
     setDropdownOpen(false);
+    if (isMobile) setShowDropdownButton(false);
   };
   
   const handleUnstar = () => {
     setIsStarred(false);
     setDropdownOpen(false);
+    if (isMobile) setShowDropdownButton(false);
   };
 
   const handleCopy = () => {
@@ -94,19 +211,23 @@ export default function ChatBubblePeserta({ ...props }) {
       setTimeout(() => setShowCopied(false), 5000);
     }
     setDropdownOpen(false);
+    if (isMobile) setShowDropdownButton(false);
   };
 
   const handleEdit = () => {
-    console.log("Edit clicked");
+    if (onEdit) {
+      onEdit();
+    }
     setDropdownOpen(false);
+    if (isMobile) setShowDropdownButton(false);
   };
   
-  // ✅ MODIFIED: Handle select - start selection mode
   const handleSelect = () => {
     if (onStartSelection) {
       onStartSelection();
     }
     setDropdownOpen(false);
+    if (isMobile) setShowDropdownButton(false);
   };
   
   const handleDelete = () => {
@@ -114,13 +235,7 @@ export default function ChatBubblePeserta({ ...props }) {
       onDelete();
     }
     setDropdownOpen(false);
-  };
-
-  // ✅ NEW: Handle bubble click in selection mode
-  const handleBubbleClick = () => {
-    if (isSelectionMode && onToggleSelection) {
-      onToggleSelection();
-    }
+    if (isMobile) setShowDropdownButton(false);
   };
 
   const hasContent = message || image || file || reply;
@@ -158,14 +273,37 @@ export default function ChatBubblePeserta({ ...props }) {
     );
   };
 
+  // Determine when to show dropdown button
+  const shouldShowDropdownButton = () => {
+    if (!hasContent || isDeleted || isSelectionMode) return false;
+    
+    if (isMobile) {
+      return showDropdownButton;
+    } else {
+      return isHovering || dropdownOpen;
+    }
+  };
+
+  // ✅ NEW: Function to get sender color
+  const getSenderNameColor = () => {
+    if (getSenderColor && sender) {
+      return getSenderColor(sender);
+    }
+    return "#4C0D68"; // Default color
+  };
+
   return (
     <>
       <div
+        ref={bubbleRef}
         className={`flex items-start mb-2 relative`}
-        onMouseEnter={() => !isSelectionMode && setIsHovering(true)}
-        onMouseLeave={() => !isSelectionMode && setIsHovering(false)}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
       >
-        {/* ✅ NEW: Glass-like purple overlay for selected items - in front of bubble */}
+        {/* Glass-like purple overlay for selected items */}
         {isSelectionMode && isSelected && (
           <div 
             className="absolute inset-0 rounded-lg pointer-events-none z-30" 
@@ -176,7 +314,7 @@ export default function ChatBubblePeserta({ ...props }) {
           />
         )}
 
-        {/* ✅ MODIFIED: Rectangle checkbox always on the left with 8px border radius */}
+        {/* Rectangle checkbox in selection mode */}
         {isSelectionMode && (
           <div className="flex items-center mr-2 mt-2 relative z-20">
             <div
@@ -210,14 +348,26 @@ export default function ChatBubblePeserta({ ...props }) {
               } ${
                 isSelectionMode ? 'hover:opacity-80' : ''
               }`}
-              onClick={isSelectionMode ? handleBubbleClick : undefined}
+              onClick={handleBubbleClick}
             >
+              {/* ✅ NEW: Tampilkan nama pengirim di dalam bubble jika showSenderName true */}
+              {showSenderName && sender && !isSender && (
+                <div 
+                  className="text-xs font-semibold text-[16px]"
+                  style={{ color: getSenderNameColor() }}
+                >
+                  {sender}
+                </div>
+              )}
+
               {reply && (
                 <div className="mb-1 p-1 border-l-4 border-[#4C0D68] bg-gray-50 text-xs text-gray-500 rounded">
-                  <span className="font-semibold text-[#4C0D68]">
-                    {reply.sender}:
-                  </span>{" "}
-                  {reply.message}
+                  <div className="font-semibold text-[#4C0D68]">
+                    {reply.sender}
+                  </div>
+                  <div>
+                    {reply.message}
+                  </div>
                 </div>
               )}
 
@@ -271,24 +421,52 @@ export default function ChatBubblePeserta({ ...props }) {
               )}
 
               {message && (
-                <p className={`text-sm flex items-center gap-1 ${isDeleted ? "italic" : ""} ${
+                <div className={`text-sm ${isDeleted ? "italic" : ""} ${
                   isSender ? "text-white" : "text-black"
                 }`}>
-                  {isDeleted && (
-                    <img src={assets.Tarik} alt="deleted" className="w-4 h-4 flex-shrink-0" />
-                  )}
-                  <span>{message}</span>
+                  <div className="flex items-end justify-between gap-2">
+                    <div className="flex items-center gap-1 flex-1">
+                      {isDeleted && (
+                        <img src={assets.Tarik} alt="deleted" className="w-4 h-4 flex-shrink-0" />
+                      )}
+                      <span className="flex-1">{message}</span>
+                    </div>
 
-                  {!isDeleted && (
-                    <>
-                      {renderStatusIcons()}
-                    </>
-                  )}
-                </p>
+                    {!isDeleted && (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {isEdited && isSender && (
+                          <span className="text-[10px] opacity-70 mr-1">diedit</span>
+                        )}
+                        
+                        {isStarred && (
+                          <img 
+                            src={assets.StarFill} 
+                            alt="star" 
+                            className="w-4 h-4" 
+                          />
+                        )}
+                        {isPinned && (
+                          <img 
+                            src={assets.PinFill} 
+                            alt="pin" 
+                            className="w-4 h-4" 
+                          />
+                        )}
+                        {isSender && (
+                          <img
+                            src={assets.Ceklis}
+                            alt="sent"
+                            className="w-3 h-3"
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
               )}
 
-              {/* ✅ MODIFIED: Dropdown button - hide in selection mode */}
-              {hasContent && (isHovering || dropdownOpen) && !isDeleted && !isSelectionMode && (
+              {/* Dropdown button */}
+              {shouldShowDropdownButton() && (
                 <div
                   className="absolute flex flex-col items-center"
                   style={{
@@ -300,7 +478,10 @@ export default function ChatBubblePeserta({ ...props }) {
                 >
                   <button
                     ref={buttonRef}
-                    onClick={toggleDropdown}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleDropdown();
+                    }}
                     style={{
                       width: "26px",
                       height: "22px",
@@ -309,7 +490,7 @@ export default function ChatBubblePeserta({ ...props }) {
                       backgroundColor: "#E6E1E1",
                       padding: 0
                     }}
-                    className="flex items-center justify-center"
+                    className="flex items-center justify-center active:scale-95 transition-transform"
                   >
                     <img src={assets.Down} alt="dropdown" className="w-5 h-5" />
                   </button>
@@ -318,14 +499,23 @@ export default function ChatBubblePeserta({ ...props }) {
             </div>
           </div>
           
-          {/* ✅ Timestamp - hide in selection mode */}
+          {/* Timestamp - hide in selection mode */}
           {(isLastFromSender || isLastFromReceiver) && !isSelectionMode && (
             <span className="text-[10px] text-gray-500 mt-1">{time}</span>
           )}
         </div>
+
+        {/* Mobile tap instruction */}
+        {isMobile && !isSelectionMode && !isDeleted && !showDropdownButton && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="text-xs text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity">
+              Tap for options
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* ✅ Dropdown menu - hide in selection mode */}
+      {/* Dropdown menu */}
       {dropdownOpen && hasContent && !isDeleted && !isSelectionMode && (
         <div 
           className="fixed inset-0 z-[9999]" 
@@ -336,7 +526,9 @@ export default function ChatBubblePeserta({ ...props }) {
             className="absolute"
             style={{ 
               pointerEvents: 'auto',
-              top: `${buttonRef.current?.getBoundingClientRect().bottom + window.scrollY + 5}px`,
+              top: dropdownPosition === 'above' 
+                ? `${buttonRef.current?.getBoundingClientRect().top + window.scrollY - 240}px`
+                : `${buttonRef.current?.getBoundingClientRect().bottom + window.scrollY + 5}px`,
               left: isSender 
                 ? `${buttonRef.current?.getBoundingClientRect().left + window.scrollX - 10}px`
                 : `${buttonRef.current?.getBoundingClientRect().right + window.scrollX + 10}px`
@@ -355,15 +547,17 @@ export default function ChatBubblePeserta({ ...props }) {
               onEdit={handleEdit}
               onSelect={handleSelect}
               onDelete={handleDelete}
+              isSender={isSender}
+              hasMessage={!!message}
             />
           </div>
         </div>
       )}
 
-      {/* ✅ Toast notification */}
+      {/* Toast notification */}
       {showCopied && (
         <div
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-[#4C0D68] text-white px-4 py-2 rounded-[20px] text-sm shadow-lg"
+          className="fixed bottom-20 left-1/2 -translate-x-1/3 text-white px-4 py-2 shadow-lg z-[9999] text-sm"
           style={{
             backgroundColor: "#4C0D68",
             borderRadius: "20px"
