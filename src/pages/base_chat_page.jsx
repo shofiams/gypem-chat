@@ -26,7 +26,8 @@ const BaseChatPage = ({
   canSendMessages = true,
   showSenderNames = false,
   getSenderColor = null,
-  customChatBubbleProps = {}
+  customChatBubbleProps = {},
+  onGroupHeaderClick = null
 }) => {
   const { chatId: paramChatId } = useParams();
   const navigate = useNavigate();
@@ -391,7 +392,10 @@ const BaseChatPage = ({
           ></span>
         )}
       </div>
-      <div className="flex-1">
+      <div 
+        className={`flex-1 ${isGroupChat && onGroupHeaderClick ? 'cursor-pointer' : ''}`}
+        onClick={isGroupChat && onGroupHeaderClick ? onGroupHeaderClick : undefined}
+      >
         <p className="font-semibold text-sm">{chatInfo.name}</p>
         {isGroupChat && chatInfo.members ? (
           <div className="text-xs text-gray-500 leading-4">
