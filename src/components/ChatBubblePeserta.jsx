@@ -238,36 +238,38 @@ export default function ChatBubblePeserta({ ...props }) {
 
   const hasContent = message || image || file || reply;
 
+  // ✅ FIXED: Render status icons in one place only
   const renderStatusIcons = () => {
     if (isDeleted) return null;
     
-    const hasMediaContent = image || file;
-    const iconPositionClass = hasMediaContent ? 'top-[40px]' : 'top-[8px]';
-    
     return (
-      <>
+      <div className="flex items-center gap-1 flex-shrink-0">
+        {isEdited && isSender && (
+          <span className="text-[10px] opacity-70 mr-1">diedit</span>
+        )}
+        
         {isStarred && (
           <img 
             src={assets.StarFill2} 
             alt="star" 
-            className={`w-4 h-4 relative ${iconPositionClass}`} 
+            className="w-4 h-4" 
           />
         )}
         {isPinned && (
           <img 
             src={assets.PinFill} 
             alt="pin" 
-            className={`w-4 h-4 relative ${iconPositionClass}`} 
+            className="w-4 h-4" 
           />
         )}
         {isSender && (
           <img
             src={assets.Ceklis}
             alt="sent"
-            className={`w-3 h-3 relative ${iconPositionClass}`}
+            className="w-3 h-3"
           />
         )}
-      </>
+      </div>
     );
   };
 
@@ -370,20 +372,25 @@ export default function ChatBubblePeserta({ ...props }) {
               )}
 
               {image && (
-                <div className="flex items-center gap-1">
+                <div className="mb-1">
                   <img
                     src={image}
                     alt="chat-img"
-                    className="max-w-[200px] rounded-md mb-1"
+                    className="max-w-[200px] rounded-md"
                   />
-                  {renderStatusIcons()}
+                  {/* ✅ FIXED: Status icons untuk image dengan caption */}
+                  {!message && !isDeleted && (
+                    <div className="flex justify-end mt-1">
+                      {renderStatusIcons()}
+                    </div>
+                  )}
                 </div>
               )}
 
               {file && (
-                <div className="flex items-center gap-1">
+                <div className="mb-1">
                   <div
-                    className={`flex flex-col gap-2 rounded-md p-2 mb-1 ${
+                    className={`flex flex-col gap-2 rounded-md p-2 ${
                       isSender ? "bg-white" : "bg-gray-100"
                     }`}
                   >
@@ -414,7 +421,12 @@ export default function ChatBubblePeserta({ ...props }) {
                       </a>
                     </div>
                   </div>
-                  {renderStatusIcons()}
+                  {/* ✅ FIXED: Status icons untuk file dengan caption */}
+                  {!message && !isDeleted && (
+                    <div className="flex justify-end mt-1">
+                      {renderStatusIcons()}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -430,35 +442,8 @@ export default function ChatBubblePeserta({ ...props }) {
                       <span className="flex-1">{message}</span>
                     </div>
 
-                    {!isDeleted && (
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        {isEdited && isSender && (
-                          <span className="text-[10px] opacity-70 mr-1">diedit</span>
-                        )}
-                        
-                        {isStarred && (
-                          <img 
-                            src={assets.StarFill2} 
-                            alt="star" 
-                            className="w-4 h-4" 
-                          />
-                        )}
-                        {isPinned && (
-                          <img 
-                            src={assets.PinFill} 
-                            alt="pin" 
-                            className="w-4 h-4" 
-                          />
-                        )}
-                        {isSender && (
-                          <img
-                            src={assets.Ceklis}
-                            alt="sent"
-                            className="w-3 h-3"
-                          />
-                        )}
-                      </div>
-                    )}
+                    {/* ✅ FIXED: Status icons hanya untuk message atau ketika ada caption */}
+                    {!isDeleted && renderStatusIcons()}
                   </div>
                 </div>
               )}
