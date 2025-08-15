@@ -396,7 +396,7 @@ export default function ChatBubblePeserta({ ...props }) {
                     </div>
                     <div className="flex gap-2">
                       <button
-                        className="px-3 py-1 text-xs rounded-md border border-[#4C0D68] text-[#4C0D68] hover:bg-[#4C0D68] hover:text-white transition"
+                        className="px-6 py-1 text-xs rounded-md border border-[#4C0D68] text-[#4C0D68] hover:bg-[#4C0D68] hover:text-white transition"
                         onClick={(e) => {
                           e.stopPropagation();
                           window.open(file.url, "_blank");
@@ -407,7 +407,7 @@ export default function ChatBubblePeserta({ ...props }) {
                       <a
                         href={file.url}
                         download={file.name}
-                        className="px-3 py-1 text-xs rounded-md border border-[#4C0D68] text-[#4C0D68] hover:bg-[#4C0D68] hover:text-white transition"
+                        className="px-6 py-1 text-xs rounded-md border border-[#4C0D68] text-[#4C0D68] hover:bg-[#4C0D68] hover:text-white transition"
                         onClick={(e) => e.stopPropagation()}
                       >
                         Save
