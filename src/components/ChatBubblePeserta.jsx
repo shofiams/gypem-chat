@@ -64,8 +64,10 @@ export default function ChatBubblePeserta({ ...props }) {
     const viewportHeight = window.innerHeight;
     const spaceBelow = viewportHeight - buttonRect.bottom;
     const spaceAbove = buttonRect.top;
-    const dropdownHeight = 280;
-    
+    // const dropdownHeight = 280;
+    // Sesuaikan tinggi dropdown berdasarkan mode
+    const dropdownHeight = props.groupChatMode ? 120 : 280; // Grup chat lebih pendek
+
     if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
       return 'above';
     }
@@ -510,7 +512,7 @@ export default function ChatBubblePeserta({ ...props }) {
             style={{ 
               pointerEvents: 'auto',
               top: dropdownPosition === 'above' 
-                ? `${buttonRef.current?.getBoundingClientRect().top + window.scrollY - 240}px`
+                ? `${buttonRef.current?.getBoundingClientRect().top + window.scrollY - (props.groupChatMode ? 130 : 240)}px`
                 : `${buttonRef.current?.getBoundingClientRect().bottom + window.scrollY + 5}px`,
               left: isSender 
                 ? `${buttonRef.current?.getBoundingClientRect().left + window.scrollX - 10}px`
