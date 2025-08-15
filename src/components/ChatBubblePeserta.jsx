@@ -248,7 +248,7 @@ export default function ChatBubblePeserta({ ...props }) {
       <>
         {isStarred && (
           <img 
-            src={assets.StarFill} 
+            src={assets.StarFill2} 
             alt="star" 
             className={`w-4 h-4 relative ${iconPositionClass}`} 
           />
@@ -438,7 +438,7 @@ export default function ChatBubblePeserta({ ...props }) {
                         
                         {isStarred && (
                           <img 
-                            src={assets.StarFill} 
+                            src={assets.StarFill2} 
                             alt="star" 
                             className="w-4 h-4" 
                           />
