@@ -7,7 +7,8 @@ import { MdOutlineGroups } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
 import { FaRegStar, FaUserCircle } from "react-icons/fa";
 import { CgProfile } from "react-icons/cg";
-import NewMessagePopup from '../components/new_message';
+import { useChatContext } from '../api/use_chat_context';
+import NewMessagePopup from '../components/new_message'; 
 import ProfilePopup from '../pages/profile_page';
 
 // Desktop Sidebar Item Component
@@ -399,11 +400,13 @@ const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNewMessageOpen, setIsNewMessageOpen] = useState(false);
+  const { clearActiveChat } = useChatContext();
   const [isProfilePopupOpen, setIsProfilePopupOpen] = useState(false);
   const [profileImage, setProfileImage] = useState("");
   
   const navigate = useNavigate();
   const location = useLocation();
+  const isChatRoute = location.pathname.startsWith('/chats/') && location.pathname !== '/chats';
 
   // Auto-redirect to /chats if on root path
   useEffect(() => {
@@ -435,11 +438,14 @@ const MainLayout = () => {
       setIsNewMessageOpen(true);
       return;
     }
-    // UPDATED: Untuk profile, navigate dulu baru buka popup
-    if (route === "/profile") {
-      navigate(route);
-      return;
+
+    const currentIsGroupPage = location.pathname.startsWith('/group');
+    const targetIsGroupPage = route.startsWith('/group');
+    
+    if (currentIsGroupPage !== targetIsGroupPage) {
+      clearActiveChat();
     }
+
     navigate(route);
     setIsSidebarOpen(false);
   };
@@ -448,13 +454,28 @@ const MainLayout = () => {
     setIsSidebarOpen(prev => !prev);
   };
 
+  useEffect(() => {
+  const handleResize = () => {
+    const currentIsMobile = window.innerWidth < 768;
+    
+    // If switching from mobile to desktop and we're on a specific chat route
+    if (!currentIsMobile && location.pathname.startsWith('/chats/') && location.pathname !== '/chats') {
+      // Navigate to main chats page so the split layout can take over
+      navigate('/chats');
+    }
+  };
+
+  window.addEventListener('resize', handleResize);
+  return () => window.removeEventListener('resize', handleResize);
+}, [navigate, location.pathname]);
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Full-width Desktop Header */}
       <DesktopHeader onNavigate={handleNavigate} />
       
       {/* Mobile Header */}
-      <MobileHeader onNavigate={handleNavigate} />
+      {!isChatRoute && <MobileHeader onNavigate={handleNavigate} />}
 
       {/* Main Layout with Sidebar and Content */}
       <div className="flex flex-1 overflow-hidden relative">
@@ -473,7 +494,7 @@ const MainLayout = () => {
         <div className="flex flex-col flex-1 ml-16 md:ml-16">
 
           {/* Main Content Area - Where all pages render */}
-          <main className="flex-1 overflow-y-auto pb-20 md:pb-0 md:border-l-2 md:border-t-2 md:border-grey-600 md:rounded-tl-lg">
+          <main className={`flex-1 overflow-y-auto ${isChatRoute ? 'pb-0' : 'pb-20'} md:pb-0 md:border-l-2 md:border-t-2 md:border-grey-600 md:rounded-tl-lg`}>
             <div className="h-full bg-white">
               <Outlet />
             </div>
@@ -482,13 +503,14 @@ const MainLayout = () => {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      <MobileBottomNav
-        activeRoute={location.pathname}
-        onNavigate={handleNavigate}
-        onProfileClick={handleProfileClick}
-        profileImage={profileImage}
-        isDefaultProfile={isDefaultProfile}
-      />
+      {!isChatRoute && (<MobileBottomNav
+          activeRoute={location.pathname}
+          onNavigate={handleNavigate}
+          onProfileClick={handleProfileClick}
+          profileImage={profileImage}
+          isDefaultProfile={isDefaultProfile}
+        />
+      )}
 
       {/* New Message Popup */}
       <NewMessagePopup 

@@ -2,11 +2,11 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import MainLayout from "../layout/main_layout";
 import ChatPage from "../pages/list_chat_page";
-import GroupPage from "../pages/group_page";
 import ProfilePage from "../pages/profile_page";
-import NewMessage from "../pages/new_message";
 import StarPage from "../pages/star_page";
 import NotFound from "../pages/not_found";
+import PesertaChatPage from "../pages/PesertaChatPage";
+import GroupChatPeserta from "../pages/GroupChatPeserta";
 
 export const router = createBrowserRouter([
   {
@@ -22,8 +22,16 @@ export const router = createBrowserRouter([
         element: <ChatPage />,
       },
       {
+        path: "chats/:chatId",
+        element: <PesertaChatPage />,
+      },
+      {
         path: "group",
-        element: <GroupPage />,
+        element: <ChatPage />,
+      },
+      {
+        path: "group/:chatId",
+        element: <GroupChatPeserta />,
       },
       {
         path: "profile",
@@ -35,10 +43,6 @@ export const router = createBrowserRouter([
       },
     ],
   },
-  // {
-  //   path: "/new-message",
-  //   element: <NewMessage />,
-  // },
   {
     path: "*",
     element: <NotFound />,
