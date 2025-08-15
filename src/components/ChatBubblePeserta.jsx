@@ -22,11 +22,9 @@ export default function ChatBubblePeserta({ ...props }) {
     onStartSelection,
     onToggleSelection,
     isLastBubble,
-    // ✅ NEW: Props untuk menampilkan nama pengirim
     sender,
-    showSenderName = false, // Default false, akan true jika dipanggil dari grup chat
-    getSenderColor, // Function untuk mendapatkan warna berdasarkan nama pengirim
-    isGroupChat = false // Untuk membedakan apakah ini grup chat atau personal chat
+    showSenderName = false,
+    getSenderColor,
   } = props;
 
   const isSender = type === "sender";
@@ -549,6 +547,7 @@ export default function ChatBubblePeserta({ ...props }) {
               onDelete={handleDelete}
               isSender={isSender}
               hasMessage={!!message}
+              groupChatMode={props.groupChatMode}
             />
           </div>
         </div>
@@ -557,10 +556,13 @@ export default function ChatBubblePeserta({ ...props }) {
       {/* Toast notification */}
       {showCopied && (
         <div
-          className="fixed bottom-20 left-1/2 -translate-x-1/3 text-white px-4 py-2 shadow-lg z-[9999] text-sm"
+          className="fixed text-white px-4 py-2 shadow-lg z-[9999] text-sm"
           style={{
             backgroundColor: "#4C0D68",
-            borderRadius: "20px"
+            borderRadius: "20px",
+            bottom: window.innerWidth < 768 ? '150px' : '90px',
+            left: window.innerWidth < 768 ? '50%' : '60%',
+            transform: window.innerWidth < 768 ? 'translateX(-50%)' : 'translate(-30%, 70%)'
           }}
         >
           Message is copied

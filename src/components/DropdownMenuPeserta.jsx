@@ -14,13 +14,22 @@ const DropdownMenuPeserta = ({
   onDelete,
   isStarred,
   isPinned,
-  isSender, // Sender status
-  hasMessage // Message existence check
+  isSender, 
+  hasMessage,
+  groupChatMode = false,
 }) => {
   if (!open) return null;
 
   // Build menu items conditionally
-  const menuItems = [
+  const menuItems = groupChatMode ? [
+    // Group chat mode: only show star, select, and delete
+    isStarred
+      ? { label: "unstar", icon: assets.Unstar, action: onUnstar }
+      : { label: "star", icon: assets.Star, action: onStar },
+    { label: "select", icon: assets.Select, action: onSelect },
+    { label: "delete", icon: assets.Trash, action: onDelete },
+  ] : [
+    // Regular chat mode: show all options
     { label: "reply", icon: assets.Reply, action: onReply },
     isStarred
       ? { label: "unstar", icon: assets.Unstar, action: onUnstar }

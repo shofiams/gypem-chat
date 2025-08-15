@@ -7,6 +7,7 @@ import { MdOutlineGroups } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
 import { FaRegStar } from "react-icons/fa";
 import { CgProfile } from "react-icons/cg";
+import { useChatContext } from '../api/use_chat_context';
 import NewMessagePopup from '../components/new_message'; 
 
 // Desktop Sidebar Item Component
@@ -354,6 +355,7 @@ const MobileBottomNav = ({ activeRoute, onNavigate }) => {
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNewMessageOpen, setIsNewMessageOpen] = useState(false);
+  const { clearActiveChat } = useChatContext();
   const navigate = useNavigate();
   const location = useLocation();
   const isChatRoute = location.pathname.startsWith('/chats/') && location.pathname !== '/chats';
@@ -363,6 +365,14 @@ const MainLayout = () => {
       setIsNewMessageOpen(true);
       return;
     }
+
+    const currentIsGroupPage = location.pathname.startsWith('/group');
+    const targetIsGroupPage = route.startsWith('/group');
+    
+    if (currentIsGroupPage !== targetIsGroupPage) {
+      clearActiveChat();
+    }
+
     navigate(route);
     setIsSidebarOpen(false);
   };

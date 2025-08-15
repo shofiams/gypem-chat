@@ -29,7 +29,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "group",
-        element: <GroupPage />,
+        element: <ChatPage />,
       },
       {
         path: "group/:chatId",

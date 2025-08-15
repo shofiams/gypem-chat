@@ -26,6 +26,7 @@ const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId }) => {
     hideCopy: true,
     hideEdit: true,
     showOnlyEssentials: true,
+    groupChatMode: true,
   };
 
   return (

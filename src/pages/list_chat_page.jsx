@@ -127,7 +127,12 @@ export default function ChatPage() {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const chats = getAllChats();
+  const allChats = getAllChats();
+
+  const isGroupPage = location.pathname.startsWith('/group');
+  const chats = isGroupPage 
+    ? allChats.filter(chat => chat.type === 'group')
+    : allChats;
 
   // Context menu state
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chatId: null });
@@ -206,6 +211,11 @@ export default function ChatPage() {
     setChatToDelete(null);
   };
 
+  // Clear active chat when switching tabs
+  useEffect(() => {
+    clearActiveChat();
+  }, [isGroupPage, clearActiveChat]);
+
   useEffect(() => {
   const handleResize = () => {
     const currentIsMobile = window.innerWidth < 768;
@@ -272,7 +282,9 @@ export default function ChatPage() {
     <div className="h-full flex bg-white">
       <aside className="w-[320px] max-w-xs border-r border-gray-100 flex flex-col">
         <div className="px-4 pt-3 pb-2">
-          <h2 className="text-lg font-semibold text-gray-800">Chats</h2>
+          <h2 className="text-lg font-semibold text-gray-800">
+            {isGroupPage ? 'Group' : 'Chats'}
+          </h2>
         </div>
 
         {/* SEARCH */}
@@ -370,7 +382,15 @@ export default function ChatPage() {
           })()
         ) : (
           <div className="w-full h-full border border-gray-200 bg-gray-50 flex flex-col items-center justify-center p-6">
-            {/* konten placeholder tetap sama */}
+            <div className="w-32 h-32 mb-4 bg-white rounded-md flex items-center justify-center overflow-hidden">
+              <img src={assets.logo || assets.user} alt="placeholder" className="w-full h-full object-contain opacity-60" />
+            </div>
+            
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Gypem Indonesia</h3>
+          <p className="text-center text-gray-500 max-w-md text-sm">
+            Silahkan tunggu pesan dari peserta sebelum memulai percakapan.
+            Admin hanya dapat membalas pesan jika peserta telah mengirimkan pesan terlebih dahulu.
+          </p>
           </div>
         )}
       </main>

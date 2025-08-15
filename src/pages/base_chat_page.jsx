@@ -67,9 +67,7 @@ const BaseChatPage = ({
   const [editText, setEditText] = useState("");
   const [messages, setMessages] = useState(contextMessages);
 
-  // All existing useEffects and handlers remain the same...
-  // (I'll skip showing all of them since they're identical)
-// Update messages when context messages change
+  // Update messages when context messages change
   useEffect(() => {
     setMessages(contextMessages);
   }, [contextMessages]);
@@ -104,23 +102,6 @@ const BaseChatPage = ({
   window.addEventListener('resize', handleResize);
   return () => window.removeEventListener('resize', handleResize);
 }, [isEmbedded]);
-
-  // Handle back navigation
-  const handleBack = () => {
-  const isMobile = window.innerWidth < 768;
-  
-  if (isEmbedded && !isMobile && onClose) {
-    onClose();
-  } else {
-    navigate('/chats');
-  }
-};
-
-  const handleCopy = () => {};
-
-  const handleReply = (message) => {
-    setReplyingMessage(message);
-  };
 
   const handleSend = () => {
     if (!message.trim()) return;
@@ -173,70 +154,6 @@ const BaseChatPage = ({
     setEditText("");
   };
 
-  // Handle file upload send
-  const handleFileSend = ({ file, type, caption }) => {
-    const newMessage = {
-      type: "sender",
-      sender: "Anda",
-      time: new Date().toLocaleTimeString('id-ID', { 
-        hour: '2-digit', 
-        minute: '2-digit',
-        hour12: false 
-      }).replace(':', '.'),
-      ...(replyingMessage && { reply: replyingMessage })
-    };
-
-    if (type === 'image') {
-      newMessage.image = file.preview;
-      if (caption) newMessage.message = caption;
-    } else {
-      newMessage.file = {
-        name: file.name,
-        size: file.size,
-        url: URL.createObjectURL(file.file)
-      };
-      if (caption) newMessage.message = caption;
-    }
-
-    // Add to context instead of local state
-    addMessage(actualChatId, newMessage);
-    setReplyingMessage(null);
-  };
-
-  const onEmojiClick = (emojiData) => {
-    if (editingMessage) {
-      // Add emoji to edit text if editing
-      setEditText((prev) => prev + emojiData.emoji);
-    } else {
-      setMessage((prev) => prev + emojiData.emoji);
-    }
-    setShowEmojiPicker(false);
-  };
-
-  const handlePin = (msg, id) => {
-    setPinnedMessage({ ...msg, id });
-  };
-
-  const handleUnpin = () => {
-    setPinnedMessage(null);
-    setHighlightedMessageId(null);
-  };
-
-  const scrollToPinnedMessage = () => {
-    if (pinnedMessage && messageRefs.current[pinnedMessage.id]) {
-      messageRefs.current[pinnedMessage.id].scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-
-      setHighlightedMessageId(pinnedMessage.id);
-
-      setTimeout(() => {
-        setHighlightedMessageId(null);
-      }, 2000);
-    }
-  };
-
   // Selection mode handlers
   const handleStartSelection = (messageId) => {
     setIsSelectionMode(true);
@@ -259,27 +176,6 @@ const BaseChatPage = ({
       
       return newSet;
     });
-  };
-
-  const handleCancelSelection = () => {
-    setIsSelectionMode(false);
-    setSelectedMessages(new Set());
-  };
-
-  const handleDeleteSelected = () => {
-    // Determine delete type based on selected messages
-    const selectedMessageData = messages.filter(msg => selectedMessages.has(msg.id));
-    const hasSender = selectedMessageData.some(msg => msg.type === 'sender');
-    const hasReceiver = selectedMessageData.some(msg => msg.type === 'receiver');
-    
-    if (hasSender && !hasReceiver) {
-      // Only sender messages selected - show delete options
-      setDeleteType('sender');
-      setShowDeleteModal(true);
-    } else {
-      setDeleteType('receiver');
-      setShowDeleteModal(true);
-    }
   };
 
   // Update delete functions to handle multiple messages
@@ -401,14 +297,14 @@ const BaseChatPage = ({
     setSelectedDeleteOption('me');
   };
 
-  // NEW: Function to determine if sender name should be shown in bubble
+  // Function to determine if sender name should be shown in bubble
   const shouldShowSenderNameInBubble = (message, index) => {
     if (!showSenderNames) return false;
     const prevMessage = index > 0 ? messages[index - 1] : null;
     return !prevMessage || prevMessage.sender !== message.sender;
   };
 
-  // NEW: Render message function with group chat support
+  // Render message function with group chat support
   const renderMessage = (msg, idx, arr) => {
     const nextMsg = arr[idx + 1];
     const isLastFromSender = !nextMsg || nextMsg.type !== msg.type || (isGroupChat && nextMsg.sender !== msg.sender);
@@ -508,16 +404,6 @@ const BaseChatPage = ({
       <button className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 transition">
         <img src={assets.Search} alt="Search" className="w-5 h-5" />
       </button>
-    </div>
-  );
-
-  // Default footer for read-only chats
-  const readOnlyFooter = (
-    <div
-      className="text-center text-white text-sm py-4 font-medium"
-      style={{ backgroundColor: "#4C0D68" }}
-    >
-      Only admins can send messages.
     </div>
   );
 
