@@ -7,7 +7,7 @@ import { MdOutlineGroups } from "react-icons/md";
 import { FiEdit } from "react-icons/fi";
 import { FaRegStar, FaUserCircle } from "react-icons/fa";
 import { CgProfile } from "react-icons/cg";
-import NewMessagePopup from '../components/new_message'; 
+import NewMessagePopup from '../components/new_message';
 import ProfilePopup from '../pages/profile_page';
 
 // Desktop Sidebar Item Component
@@ -118,25 +118,13 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
   );
 };
 
+
 // Desktop Sidebar Component (without header)
 const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile }) => {
   const menuItems = [
-    { 
-      icon: <BsChatSquareText size={20} />, 
-      label: "Chats", 
-      badge: 10, 
-      route: "/chats" 
-    },
-    { 
-      icon: <MdOutlineGroups size={25} />, 
-      label: "Group", 
-      route: "/group" 
-    },
-    { 
-      icon: <FiEdit size={20} />, 
-      label: "New Message", 
-      route: "/new-message" 
-    },
+    { icon: <BsChatSquareText size={20} />, label: "Chats", badge: 10, route: "/chats" },
+    { icon: <MdOutlineGroups size={25} />, label: "Group", route: "/group" },
+    { icon: <FiEdit size={20} />, label: "New Message", route: "/new-message" },
   ];
 
   const extraItems = [
@@ -150,7 +138,7 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
   return (
     <aside
       className={`
-        hidden md:block bg-white border-r border-gray-200
+        hidden md:block bg-white
         fixed top-16 left-0 z-50 shadow-lg
         ${isOpen ? 'w-60' : 'w-16'}
         transition-all duration-300 ease-out
@@ -267,10 +255,10 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
   );
 };
 
-// Desktop Header Component (Full-width)
+// Desktop Header Component
 const DesktopHeader = () => {
   return (
-    <div className="hidden md:flex items-center justify-between px-4 py-4 bg-white border-b border-gray-200 h-16 relative z-30">
+    <div className="hidden md:flex items-center justify-between px-4 py-4 bg-white h-16 relative z-30">
       <div className="flex items-center">
         <img src={Logo} alt="Logo" className="w-10 h-10 object-contain" />
         <span className="ml-3 mt-2 text-[16px] font-medium text-[#4c0d68] whitespace-nowrap">
@@ -284,23 +272,16 @@ const DesktopHeader = () => {
 // Mobile Header Component
 const MobileHeader = ({ onNavigate }) => {
   return (
-    <div className="md:hidden flex items-center justify-between px-4 pt-4 pb-2 bg-white border-b border-gray-200">
+    <div className="md:hidden flex items-center justify-between px-4 pt-4 pb-2 bg-white">
       <h1 className="ml-0.5 text-xl font-semibold text-purple-800 mt-5">Hi! username</h1>
-      <button 
-        onClick={() => onNavigate('/starred')}
-        className="mt-5 mr-0.5"
-      >
-        <img
-          src={assets.star_fill}
-          alt="Starred Messages"
-          className="w-[30px] h-[30px]"
-        />
+      <button onClick={() => onNavigate('/starred')} className="mt-5 mr-0.5">
+        <img src={assets.star_fill} alt="Starred Messages" className="w-[30px] h-[30px]" />
       </button>
     </div>
   );
 };
 
-// Mobile Bottom Navigation Component - FIXED VERSION
+// Mobile Bottom Navigation Component
 const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile }) => {
   const tabs = [
     {
@@ -332,18 +313,10 @@ const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage
     <>
       {/* Floating New Message Button */}
       <button
-        className="
-          md:hidden fixed 
-          bottom-[120px] right-4
-          z-20
-        "
+        className="md:hidden fixed bottom-[120px] right-4 z-20"
         onClick={() => onNavigate("/new-message")}
       >
-        <img
-          src={assets.new_message}
-          alt="New Message"
-          className="w-12 h-12"
-        />
+        <img src={assets.new_message} alt="New Message" className="w-12 h-12" />
       </button>
 
       {/* Bottom Navigation */}
@@ -500,7 +473,7 @@ const MainLayout = () => {
         <div className="flex flex-col flex-1 ml-16 md:ml-16">
 
           {/* Main Content Area - Where all pages render */}
-          <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+          <main className="flex-1 overflow-y-auto pb-20 md:pb-0 md:border-l-2 md:border-t-2 md:border-grey-600 md:rounded-tl-lg">
             <div className="h-full bg-white">
               <Outlet />
             </div>
@@ -508,7 +481,7 @@ const MainLayout = () => {
         </div>
       </div>
 
-      {/* Mobile Bottom Navigation - UPDATED */}
+      {/* Mobile Bottom Navigation */}
       <MobileBottomNav
         activeRoute={location.pathname}
         onNavigate={handleNavigate}

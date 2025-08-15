@@ -1,10 +1,10 @@
 import React, { useEffect, useRef } from "react";
-import profileList from "../assets/profile_list.svg"; // pastikan path sesuai struktur project
+import { FiArrowLeft } from "react-icons/fi";
+import profileList from "../assets/profile_list.svg";
 
 const NewMessagePopup = ({ isOpen, onClose }) => {
   const popupRef = useRef(null);
 
-  // Tutup popup jika klik di luar
   useEffect(() => {
     function handleClickOutside(event) {
       if (popupRef.current && !popupRef.current.contains(event.target)) {
@@ -26,38 +26,71 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
     { id: 2, name: "Admin WIT" },
     { id: 3, name: "Admin WITA" },
     { id: 4, name: "Admin Gypem" },
-    { id: 5, name: "Admin satu" },
-    { id: 6, name: "Admin dua" },
+    { id: 5, name: "Admin Satu" },
+    { id: 6, name: "Admin Dua" },
+    { id: 7, name: "Admin Tiga" },
   ];
 
   return (
     <div
       ref={popupRef}
-      className="
-        absolute top-12 left-16
-        bg-white rounded-lg shadow-lg w-[230px] h-[310px] border border-gray-200
-        z-50
-      "
+      className={`
+        bg-white rounded-lg shadow-lg border border-gray-200 z-50
+
+        /* Desktop */
+        sm:absolute sm:top-20 sm:left-16 sm:w-[230px] sm:h-[330px] sm:translate-x-1 sm:translate-y-36
+
+        /* Mobile */
+        max-sm:fixed max-sm:top-0 max-sm:left-0 max-sm:right-0 max-sm:bottom-0 
+        max-sm:w-full max-sm:h-full max-sm:rounded-none
+      `}
     >
-      {/* Header */}
-      <div className="px-4 py-3 border-b border-gray-200">
+
+      {/* Header Desktop */}
+      <div className="px-4 py-3 border-b border-gray-200 hidden md:block">
         <h2 className="text-sm font-semibold text-gray-800">New Message</h2>
-        <p className="text-xs text-gray-500">Daftar kontak GyChat</p>
       </div>
 
-      {/* Contact list */}
-      <div className="py-2 h-[240px] overflow-y-auto scrollbar-hide">
-        {contacts.map((contact) => (
+      {/* Header Mobile */}
+      <div className="md:hidden">
+        <div className="flex items-center gap-3 p-6 border-b border-gray-200">
+          <button onClick={onClose} className="text-gray-600 text-lg">
+            <FiArrowLeft size={24} />
+          </button>
+          <h2 className="text-xl font-semibold text-gray-800">
+            Daftar Kontak
+          </h2>
+        </div>
+      </div>
+
+      {/* Teks sebelum list - Mobile First */}
+      <div className="px-4 py-3 md:py-2">
+        <p className="text-base text-gray-400 md:text-xs md:text-gray-500">
+          Daftar kontak GyChat
+        </p>
+      </div>
+
+      {/* Contact list - Mobile First */}
+      <div className="overflow-y-auto scrollbar-hide h-[calc(100%-110px)] bg-white md:h-[240px] md:bg-transparent">
+        {contacts.map((contact, index) => (
           <div
             key={contact.id}
-            className="flex items-center gap-3 px-4 py-2 hover:bg-gray-100 cursor-pointer"
+            className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 cursor-pointer transition-colors duration-200 md:gap-3 md:px-4 md:py-2 md:hover:bg-gray-100 md:transition-none md:duration-0"
           >
             <img
               src={profileList}
               alt="avatar"
-              className="w-8 h-8 rounded-full"
+              className="w-13 h-13 rounded-full object-cover md:w-8 md:h-8 md:object-none"
             />
-            <span className="text-gray-800 text-xs">{contact.name}</span>
+            <div className="flex-1">
+              <span className="text-gray-900 text-lg font-medium block md:text-gray-800 md:text-sm md:font-normal md:inline">
+                {contact.name}
+              </span>
+              {/* Divider hanya untuk mobile dan bukan item terakhir */}
+              {index !== contacts.length - 1 && (
+                <div className="border-b border-gray-300 relative top-4 md:hidden"></div>
+              )}
+            </div>
           </div>
         ))}
       </div>
