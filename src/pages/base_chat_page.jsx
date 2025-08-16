@@ -104,6 +104,49 @@ const BaseChatPage = ({
     return () => window.removeEventListener('resize', handleResize);
   }, [isEmbedded]);
 
+  // Function to check selected message types
+  const getSelectedMessageTypes = () => {
+    if (!isSelectionMode || selectedMessages.size === 0) return { hasReceiver: false, hasSender: false };
+    
+    let hasReceiver = false;
+    let hasSender = false;
+    
+    selectedMessages.forEach(messageId => {
+      const message = messages.find(msg => msg.id === messageId);
+      if (message) {
+        if (message.type === 'receiver') {
+          hasReceiver = true;
+        } else if (message.type === 'sender') {
+          hasSender = true;
+        }
+      }
+    });
+    
+    return { hasReceiver, hasSender };
+  };
+
+  // Function to determine delete behavior based on selected messages
+  const getDeleteBehavior = () => {
+    if (isSelectionMode && selectedMessages.size > 0) {
+      const { hasReceiver, hasSender } = getSelectedMessageTypes();
+      
+      // If only sender messages are selected
+      if (hasSender && !hasReceiver) {
+        return 'sender-only'; // Show delete options (for me/everyone)
+      }
+      // If receiver messages are selected (alone or mixed with sender)
+      else if (hasReceiver) {
+        return 'receiver-included'; // Show simple delete confirmation
+      }
+    } else if (messageToDelete) {
+      // Single message delete
+      const message = messages.find(msg => msg.id === messageToDelete);
+      return message?.type === 'sender' ? 'sender-only' : 'receiver-included';
+    }
+    
+    return 'receiver-included'; // Default fallback
+  };
+
   // New functions for handling multiple pins
   const handlePinMessage = (message) => {
     const messageWithId = { ...message, id: message.id };
@@ -230,7 +273,7 @@ const BaseChatPage = ({
     });
   };
 
-  // Update delete functions to handle multiple messages and pinned messages
+  // Updated delete functions with conditional behavior
   const handleDeleteRequest = (messageId, messageType) => {
     if (isSelectionMode) {
       // In selection mode, toggle selection instead of delete
@@ -484,6 +527,9 @@ const BaseChatPage = ({
       </div>
     );
   }
+
+  // Get delete behavior for current selection
+  const deleteBehavior = getDeleteBehavior();
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -781,11 +827,11 @@ const BaseChatPage = ({
         fileButtonRef={fileButtonRef}
       />
 
-      {/* Delete Modal - same as existing */}
+      {/* Updated Delete Modal with conditional behavior */}
       {showDeleteModal && (
         <div className="fixed inset-0 flex items-center justify-center z-[9999]">
           <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl border border-gray-200">
-            {deleteType === 'receiver' ? (
+            {deleteBehavior === 'receiver-included' ? (
               <>
                 <div className="mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">
