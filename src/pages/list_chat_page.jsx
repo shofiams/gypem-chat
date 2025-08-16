@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useChatContext } from '../api/use_chat_context';
@@ -52,10 +51,26 @@ const ChatItem = ({
     });
   };
 
+  // === Tambahan untuk long press mobile ===
+  let pressTimer = null;
+
+  const handleTouchStart = (e) => {
+    pressTimer = setTimeout(() => {
+      if (onContextMenu) onContextMenu(e, id);
+    }, 600); // tahan 600ms
+  };
+
+  const handleTouchEnd = () => {
+    if (pressTimer) clearTimeout(pressTimer);
+  };
+
   return (
     <div
       onClick={() => onClick && onClick(id)}
-      onContextMenu={(e) => onContextMenu && onContextMenu(e, id)}
+      onContextMenu={(e) => onContextMenu && onContextMenu(e, id)} // desktop
+      onTouchStart={handleTouchStart} // mobile long press
+      onTouchEnd={handleTouchEnd}
+      onTouchCancel={handleTouchEnd}
       className={`
         flex items-center px-3 py-2 cursor-pointer border-b border-gray-100 last:border-b-0 min-h-[52px]
         ${isSelected ? 'bg-[#efe6f3]' : 'hover:bg-gray-50'}
@@ -171,8 +186,8 @@ export default function ChatPage() {
     e.stopPropagation();
     const menuWidth = 160;
     const menuHeight = 50;
-    let clickX = e.clientX;
-    let clickY = e.clientY;
+    let clickX = e.clientX || e.touches?.[0]?.clientX || 100;
+    let clickY = e.clientY || e.touches?.[0]?.clientY || 100;
 
     const winW = window.innerWidth;
     const winH = window.innerHeight;
@@ -263,55 +278,21 @@ export default function ChatPage() {
     }
   }, [confirmOpen]);
 
-  // Scrollbar styling yang sangat tipis dan proporsional
+  // Scrollbar styling
   useEffect(() => {
-  const style = document.createElement("style");
-  style.textContent = `
-    /* Firefox */
-    .elegant-scrollbar {
-      scrollbar-width: thin !important;
-      scrollbar-color: rgba(156, 163, 175, 0.3) transparent !important;
-    }
-
-    /* Chrome, Edge, Safari */
-    .elegant-scrollbar::-webkit-scrollbar {
-      width: 2px !important;
-    }
-
-    .elegant-scrollbar::-webkit-scrollbar-track {
-      background: transparent !important;
-    }
-
-    /* Jarak atas & bawah supaya thumb tidak nempel */
-    .elegant-scrollbar::-webkit-scrollbar-track-piece {
-      margin: 16px 0 !important;
-    }
-
-    .elegant-scrollbar::-webkit-scrollbar-thumb {
-      background-color: rgba(156, 163, 175, 0.25) !important;
-      border-radius: 2px !important;
-      transition: background-color 0.2s ease !important;
-    }
-
-    /* Hover lebih gelap */
-    .elegant-scrollbar::-webkit-scrollbar-thumb:hover {
-      background-color: rgba(156, 163, 175, 0.5) !important;
-    }
-
-    /* Hilangkan tombol panah */
-    .elegant-scrollbar::-webkit-scrollbar-button {
-      display: none !important;
-      height: 0 !important;
-      width: 0 !important;
-    }
-  `;
-  document.head.appendChild(style);
-  return () => {
-    document.head.removeChild(style);
-  };
-}
-
-, []);
+    const style = document.createElement("style");
+    style.textContent = `
+      .elegant-scrollbar { scrollbar-width: thin !important; scrollbar-color: rgba(156, 163, 175, 0.3) transparent !important; }
+      .elegant-scrollbar::-webkit-scrollbar { width: 2px !important; }
+      .elegant-scrollbar::-webkit-scrollbar-track { background: transparent !important; }
+      .elegant-scrollbar::-webkit-scrollbar-track-piece { margin: 16px 0 !important; }
+      .elegant-scrollbar::-webkit-scrollbar-thumb { background-color: rgba(156, 163, 175, 0.25) !important; border-radius: 2px !important; transition: background-color 0.2s ease !important; }
+      .elegant-scrollbar::-webkit-scrollbar-thumb:hover { background-color: rgba(156, 163, 175, 0.5) !important; }
+      .elegant-scrollbar::-webkit-scrollbar-button { display: none !important; height: 0 !important; width: 0 !important; }
+    `;
+    document.head.appendChild(style);
+    return () => { document.head.removeChild(style); };
+  }, []);
 
   return (
     <div className="h-full flex bg-white">
