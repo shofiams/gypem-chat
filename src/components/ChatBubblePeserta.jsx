@@ -1,7 +1,199 @@
 import React, { useState, useRef, useEffect } from "react";
 import { assets } from "../assets/assets";
 import DropdownMenuPeserta from "./DropdownMenuPeserta";
+import { Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
+// ImageViewerModal component
+const ImageViewerModal = ({ 
+  isOpen, 
+  onClose, 
+  imageUrl, 
+  imageName = 'image.jpg',
+  onPrevious = null,
+  onNext = null,
+  hasMultiple = false 
+}) => {
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsLoading(true);
+      setError(false);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleKeyPress = (e) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+      if (e.key === 'ArrowLeft' && onPrevious) {
+        onPrevious();
+      }
+      if (e.key === 'ArrowRight' && onNext) {
+        onNext();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('keydown', handleKeyPress);
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyPress);
+    };
+  }, [isOpen, onClose, onPrevious, onNext]);
+
+  const handleImageLoad = () => {
+    setIsLoading(false);
+    setError(false);
+  };
+
+  const handleImageError = () => {
+    setIsLoading(false);
+    setError(true);
+  };
+
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(imageUrl, {
+        mode: 'cors',
+        credentials: 'same-origin'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = imageName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Download failed:', error);
+      
+      try {
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        link.download = imageName;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (fallbackError) {
+        console.error('Fallback download also failed:', fallbackError);
+        alert('Download failed. Please try right-clicking the image and selecting "Save image as..."');
+      }
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
+      <div 
+        className="absolute inset-0 cursor-pointer" 
+        onClick={onClose}
+      />
+      
+      <div className="absolute top-4 right-4 z-10 flex gap-2">
+        <button
+          onClick={handleDownload}
+          className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 rounded transition-all duration-200"
+          title="Download image"
+          disabled={isLoading || error}
+        >
+          <Download 
+            className={`w-5 h-5 text-white ${
+              isLoading || error ? 'opacity-50' : 'opacity-100'
+            }`}
+          />
+        </button>
+        
+        <button
+          onClick={onClose}
+          className="p-2 bg-black bg-opacity-60 hover:bg-opacity-80 rounded transition-all duration-200"
+          title="Close"
+        >
+          <X className="w-5 h-5 text-white" />
+        </button>
+      </div>
+
+      {hasMultiple && onPrevious && (
+        <button
+          onClick={onPrevious}
+          className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10 p-2 bg-black bg-opacity-60 hover:bg-opacity-80 rounded transition-all duration-200"
+          title="Previous image"
+        >
+          <ChevronLeft className="w-6 h-6 text-white" />
+        </button>
+      )}
+
+      {hasMultiple && onNext && (
+        <button
+          onClick={onNext}
+          className="absolute right-4 top-1/2 transform -translate-y-1/2 z-10 p-2 bg-black bg-opacity-60 hover:bg-opacity-80 rounded transition-all duration-200"
+          title="Next image"
+        >
+          <ChevronRight className="w-6 h-6 text-white" />
+        </button>
+      )}
+
+      <div className="relative max-w-[90vw] max-h-[90vh] flex flex-col items-center justify-center">
+        <div className="relative flex items-center justify-center">
+          {isLoading && (
+            <div className="flex items-center justify-center w-96 h-96">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+            </div>
+          )}
+          
+          {error && (
+            <div className="flex flex-col items-center justify-center w-96 h-96 text-white">
+              <svg className="w-16 h-16 mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-lg">Failed to load image</p>
+              <p className="text-sm opacity-70 mt-1">The image could not be displayed</p>
+            </div>
+          )}
+          
+          <img
+            src={imageUrl}
+            alt="Full size view"
+            className={`max-w-full max-h-[85vh] object-contain cursor-pointer transition-opacity duration-200 ${
+              isLoading ? 'opacity-0 absolute' : 'opacity-100'
+            }`}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '90vw',
+              maxHeight: '85vh',
+              width: 'auto',
+              height: 'auto'
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ChatBubblePeserta component with ImageViewerModal integration
 export default function ChatBubblePeserta({ ...props }) {
   const {
     type,
@@ -25,6 +217,10 @@ export default function ChatBubblePeserta({ ...props }) {
     sender,
     showSenderName = false,
     getSenderColor,
+    // New props for image modal
+    images = [], // Array of images if multiple
+    imageIndex = 0, // Current image index
+    onImageNavigation = null, // Callback for image navigation
   } = props;
 
   const isSender = type === "sender";
@@ -36,6 +232,7 @@ export default function ChatBubblePeserta({ ...props }) {
   const [dropdownPosition, setDropdownPosition] = useState('below');
   const [isMobile, setIsMobile] = useState(false);
   const [showDropdownButton, setShowDropdownButton] = useState(false);
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
@@ -64,9 +261,7 @@ export default function ChatBubblePeserta({ ...props }) {
     const viewportHeight = window.innerHeight;
     const spaceBelow = viewportHeight - buttonRect.bottom;
     const spaceAbove = buttonRect.top;
-    // const dropdownHeight = 280;
-    // Sesuaikan tinggi dropdown berdasarkan mode
-    const dropdownHeight = props.groupChatMode ? 120 : 280; // Grup chat lebih pendek
+    const dropdownHeight = props.groupChatMode ? 120 : 280;
 
     if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
       return 'above';
@@ -145,6 +340,29 @@ export default function ChatBubblePeserta({ ...props }) {
     if (isMobile && !isSelectionMode && !isDeleted) {
       e.preventDefault();
       setShowDropdownButton(prev => !prev);
+    }
+  };
+
+  // Handle image click to open modal
+  const handleImageClick = (e) => {
+    e.stopPropagation();
+    if (!isSelectionMode && !isDeleted) {
+      setIsImageModalOpen(true);
+    }
+  };
+
+  // Handle image navigation in modal
+  const handleImagePrevious = () => {
+    if (onImageNavigation && images.length > 1) {
+      const newIndex = imageIndex > 0 ? imageIndex - 1 : images.length - 1;
+      onImageNavigation(newIndex);
+    }
+  };
+
+  const handleImageNext = () => {
+    if (onImageNavigation && images.length > 1) {
+      const newIndex = imageIndex < images.length - 1 ? imageIndex + 1 : 0;
+      onImageNavigation(newIndex);
     }
   };
 
@@ -240,7 +458,7 @@ export default function ChatBubblePeserta({ ...props }) {
 
   const hasContent = message || image || file || reply;
 
-  // ✅ FIXED: Render status icons in one place only
+  // Render status icons
   const renderStatusIcons = () => {
     if (isDeleted) return null;
     
@@ -286,12 +504,26 @@ export default function ChatBubblePeserta({ ...props }) {
     }
   };
 
-  // ✅ NEW: Function to get sender color
+  // Function to get sender color
   const getSenderNameColor = () => {
     if (getSenderColor && sender) {
       return getSenderColor(sender);
     }
-    return "#4C0D68"; // Default color
+    return "#4C0D68";
+  };
+
+  // Get current image URL
+  const getCurrentImageUrl = () => {
+    if (images.length > 0) {
+      return images[imageIndex];
+    }
+    return image;
+  };
+
+  // Generate image name for download
+  const getImageName = () => {
+    const timestamp = new Date().getTime();
+    return `chat-image-${timestamp}.jpg`;
   };
 
   return (
@@ -352,7 +584,7 @@ export default function ChatBubblePeserta({ ...props }) {
               }`}
               onClick={handleBubbleClick}
             >
-              {/* ✅ NEW: Tampilkan nama pengirim di dalam bubble jika showSenderName true */}
+              {/* Show sender name if enabled */}
               {showSenderName && sender && !isSender && (
                 <div 
                   className="text-xs font-semibold text-[16px]"
@@ -376,11 +608,12 @@ export default function ChatBubblePeserta({ ...props }) {
               {image && (
                 <div className="mb-1">
                   <img
-                    src={image}
+                    src={getCurrentImageUrl()}
                     alt="chat-img"
-                    className="max-w-[200px] rounded-md"
+                    className="max-w-[200px] rounded-md cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={handleImageClick}
                   />
-                  {/* ✅ FIXED: Status icons untuk image dengan caption */}
+                  {/* Status icons for image with caption */}
                   {!message && !isDeleted && (
                     <div className="flex justify-end mt-1">
                       {renderStatusIcons()}
@@ -423,7 +656,7 @@ export default function ChatBubblePeserta({ ...props }) {
                       </a>
                     </div>
                   </div>
-                  {/* ✅ FIXED: Status icons untuk file dengan caption */}
+                  {/* Status icons for file with caption */}
                   {!message && !isDeleted && (
                     <div className="flex justify-end mt-1">
                       {renderStatusIcons()}
@@ -444,7 +677,7 @@ export default function ChatBubblePeserta({ ...props }) {
                       <span className="flex-1">{message}</span>
                     </div>
 
-                    {/* ✅ FIXED: Status icons hanya untuk message atau ketika ada caption */}
+                    {/* Status icons for message */}
                     {!isDeleted && renderStatusIcons()}
                   </div>
                 </div>
@@ -539,6 +772,17 @@ export default function ChatBubblePeserta({ ...props }) {
           </div>
         </div>
       )}
+
+      {/* Image Viewer Modal */}
+      <ImageViewerModal
+        isOpen={isImageModalOpen}
+        onClose={() => setIsImageModalOpen(false)}
+        imageUrl={getCurrentImageUrl()}
+        imageName={getImageName()}
+        hasMultiple={images.length > 1}
+        onPrevious={images.length > 1 ? handleImagePrevious : null}
+        onNext={images.length > 1 ? handleImageNext : null}
+      />
 
       {/* Toast notification */}
       {showCopied && (
