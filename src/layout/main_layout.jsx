@@ -400,7 +400,7 @@ const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNewMessageOpen, setIsNewMessageOpen] = useState(false);
-  const { clearActiveChat } = useChatContext();
+  const { clearActiveChat, setActiveChat } = useChatContext();
   const [isProfilePopupOpen, setIsProfilePopupOpen] = useState(false);
   const [profileImage, setProfileImage] = useState("");
   
@@ -455,19 +455,44 @@ const MainLayout = () => {
   };
 
   useEffect(() => {
-  const handleResize = () => {
-    const currentIsMobile = window.innerWidth < 768;
-    
-    // If switching from mobile to desktop and we're on a specific chat route
-    if (!currentIsMobile && location.pathname.startsWith('/chats/') && location.pathname !== '/chats') {
-      // Navigate to main chats page so the split layout can take over
-      navigate('/chats');
-    }
-  };
+    const handleResize = () => {
+      const currentIsMobile = window.innerWidth < 768;
+      
+      // If switching from mobile to desktop
+      if (!currentIsMobile) {
+        const pathname = location.pathname;
+        
+        // Handle individual chat routes
+        if (pathname.startsWith('/chats/') && pathname !== '/chats') {
+          const chatId = pathname.split('/chats/')[1];
+          // Navigate to main chats page and set active chat for split view
+          navigate('/chats', { replace: true });
+          // Small delay to ensure navigation completes before setting active chat
+          setTimeout(() => {
+            setActiveChat(chatId);
+          }, 50);
+        }
+        
+        // Handle individual group routes
+        else if (pathname.startsWith('/group/') && pathname !== '/group') {
+          const groupId = pathname.split('/group/')[1];
+          // Navigate to main group page and set active chat for split view
+          navigate('/group', { replace: true });
+          // Small delay to ensure navigation completes before setting active chat
+          setTimeout(() => {
+            setActiveChat(groupId);
+          }, 50);
+        }
+      }
+      // If switching from desktop to mobile, clear active chat
+      else {
+        clearActiveChat();
+      }
+    };
 
-  window.addEventListener('resize', handleResize);
-  return () => window.removeEventListener('resize', handleResize);
-}, [navigate, location.pathname]);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [navigate, setActiveChat, clearActiveChat, location.pathname]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">

@@ -157,21 +157,21 @@ export default function ChatPage() {
 
   // Add navigation handler
   const handleChatClick = (chatId) => {
-  const chat = getChatById(chatId);
-  const currentIsMobile = window.innerWidth < 768;
-  
-  if (currentIsMobile) {
-    // Mobile: Navigate berdasarkan tipe chat
-    if (chat?.type === 'group') {
-      navigate(`/group/${chatId}`);
+    const chat = getChatById(chatId);
+    const currentIsMobile = window.innerWidth < 768;
+    
+    if (currentIsMobile) {
+      // Mobile: Navigate berdasarkan tipe chat
+      if (chat?.type === 'group') {
+        navigate(`/group/${chatId}`);
+      } else {
+        navigate(`/chats/${chatId}`);
+      }
     } else {
-      navigate(`/chats/${chatId}`);
+      // Desktop: Set active chat
+      setActiveChat(chatId);
     }
-  } else {
-    // Desktop: Set active chat
-    setActiveChat(chatId);
-  }
-};
+  };
 
   // handle right click: show context menu
   const handleContextMenu = (e, chatId) => {
@@ -202,6 +202,10 @@ export default function ChatPage() {
   const doDelete = () => {
     if (chatToDelete != null) {
       deleteChat(chatToDelete);
+      // If deleting active chat, clear it
+      if (chatToDelete === activeChatId) {
+        clearActiveChat();
+      }
     }
     closeConfirm();
   };
@@ -217,20 +221,41 @@ export default function ChatPage() {
   }, [isGroupPage, clearActiveChat]);
 
   useEffect(() => {
-  const handleResize = () => {
-    const currentIsMobile = window.innerWidth < 768;
-    setIsMobile(currentIsMobile);
-    
-    if (!currentIsMobile && location.pathname.startsWith('/chats/') && location.pathname !== '/chats') {
-      const chatId = location.pathname.split('/chats/')[1];
-      navigate('/chats');
-      setActiveChat(chatId);
-    }
-  };
+    const handleResize = () => {
+      const currentIsMobile = window.innerWidth < 768;
+      const prevIsMobile = isMobile;
+      
+      // Update mobile state
+      setIsMobile(currentIsMobile);
+      
+      // If switching from mobile to desktop
+      if (prevIsMobile && !currentIsMobile) {
+        const pathname = location.pathname;
+        
+        // Check if we're currently on a specific chat route (mobile view)
+        if (pathname.startsWith('/chats/') && pathname !== '/chats') {
+          const chatId = pathname.split('/chats/')[1];
+          // Don't navigate, just set active chat for split view
+          // The MainLayout will handle the navigation
+          setActiveChat(chatId);
+        }
+        else if (pathname.startsWith('/group/') && pathname !== '/group') {
+          const groupId = pathname.split('/group/')[1];
+          // Don't navigate, just set active chat for split view
+          // The MainLayout will handle the navigation
+          setActiveChat(groupId);
+        }
+      }
+      // If switching from desktop to mobile
+      else if (!prevIsMobile && currentIsMobile) {
+        // Clear active chat since we'll be using single-view navigation
+        clearActiveChat();
+      }
+    };
 
-  window.addEventListener('resize', handleResize);
-  return () => window.removeEventListener('resize', handleResize);
-}, [navigate, setActiveChat, location.pathname]);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isMobile, setActiveChat, clearActiveChat, location.pathname]);
 
   useEffect(() => {
     const handleKeydown = (e) => {
@@ -381,7 +406,7 @@ export default function ChatPage() {
             }
           })()
         ) : (
-          <div className="w-full h-full border border-gray-200 bg-gray-50 flex flex-col items-center justify-center p-6">
+          <div className="w-full h-full border border-t-0 border-gray-200 bg-gray-50 flex flex-col items-center justify-center p-6">
             <div className="w-32 h-32 mb-4 bg-white rounded-md flex items-center justify-center overflow-hidden">
               <img src={assets.logo || assets.user} alt="placeholder" className="w-full h-full object-contain opacity-60" />
             </div>
