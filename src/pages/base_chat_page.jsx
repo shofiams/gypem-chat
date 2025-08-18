@@ -54,7 +54,6 @@ const BaseChatPage = ({
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState(null);
-  const [deleteType, setDeleteType] = useState(null);
   const [showDeleteOptions, setShowDeleteOptions] = useState(false);
   const [selectedDeleteOption, setSelectedDeleteOption] = useState('me');
   const messageRefs = useRef({});
@@ -103,6 +102,44 @@ const BaseChatPage = ({
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [isEmbedded]);
+
+  useEffect(() => {
+    const style = document.createElement("style");
+    style.textContent = `
+      .elegant-scrollbar { 
+        scrollbar-width: thin !important; 
+        scrollbar-color: rgba(156, 163, 175, 0.5) transparent !important; 
+      }
+      .elegant-scrollbar::-webkit-scrollbar { 
+        width: 4px !important; 
+      }
+      .elegant-scrollbar::-webkit-scrollbar-track { 
+        background: transparent !important; 
+      }
+      .elegant-scrollbar::-webkit-scrollbar-track-piece { 
+        margin: 16px 0 !important; 
+      }
+      .elegant-scrollbar::-webkit-scrollbar-thumb { 
+        background-color: rgba(156, 163, 175, 0.25) !important; 
+        border-radius: 4px !important; 
+        transition: background-color 0.2s ease !important; 
+      }
+      .elegant-scrollbar:hover::-webkit-scrollbar-thumb { 
+        background-color: rgba(156, 163, 175, 0.5) !important; 
+      }
+      .elegant-scrollbar::-webkit-scrollbar-button { 
+        display: none !important; 
+        height: 0 !important; 
+        width: 0 !important; 
+      }
+      .elegant-scrollbar::-webkit-scrollbar-corner {
+        background: transparent !important;
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { document.head.removeChild(style); };
+  }, []);
+
 
   // Function to check selected message types
   const getSelectedMessageTypes = () => {
@@ -274,7 +311,7 @@ const BaseChatPage = ({
   };
 
   // Updated delete functions with conditional behavior
-  const handleDeleteRequest = (messageId, messageType) => {
+  const handleDeleteRequest = (messageId) => {
     if (isSelectionMode) {
       // In selection mode, toggle selection instead of delete
       handleToggleSelection(messageId);
@@ -282,7 +319,6 @@ const BaseChatPage = ({
     }
     
     setMessageToDelete(messageId);
-    setDeleteType(messageType);
     setShowDeleteModal(true);
   };
 
@@ -314,7 +350,6 @@ const BaseChatPage = ({
     setShowDeleteModal(false);
     setShowDeleteOptions(false);
     setMessageToDelete(null);
-    setDeleteType(null);
     setSelectedDeleteOption('me');
   };
 
@@ -390,7 +425,6 @@ const BaseChatPage = ({
     setShowDeleteModal(false);
     setShowDeleteOptions(false);
     setMessageToDelete(null);
-    setDeleteType(null);
     setSelectedDeleteOption('me');
   };
 
@@ -398,7 +432,6 @@ const BaseChatPage = ({
     setShowDeleteModal(false);
     setShowDeleteOptions(false);
     setMessageToDelete(null);
-    setDeleteType(null);
     setSelectedDeleteOption('me');
   };
 
@@ -573,6 +606,7 @@ const BaseChatPage = ({
             <div className="w-6 h-6 flex items-center justify-center bg-gray-300 rounded">
               <img src={assets.PinFill} alt="pinned" className="w-3 h-3" />
             </div>
+            
             <div 
               className="flex-1 cursor-pointer"
               onClick={() => {
@@ -593,6 +627,25 @@ const BaseChatPage = ({
                 {currentPinnedMessage?.message || currentPinnedMessage?.file?.name || "Gambar"}
               </p>
             </div>
+            {pinnedMessages.length > 1 && (
+              <>
+                <button
+                  onClick={() => navigatePinnedMessage('prev')}
+                  className="p-1 hover:bg-white/20 rounded"
+                >
+                  <img src={assets.ArrowUp} alt="previous" className="w-6 h-6" />
+                </button>
+                <span className="text-xs">
+                  {pinnedMessages.findIndex(p => p.id === currentPinnedMessage.id) + 1}/{pinnedMessages.length}
+                </span>
+                <button
+                  onClick={() => navigatePinnedMessage('next')}
+                  className="p-1 hover:bg-white/20 rounded"
+                >
+                  <img src={assets.ArrowDown} alt="next" className="w-6 h-6" />
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -600,17 +653,17 @@ const BaseChatPage = ({
       {/* Chat Area */}
       <div className="flex-1 flex flex-col min-h-0">
         <div
-          className={`flex-1 overflow-y-auto p-4 relative transition-all duration-300 ${
-            showDeleteModal ? 'blur-sm' : ''
-          }`}
-          style={{
-            backgroundImage: `url(${chatBg})`,
-            backgroundSize: "cover",
-          }}
-          onClick={() => {
-            if (showEmojiPicker) setShowEmojiPicker(false);
-          }}
-        >
+  className={`flex-1 overflow-y-auto p-4 relative transition-all duration-300 elegant-scrollbar ${
+    showDeleteModal ? 'blur-sm' : ''
+  }`}
+  style={{
+    backgroundImage: `url(${chatBg})`,
+    backgroundSize: "cover",
+  }}
+  onClick={() => {
+    if (showEmojiPicker) setShowEmojiPicker(false);
+  }}
+>
           {messages.length > 0 ? (
             <>
               <DateSeparator>Today</DateSeparator>
