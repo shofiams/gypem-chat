@@ -628,11 +628,11 @@ const BaseChatPage = ({
 
         {/* Reply Preview */}
         {replyingMessage && !isSelectionMode && canSendMessages && (
-          <div className={`flex items-center justify-between bg-gray-100 px-3 py-2 border-l-4 border-[#4C0D68] transition-all duration-300 ${
+          <div className={`flex items-center justify-between bg-gray-100 px-3 py-2 border-l-4 border-[#bd2cfc] transition-all duration-300 ${
             showDeleteModal ? 'blur-sm' : ''
           }`}>
             <div>
-              <p className="text-xs font-semibold text-[#4C0D68]">
+              <p className="text-xs font-semibold text-[#bd2cfc]">
                 {replyingMessage.sender || "Anda"}
               </p>
               <p className="text-xs text-gray-600 truncate w-48">
