@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import Logo from '../assets/logo.png';
 import { assets } from '../assets/assets';
@@ -12,18 +12,18 @@ import NewMessagePopup from '../components/new_message';
 import ProfilePopup from '../pages/profile_page';
 
 // Desktop Sidebar Item Component
-const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge, itemRef }) => {
+const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
   const isStar = label === "Starred Messages";
 
   return (
-    <div className="px-2 my-1" ref={itemRef}>
+    <div className="px-2 my-1">
       <button
         onClick={onClick}
         className={`
           relative w-full flex px-3
           py-2.5
           hover:bg-gray-100 rounded-lg
-          transition-all duration-500 ease-out
+          transition-all duration-300 ease-out
           ${isActive ? "bg-gray-100" : ""}
         `}
       >
@@ -34,9 +34,23 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge, itemRef })
               absolute -top-2 
               left-1
               h-[0.5px] bg-[#A59B9B] rounded-full
-              transition-all duration-500 ease-in-out
+              transition-all duration-300 ease-in-out
               ${isOpen ? "w-[calc(95%)]" : "w-[40px]"}
             `}
+          />
+        )}
+
+        {/* Individual Active indicator */}
+        {isActive && (
+          <span
+            className="
+              absolute left-0
+              top-1/2 -translate-y-1/2
+              bg-[#FFB400]
+              w-[3px] h-[20px]
+              rounded-full
+              transition-all duration-300 ease-out
+            "
           />
         )}
 
@@ -93,7 +107,7 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge, itemRef })
               leading-none
               rounded-full
               flex items-center justify-center
-              transition-all duration-500 ease-out
+              transition-all duration-300 ease-out
               ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}
             `}
           >
@@ -105,64 +119,21 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge, itemRef })
   );
 };
 
-// Desktop Sidebar Component with unified active indicator
+// Desktop Sidebar Component
 const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile, isNewMessageOpen, isProfilePopupOpen }) => {
-  const [indicatorStyle, setIndicatorStyle] = useState({ top: 0, opacity: 0 });
-  const sidebarRef = useRef(null);
-  const itemRefs = useRef({});
-  
   const menuItems = [
-    { icon: <BsChatSquareText size={20} />, label: "Chats", badge: 10, route: "/chats", key: "chats" },
-    { icon: <MdOutlineGroups size={25} />, label: "Group", route: "/group", key: "group" },
-    { icon: <FiEdit size={20} />, label: "New Message", route: "/new-message", isPopup: true, key: "new-message" },
+    { icon: <BsChatSquareText size={20} />, label: "Chats", badge: 10, route: "/chats" },
+    { icon: <MdOutlineGroups size={25} />, label: "Group", route: "/group" },
+    { icon: <FiEdit size={20} />, label: "New Message", route: "/new-message", isPopup: true },
   ];
 
   const extraItems = [
     { 
       icon: <FaRegStar size={20} />, 
       label: "Starred Messages", 
-      route: "/starred",
-      key: "starred"
+      route: "/starred"
     },
   ];
-
-  // Helper function to determine the active item key
-  const getActiveItemKey = () => {
-    if (isNewMessageOpen) return "new-message";
-    if (isProfilePopupOpen) return "profile";
-    
-    // Map routes to keys
-    if (activeRoute === "/chats") return "chats";
-    if (activeRoute === "/group") return "group";
-    if (activeRoute === "/starred") return "starred";
-    
-    return null;
-  };
-
-  // Update indicator position when active item changes
-  useEffect(() => {
-    const activeKey = getActiveItemKey();
-    
-    if (activeKey && itemRefs.current[activeKey] && sidebarRef.current) {
-      const activeElement = itemRefs.current[activeKey];
-      const sidebar = sidebarRef.current;
-      
-      // Get positions relative to sidebar
-      const sidebarRect = sidebar.getBoundingClientRect();
-      const activeRect = activeElement.getBoundingClientRect();
-      
-      // Calculate the center position of the active item relative to sidebar
-      const relativeTop = activeRect.top - sidebarRect.top + (activeRect.height / 2) - 10; // -10 to center the 20px indicator
-      
-      setIndicatorStyle({
-        top: relativeTop,
-        opacity: 1
-      });
-    } else {
-      // Hide indicator if no active item
-      setIndicatorStyle(prev => ({ ...prev, opacity: 0 }));
-    }
-  }, [isNewMessageOpen, isProfilePopupOpen, activeRoute, isOpen]); // Add isOpen to recalculate on sidebar toggle
 
   // Helper function to determine if an item should be active
   const isItemActive = (route, isPopup = false) => {
@@ -179,7 +150,6 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
 
   return (
     <aside
-      ref={sidebarRef}
       className={`
         hidden md:block bg-white
         fixed top-16 left-0 z-50 shadow-lg
@@ -188,21 +158,6 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
       `}
       style={{ height: 'calc(100vh - 64px)' }} 
     >
-      {/* Unified Active Indicator */}
-      <span
-        className="
-          absolute left-2 z-10
-          bg-[#FFB400]
-          w-[3px] h-[20px]
-          rounded-full
-          transition-all duration-500 ease-out
-        "
-        style={{
-          top: `${indicatorStyle.top}px`,
-          opacity: indicatorStyle.opacity,
-        }}
-      />
-
       {/* Body */}
       <div className={`flex flex-col flex-1 overflow-hidden pt-4 h-full`}>
         {/* Toggle button */}
@@ -224,7 +179,7 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
         <nav className="mt-4 flex flex-col justify-between flex-1 w-full">
           {/* Main menu items */}
           <div className="-mt-4">
-            {menuItems.map(({ icon, label, badge, route, isPopup, key }) => (
+            {menuItems.map(({ icon, label, badge, route, isPopup }) => (
               <SidebarItem
                 key={route}
                 icon={icon}
@@ -233,14 +188,13 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
                 isOpen={isOpen}
                 isActive={isItemActive(route, isPopup)}
                 onClick={() => onNavigate(route)}
-                itemRef={el => itemRefs.current[key] = el}
               />
             ))}
           </div>
 
           {/* Extra items */}
           <div className="mt-auto">
-            {extraItems.map(({ icon, label, route, key }) => (
+            {extraItems.map(({ icon, label, route }) => (
               <SidebarItem
                 key={route}
                 icon={icon}
@@ -248,22 +202,35 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
                 isOpen={isOpen}
                 isActive={isItemActive(route)}
                 onClick={() => onNavigate(route)}
-                itemRef={el => itemRefs.current[key] = el}
               />
             ))}
             
             {/* Profile Item with Custom Styling */}
-            <div className="px-2 my-1" ref={el => itemRefs.current["profile"] = el}>
+            <div className="px-2 my-1">
               <button
                 onClick={onProfileClick}
                 className={`
                   relative w-full flex px-3
                   py-2.5
                   hover:bg-gray-100 rounded-lg
-                  transition-all duration-500 ease-out
+                  transition-all duration-300 ease-out
                   ${isProfilePopupOpen ? "bg-gray-100" : ""}
                 `}
               >
+                {/* Individual Active indicator for Profile */}
+                {isProfilePopupOpen && (
+                  <span
+                    className="
+                      absolute left-0
+                      top-1/2 -translate-y-1/2
+                      bg-[#FFB400]
+                      w-[3px] h-[20px]
+                      rounded-full
+                      transition-all duration-300 ease-out
+                    "
+                  />
+                )}
+
                 {/* Profile Icon/Image */}
                 <div className="relative flex items-center justify-center w-6 h-6 flex-shrink-0">
                   {isDefaultProfile ? (
@@ -369,7 +336,7 @@ const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage
       <div className="md:hidden fixed bottom-0 w-full bg-[#f2f2f2] py-1 border-t border-gray-200 z-50">
         <div className="flex items-center justify-around relative">
           {tabs.map((tab) => {
-            const isActive = isProfilePopupOpen ? tab.isProfile  : activeRoute === tab.route;
+            const isActive = isProfilePopupOpen ? tab.isProfile : activeRoute === tab.route;
             
             return (
               <button
@@ -573,7 +540,6 @@ const MainLayout = () => {
 
         {/* Main Content Area */}
         <div className="flex flex-col flex-1 md:ml-16">
-
           {/* Main Content Area - Where all pages render */}
           <main className={`flex-1 overflow-y-auto ${isChatRoute ? 'pb-0' : 'pb-20'} md:pb-0 md:border-l-2 md:border-t-2 md:border-grey-600 md:rounded-tl-lg`}>
             <div className="h-full bg-white">
