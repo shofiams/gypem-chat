@@ -170,7 +170,7 @@ export default function GroupMedia({ mediaList }) {
           tabIndex={-1}
         >
           {/* Bar kanan atas */}
-          <div className="absolute top-4 right-4 flex items-center gap-1.5">
+          <div className="absolute top-2 right-2 md:top-4 md:right-4 flex items-center gap-2">
             {/* Icon Download */}
             <div className="group flex flex-col items-center">
               <button
@@ -219,7 +219,7 @@ export default function GroupMedia({ mediaList }) {
               e.stopPropagation();
               prevMedia();
             }}
-            className="absolute left-4 text-white outline-none"
+            className="absolute left-1 text-white outline-none"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
               <path d="M15 18l-6-6 6-6" />
@@ -257,7 +257,7 @@ export default function GroupMedia({ mediaList }) {
               e.stopPropagation();
               nextMedia();
             }}
-            className="absolute right-4 text-white outline-none"
+            className="absolute right-1 text-white outline-none"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="none" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
               <path d="M9 18l6-6-6-6" />

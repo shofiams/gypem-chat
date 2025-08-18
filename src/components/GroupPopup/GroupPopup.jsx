@@ -84,8 +84,6 @@ export default function GroupPopup({ onClose }) {
     { name: "Juknis Olympiade Star", type: "pdf", url: "/files/juknis2.pdf" },
     { name: "Panduan Acara", type: "word", url: "/files/panduan.docx" },
     { name: "Formulir Pendaftaran", type: "word", url: "/files/formulir.docx" },
-    { name: "Poster Lomba", type: "image", url: "/files/poster.png" },
-    { name: "Video Tutorial", type: "video", url: "/files/tutorial.mp4" },
     { name: "Materi Presentasi", type: "pdf", url: "/files/materi.pdf" },
     { name: "Surat Undangan", type: "word", url: "/files/undangan.docx" },
   ];
@@ -237,7 +235,7 @@ export default function GroupPopup({ onClose }) {
         {/* Main Content */}
         <div
           ref={scrollRef}
-          className={`flex-1 overflow-y-auto ${isMobile ? "p-4" : "p-6 custom-scroll"} ${showScrollbar ? "scroll-visible" : "scroll-hidden"} bg-white`}
+          className={`flex-1 overflow-y-auto ${isMobile ? "p-7" : "p-7 custom-scroll"} ${showScrollbar ? "scroll-visible" : "scroll-hidden"} bg-white`}
         >
           {activeTab === "overview" && (
             <GroupOverview

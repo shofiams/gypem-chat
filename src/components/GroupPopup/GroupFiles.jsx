@@ -9,11 +9,7 @@ export default function GroupFiles({ files }) {
         return <FaFilePdf className="text-red-500 w-6 h-6" />;
       case "word":
         return <FaFileWord className="text-blue-500 w-6 h-6" />;
-      case "image":
-        return <FaFileImage className="text-green-500 w-6 h-6" />;
-      case "video":
-        return <FaFileVideo className="text-purple-500 w-6 h-6" />;
-      default:
+            default:
         return <FaFilePdf className="text-gray-500 w-6 h-6" />;
     }
   };

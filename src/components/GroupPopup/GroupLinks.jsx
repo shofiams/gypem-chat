@@ -14,7 +14,7 @@ export default function GroupLinks({ links }) {
               href={link}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-500 truncate w-full"
+              className="text-blue-500 text-sm truncate w-full"
             >
               {link}
             </a>

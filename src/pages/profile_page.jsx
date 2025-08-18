@@ -15,7 +15,6 @@ export default function ProfilePopup({
   const [showEditOptionsDesktop, setShowEditOptionsDesktop] = useState(false);
   const [showEditOptionsMobile, setShowEditOptionsMobile] = useState(false);
 
-  // ⬇ Ambil langsung dari localStorage di awal, jadi tidak kedip
   const [profileImage, setProfileImage] = useState(() => {
     return localStorage.getItem("profileImage") || "";
   });
@@ -137,7 +136,7 @@ export default function ProfilePopup({
                 {showEditOptionsDesktop && (
                   <div
                     ref={editRefDesktop}
-                    className="absolute top-0 left-24 bg-white shadow-lg rounded-2xl w-[140px] border border-gray-200 overflow-hidden"
+                    className="absolute top-16 left-24 bg-white shadow-lg rounded-2xl w-[140px] border border-gray-200 overflow-hidden"
                     style={{ zIndex: 9999 }}
                   >
                     <button
@@ -213,16 +212,16 @@ export default function ProfilePopup({
         </div>
 
         {/* Mobile */}
-        <div className="sm:hidden w-full h-full bg-white overflow-y-auto">
-          <div className="flex flex-col items-center py-20 bg-white">
+        <div className="sm:hidden w-full h-full bg-white overflow-hidden flex flex-col">
+          <div className="flex flex-col place-items-center py-14">
             <div className="relative">
               {isDefaultProfile ? (
-                <FaUserCircle className="w-32 h-32 text-gray-300" />
+                <FaUserCircle className="w-2 h-2 text-gray-300" />
               ) : (
                 <img
                   src={profileImage}
                   alt="Profile"
-                  className="w-32 h-32 rounded-full object-cover cursor-pointer"
+                  className="w-28 h-28 rounded-full object-cover cursor-pointer"
                   onClick={handleImageClick}
                 />
               )}
@@ -230,7 +229,7 @@ export default function ProfilePopup({
               {showEditOptionsMobile && (
                 <div
                   ref={editRefMobile}
-                  className="absolute top-1 left-0 transform -translate-x-1 translate-y-40 bg-white shadow-lg rounded-2xl w-[140px] border border-gray-200 overflow-hidden"
+                  className="absolute top-1 left-0 transform -translate-x-3 translate-y-36 bg-white shadow-lg rounded-2xl w-[140px] border border-gray-200 overflow-hidden"
                   style={{ zIndex: 9999 }}
                 >
                   <button
@@ -263,7 +262,7 @@ export default function ProfilePopup({
               )}
             </div>
 
-            <div className="mt-4">
+            <div className="mt-2">
               <p
                 className="text-yellow-500 font-medium cursor-pointer"
                 onClick={() =>
@@ -275,32 +274,32 @@ export default function ProfilePopup({
             </div>
           </div>
 
-          <div className="mb-8 px-6 py-4 space-y-4 bg-white">
+          <div className="px-8 py-8 space-y-5">
             <div>
-              <label className="block text-gray-900 mb-1">Name</label>
+              <label className="block text-gray-900 mb-2">Name</label>
               <input
                 type="text"
                 value="Shafira Maulana Jamil"
                 readOnly
-                className="w-full bg-gray-100 text-gray-500 p-2 rounded-full"
+                className="w-full bg-gray-100 text-gray-500 p-3 rounded-full"
               />
             </div>
             <div>
-              <label className="block text-gray-900 mb-1">Level</label>
+              <label className="block text-gray-900 mb-2">Level</label>
               <input
                 type="text"
                 value="High School/Vocational High School"
                 readOnly
-                className="w-full bg-gray-100 text-gray-500 p-2 rounded-full"
+                className="w-full bg-gray-100 text-gray-500 p-3 rounded-full"
               />
             </div>
             <div>
-              <label className="block text-gray-900 mb-1">School Name</label>
+              <label className="block text-gray-900 mb-2">School Name</label>
               <input
                 type="text"
                 value="State Vocational School 1 Kabat"
                 readOnly
-                className="w-full bg-gray-100 text-gray-500 p-2 rounded-full"
+                className="w-full bg-gray-100 text-gray-500 p-3 rounded-full"
               />
             </div>
           </div>
