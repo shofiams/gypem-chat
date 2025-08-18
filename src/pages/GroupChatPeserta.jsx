@@ -15,7 +15,7 @@ const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId }) => {
 
   const readOnlyFooter = (
     <div
-      className="text-center text-white text-sm py-4 font-medium"
+      className="text-center text-white text-sm py-2 font-medium"
       style={{ backgroundColor: "#4C0D68" }}
     >
       Only admins can send messages.

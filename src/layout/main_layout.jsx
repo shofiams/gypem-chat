@@ -23,7 +23,7 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
           relative w-full flex px-3
           py-2.5
           hover:bg-gray-100 rounded-lg
-          transition-all duration-500 ease-out
+          transition-all duration-300 ease-out
           ${isActive ? "bg-gray-100" : ""}
         `}
       >
@@ -34,13 +34,13 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
               absolute -top-2 
               left-1
               h-[0.5px] bg-[#A59B9B] rounded-full
-              transition-all duration-500 ease-in-out
+              transition-all duration-300 ease-in-out
               ${isOpen ? "w-[calc(95%)]" : "w-[40px]"}
             `}
           />
         )}
 
-        {/* Active indicator */}
+        {/* Individual Active indicator */}
         {isActive && (
           <span
             className="
@@ -49,7 +49,7 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
               bg-[#FFB400]
               w-[3px] h-[20px]
               rounded-full
-              transition-all duration-500 ease-out
+              transition-all duration-300 ease-out
             "
           />
         )}
@@ -107,7 +107,7 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
               leading-none
               rounded-full
               flex items-center justify-center
-              transition-all duration-500 ease-out
+              transition-all duration-300 ease-out
               ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}
             `}
           >
@@ -119,22 +119,34 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
   );
 };
 
-
-// Desktop Sidebar Component (without header)
-const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile }) => {
+// Desktop Sidebar Component
+const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile, isNewMessageOpen, isProfilePopupOpen }) => {
   const menuItems = [
     { icon: <BsChatSquareText size={20} />, label: "Chats", badge: 10, route: "/chats" },
     { icon: <MdOutlineGroups size={25} />, label: "Group", route: "/group" },
-    { icon: <FiEdit size={20} />, label: "New Message", route: "/new-message" },
+    { icon: <FiEdit size={20} />, label: "New Message", route: "/new-message", isPopup: true },
   ];
 
   const extraItems = [
     { 
       icon: <FaRegStar size={20} />, 
       label: "Starred Messages", 
-      route: "/starred" 
+      route: "/starred"
     },
   ];
+
+  // Helper function to determine if an item should be active
+  const isItemActive = (route, isPopup = false) => {
+    if (isPopup && route === '/new-message') {
+      return isNewMessageOpen;
+    }
+    
+    if (isNewMessageOpen || isProfilePopupOpen) {
+      return false;
+    }
+    
+    return activeRoute === route;
+  };
 
   return (
     <aside
@@ -167,14 +179,14 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
         <nav className="mt-4 flex flex-col justify-between flex-1 w-full">
           {/* Main menu items */}
           <div className="-mt-4">
-            {menuItems.map(({ icon, label, badge, route }) => (
+            {menuItems.map(({ icon, label, badge, route, isPopup }) => (
               <SidebarItem
                 key={route}
                 icon={icon}
                 label={label}
                 badge={badge}
                 isOpen={isOpen}
-                isActive={activeRoute === route}
+                isActive={isItemActive(route, isPopup)}
                 onClick={() => onNavigate(route)}
               />
             ))}
@@ -188,7 +200,7 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
                 icon={icon}
                 label={label}
                 isOpen={isOpen}
-                isActive={activeRoute === route}
+                isActive={isItemActive(route)}
                 onClick={() => onNavigate(route)}
               />
             ))}
@@ -201,12 +213,12 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
                   relative w-full flex px-3
                   py-2.5
                   hover:bg-gray-100 rounded-lg
-                  transition-all duration-500 ease-out
-                  ${activeRoute === "/profile" ? "bg-gray-100" : ""}
+                  transition-all duration-300 ease-out
+                  ${isProfilePopupOpen ? "bg-gray-100" : ""}
                 `}
               >
-                {/* Active indicator */}
-                {activeRoute === "/profile" && (
+                {/* Individual Active indicator for Profile */}
+                {isProfilePopupOpen && (
                   <span
                     className="
                       absolute left-0
@@ -214,7 +226,7 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
                       bg-[#FFB400]
                       w-[3px] h-[20px]
                       rounded-full
-                      transition-all duration-500 ease-out
+                      transition-all duration-300 ease-out
                     "
                   />
                 )}
@@ -283,7 +295,7 @@ const MobileHeader = ({ onNavigate }) => {
 };
 
 // Mobile Bottom Navigation Component
-const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile }) => {
+const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile, isProfilePopupOpen }) => {
   const tabs = [
     {
       key: "group",
@@ -324,16 +336,13 @@ const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage
       <div className="md:hidden fixed bottom-0 w-full bg-[#f2f2f2] py-1 border-t border-gray-200 z-50">
         <div className="flex items-center justify-around relative">
           {tabs.map((tab) => {
-            // FIXED: Menggunakan activeRoute === tab.route untuk semua tab, termasuk profile
-            const isActive = activeRoute === tab.route;
+            const isActive = isProfilePopupOpen ? tab.isProfile : activeRoute === tab.route;
             
             return (
               <button
                 key={tab.key}
                 onClick={() => {
                   if (tab.isProfile) {
-                    // Navigate ke route profile dan buka popup
-                    onNavigate(tab.route);
                     onProfileClick();
                   } else {
                     onNavigate(tab.route);
@@ -400,13 +409,13 @@ const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isNewMessageOpen, setIsNewMessageOpen] = useState(false);
-  const { clearActiveChat } = useChatContext();
+  const { clearActiveChat, setActiveChat } = useChatContext();
   const [isProfilePopupOpen, setIsProfilePopupOpen] = useState(false);
   const [profileImage, setProfileImage] = useState("");
   
   const navigate = useNavigate();
   const location = useLocation();
-  const isChatRoute = location.pathname.startsWith('/chats/') && location.pathname !== '/chats';
+  const isChatRoute = location.pathname.startsWith('/chats/') && location.pathname !== '/chats' || location.pathname.startsWith('/group/') && location.pathname !== '/group';
 
   // Auto-redirect to /chats if on root path
   useEffect(() => {
@@ -427,6 +436,10 @@ const MainLayout = () => {
 
   const handleProfileClick = () => {
     setIsProfilePopupOpen(!isProfilePopupOpen);
+    // Close new message popup if it's open
+    if (isNewMessageOpen) {
+      setIsNewMessageOpen(false);
+    }
   };
 
   const handleProfileUpdate = (newProfileImage) => {
@@ -436,12 +449,20 @@ const MainLayout = () => {
   const handleNavigate = (route) => {
     if (route === "/new-message") {
       setIsNewMessageOpen(true);
+      // Close profile popup if it's open
+      if (isProfilePopupOpen) {
+        setIsProfilePopupOpen(false);
+      }
       return;
     }
 
+    // Close all popups IMMEDIATELY when navigating to a regular route
+    setIsNewMessageOpen(false);
+    setIsProfilePopupOpen(false);
+
     const currentIsGroupPage = location.pathname.startsWith('/group');
     const targetIsGroupPage = route.startsWith('/group');
-    
+      
     if (currentIsGroupPage !== targetIsGroupPage) {
       clearActiveChat();
     }
@@ -455,19 +476,44 @@ const MainLayout = () => {
   };
 
   useEffect(() => {
-  const handleResize = () => {
-    const currentIsMobile = window.innerWidth < 768;
-    
-    // If switching from mobile to desktop and we're on a specific chat route
-    if (!currentIsMobile && location.pathname.startsWith('/chats/') && location.pathname !== '/chats') {
-      // Navigate to main chats page so the split layout can take over
-      navigate('/chats');
-    }
-  };
+    const handleResize = () => {
+      const currentIsMobile = window.innerWidth < 768;
+      
+      // If switching from mobile to desktop
+      if (!currentIsMobile) {
+        const pathname = location.pathname;
+        
+        // Handle individual chat routes
+        if (pathname.startsWith('/chats/') && pathname !== '/chats') {
+          const chatId = pathname.split('/chats/')[1];
+          // Navigate to main chats page and set active chat for split view
+          navigate('/chats', { replace: true });
+          // Small delay to ensure navigation completes before setting active chat
+          setTimeout(() => {
+            setActiveChat(chatId);
+          }, 50);
+        }
+        
+        // Handle individual group routes
+        else if (pathname.startsWith('/group/') && pathname !== '/group') {
+          const groupId = pathname.split('/group/')[1];
+          // Navigate to main group page and set active chat for split view
+          navigate('/group', { replace: true });
+          // Small delay to ensure navigation completes before setting active chat
+          setTimeout(() => {
+            setActiveChat(groupId);
+          }, 50);
+        }
+      }
+      // If switching from desktop to mobile, clear active chat
+      else {
+        clearActiveChat();
+      }
+    };
 
-  window.addEventListener('resize', handleResize);
-  return () => window.removeEventListener('resize', handleResize);
-}, [navigate, location.pathname]);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [navigate, setActiveChat, clearActiveChat, location.pathname]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -488,11 +534,12 @@ const MainLayout = () => {
           onProfileClick={handleProfileClick}
           profileImage={profileImage}
           isDefaultProfile={isDefaultProfile}
+          isNewMessageOpen={isNewMessageOpen}
+          isProfilePopupOpen={isProfilePopupOpen}
         />
 
         {/* Main Content Area */}
-        <div className="flex flex-col flex-1 ml-16 md:ml-16">
-
+        <div className="flex flex-col flex-1 md:ml-16">
           {/* Main Content Area - Where all pages render */}
           <main className={`flex-1 overflow-y-auto ${isChatRoute ? 'pb-0' : 'pb-20'} md:pb-0 md:border-l-2 md:border-t-2 md:border-grey-600 md:rounded-tl-lg`}>
             <div className="h-full bg-white">
@@ -503,12 +550,14 @@ const MainLayout = () => {
       </div>
 
       {/* Mobile Bottom Navigation */}
-      {!isChatRoute && (<MobileBottomNav
+      {!isChatRoute && (
+        <MobileBottomNav
           activeRoute={location.pathname}
           onNavigate={handleNavigate}
           onProfileClick={handleProfileClick}
           profileImage={profileImage}
           isDefaultProfile={isDefaultProfile}
+          isProfilePopupOpen={isProfilePopupOpen}
         />
       )}
 
