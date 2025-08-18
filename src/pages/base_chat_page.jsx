@@ -47,9 +47,10 @@ const BaseChatPage = ({
   const chatInfo = getChatById(actualChatId);
   const contextMessages = getChatMessages(actualChatId);
 
-  // All existing state variables remain the same
+  // Updated state for multiple pinned messages
   const [replyingMessage, setReplyingMessage] = useState(null);
-  const [pinnedMessage, setPinnedMessage] = useState(null);
+  const [pinnedMessages, setPinnedMessages] = useState([]); // Changed from single to array
+  const [currentPinnedMessage, setCurrentPinnedMessage] = useState(null); // Currently displayed pinned message
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState(null);
@@ -89,19 +90,113 @@ const BaseChatPage = ({
   }, [actualChatId, isEmbedded]);
 
   useEffect(() => {
-  const handleResize = () => {
-    const isMobile = window.innerWidth < 768;
+    const handleResize = () => {
+      const isMobile = window.innerWidth < 768;
+      
+      // If we're in embedded mode and switched to desktop, ensure proper state
+      if (isEmbedded && !isMobile) {
+        // Force re-render to update button visibility
+        setMessages(prev => [...prev]);
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [isEmbedded]);
+
+  // Function to check selected message types
+  const getSelectedMessageTypes = () => {
+    if (!isSelectionMode || selectedMessages.size === 0) return { hasReceiver: false, hasSender: false };
     
-    // If we're in embedded mode and switched to desktop, ensure proper state
-    if (isEmbedded && !isMobile) {
-      // Force re-render to update button visibility
-      setMessages(prev => [...prev]);
+    let hasReceiver = false;
+    let hasSender = false;
+    
+    selectedMessages.forEach(messageId => {
+      const message = messages.find(msg => msg.id === messageId);
+      if (message) {
+        if (message.type === 'receiver') {
+          hasReceiver = true;
+        } else if (message.type === 'sender') {
+          hasSender = true;
+        }
+      }
+    });
+    
+    return { hasReceiver, hasSender };
+  };
+
+  // Function to determine delete behavior based on selected messages
+  const getDeleteBehavior = () => {
+    if (isSelectionMode && selectedMessages.size > 0) {
+      const { hasReceiver, hasSender } = getSelectedMessageTypes();
+      
+      // If only sender messages are selected
+      if (hasSender && !hasReceiver) {
+        return 'sender-only'; // Show delete options (for me/everyone)
+      }
+      // If receiver messages are selected (alone or mixed with sender)
+      else if (hasReceiver) {
+        return 'receiver-included'; // Show simple delete confirmation
+      }
+    } else if (messageToDelete) {
+      // Single message delete
+      const message = messages.find(msg => msg.id === messageToDelete);
+      return message?.type === 'sender' ? 'sender-only' : 'receiver-included';
+    }
+    
+    return 'receiver-included'; // Default fallback
+  };
+
+  // New functions for handling multiple pins
+  const handlePinMessage = (message) => {
+    const messageWithId = { ...message, id: message.id };
+    
+    // Check if message is already pinned
+    const isAlreadyPinned = pinnedMessages.some(pin => pin.id === message.id);
+    
+    if (!isAlreadyPinned) {
+      const newPinnedMessages = [...pinnedMessages, messageWithId];
+      setPinnedMessages(newPinnedMessages);
+      // Set the newly pinned message as current
+      setCurrentPinnedMessage(messageWithId);
     }
   };
 
-  window.addEventListener('resize', handleResize);
-  return () => window.removeEventListener('resize', handleResize);
-}, [isEmbedded]);
+  const handleUnpinMessage = (messageId) => {
+    const updatedPinnedMessages = pinnedMessages.filter(pin => pin.id !== messageId);
+    setPinnedMessages(updatedPinnedMessages);
+    
+    // If the unpinned message was currently displayed, show the previous one
+    if (currentPinnedMessage?.id === messageId) {
+      if (updatedPinnedMessages.length > 0) {
+        // Show the most recent pinned message (last in array)
+        setCurrentPinnedMessage(updatedPinnedMessages[updatedPinnedMessages.length - 1]);
+      } else {
+        setCurrentPinnedMessage(null);
+      }
+    }
+  };
+
+  // Function to check if a message is pinned
+  const isMessagePinned = (messageId) => {
+    return pinnedMessages.some(pin => pin.id === messageId);
+  };
+
+  // Function to navigate through pinned messages
+  const navigatePinnedMessage = (direction) => {
+    if (pinnedMessages.length <= 1) return;
+    
+    const currentIndex = pinnedMessages.findIndex(pin => pin.id === currentPinnedMessage?.id);
+    let newIndex;
+    
+    if (direction === 'next') {
+      newIndex = currentIndex + 1 >= pinnedMessages.length ? 0 : currentIndex + 1;
+    } else {
+      newIndex = currentIndex - 1 < 0 ? pinnedMessages.length - 1 : currentIndex - 1;
+    }
+    
+    setCurrentPinnedMessage(pinnedMessages[newIndex]);
+  };
 
   const handleSend = () => {
     if (!message.trim()) return;
@@ -178,7 +273,7 @@ const BaseChatPage = ({
     });
   };
 
-  // Update delete functions to handle multiple messages
+  // Updated delete functions with conditional behavior
   const handleDeleteRequest = (messageId, messageType) => {
     if (isSelectionMode) {
       // In selection mode, toggle selection instead of delete
@@ -196,12 +291,12 @@ const BaseChatPage = ({
       // Delete selected messages from context
       selectedMessages.forEach(msgId => {
         deleteMessage(actualChatId, msgId);
+        
+        // Remove from pinned messages if it was pinned
+        if (isMessagePinned(msgId)) {
+          handleUnpinMessage(msgId);
+        }
       });
-      
-      if (pinnedMessage && selectedMessages.has(pinnedMessage.id)) {
-        setPinnedMessage(null);
-        setHighlightedMessageId(null);
-      }
       
       // Exit selection mode
       setIsSelectionMode(false);
@@ -210,9 +305,9 @@ const BaseChatPage = ({
       // Delete single message from context
       deleteMessage(actualChatId, messageToDelete);
       
-      if (pinnedMessage?.id === messageToDelete) {
-        setPinnedMessage(null);
-        setHighlightedMessageId(null);
+      // Remove from pinned messages if it was pinned
+      if (isMessagePinned(messageToDelete)) {
+        handleUnpinMessage(messageToDelete);
       }
     }
     
@@ -246,17 +341,22 @@ const BaseChatPage = ({
             file: null,
             reply: null
           });
+          
+          // Remove from pinned messages if it was pinned
+          if (isMessagePinned(msgId)) {
+            handleUnpinMessage(msgId);
+          }
         });
       } else {
         // Delete messages completely
         selectedMessages.forEach(msgId => {
           deleteMessage(actualChatId, msgId);
+          
+          // Remove from pinned messages if it was pinned
+          if (isMessagePinned(msgId)) {
+            handleUnpinMessage(msgId);
+          }
         });
-      }
-      
-      if (pinnedMessage && selectedMessages.has(pinnedMessage.id)) {
-        setPinnedMessage(null);
-        setHighlightedMessageId(null);
       }
       
       setIsSelectionMode(false);
@@ -271,14 +371,19 @@ const BaseChatPage = ({
           file: null,
           reply: null
         });
+        
+        // Remove from pinned messages if it was pinned
+        if (isMessagePinned(messageToDelete)) {
+          handleUnpinMessage(messageToDelete);
+        }
       } else {
         // Delete message completely
         deleteMessage(actualChatId, messageToDelete);
-      }
-      
-      if (pinnedMessage?.id === messageToDelete) {
-        setPinnedMessage(null);
-        setHighlightedMessageId(null);
+        
+        // Remove from pinned messages if it was pinned
+        if (isMessagePinned(messageToDelete)) {
+          handleUnpinMessage(messageToDelete);
+        }
       }
     }
     
@@ -336,12 +441,12 @@ const BaseChatPage = ({
             hideTime={!isLastFromSender}
             onCopy={() => {}}
             onReply={canSendMessages ? () => setReplyingMessage(msg) : null}
-            onPin={() => setPinnedMessage({ ...msg, id: msg.id })}
-            onUnpin={() => setPinnedMessage(null)}
+            onPin={() => handlePinMessage(msg)}
+            onUnpin={() => handleUnpinMessage(msg.id)}
             onDelete={() => handleDeleteRequest(msg.id, msg.type)}
             onEdit={canSendMessages ? () => handleEdit(msg.id) : null} 
             isEdited={msg.isEdited}
-            isPinned={pinnedMessage?.id === msg.id}
+            isPinned={isMessagePinned(msg.id)}
             isDeleted={msg.isDeleted}
             isSelectionMode={isSelectionMode}
             isSelected={selectedMessages.has(msg.id)}
@@ -423,6 +528,9 @@ const BaseChatPage = ({
     );
   }
 
+  // Get delete behavior for current selection
+  const deleteBehavior = getDeleteBehavior();
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header - use custom or default */}
@@ -455,32 +563,34 @@ const BaseChatPage = ({
         customHeader || defaultHeader
       )}
 
-      {/* Pinned Message */}
-      {pinnedMessage && !isSelectionMode && (
+      {/* Enhanced Pinned Message Section */}
+      {currentPinnedMessage && !isSelectionMode && (
         <div
-          className="flex items-center gap-2 px-3 py-2 border-b cursor-pointer"
+          className="flex items-center gap-2 px-3 py-2 border-b"
           style={{ backgroundColor: "#4C0D68" }}
-          onClick={() => {
-            if (messageRefs.current[pinnedMessage.id]) {
-              messageRefs.current[pinnedMessage.id].scrollIntoView({
-                behavior: "smooth",
-                block: "center",
-              });
-              setHighlightedMessageId(pinnedMessage.id);
-              setTimeout(() => setHighlightedMessageId(null), 2000);
-            }
-          }}
         >
           <div className="flex items-center gap-2 flex-1 text-white">
             <div className="w-6 h-6 flex items-center justify-center bg-gray-300 rounded">
               <img src={assets.PinFill} alt="pinned" className="w-3 h-3" />
             </div>
-            <div>
+            <div 
+              className="flex-1 cursor-pointer"
+              onClick={() => {
+                if (messageRefs.current[currentPinnedMessage.id]) {
+                  messageRefs.current[currentPinnedMessage.id].scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                  });
+                  setHighlightedMessageId(currentPinnedMessage.id);
+                  setTimeout(() => setHighlightedMessageId(null), 2000);
+                }
+              }}
+            >
               <p className="text-xs font-semibold">
-                {pinnedMessage?.type === "sender" ? "You" : pinnedMessage?.sender}
+                {currentPinnedMessage?.type === "sender" ? "You" : currentPinnedMessage?.sender}
               </p>
               <p className="text-xs truncate max-w-xs">
-                {pinnedMessage?.message || pinnedMessage?.file?.name || "Gambar"}
+                {currentPinnedMessage?.message || currentPinnedMessage?.file?.name || "Gambar"}
               </p>
             </div>
           </div>
@@ -717,11 +827,11 @@ const BaseChatPage = ({
         fileButtonRef={fileButtonRef}
       />
 
-      {/* Delete Modal - same as existing */}
+      {/* Updated Delete Modal with conditional behavior */}
       {showDeleteModal && (
         <div className="fixed inset-0 flex items-center justify-center z-[9999]">
           <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl border border-gray-200">
-            {deleteType === 'receiver' ? (
+            {deleteBehavior === 'receiver-included' ? (
               <>
                 <div className="mb-4">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">

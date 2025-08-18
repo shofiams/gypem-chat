@@ -15,7 +15,7 @@ export default function ProfilePopup({
   const [showEditOptionsDesktop, setShowEditOptionsDesktop] = useState(false);
   const [showEditOptionsMobile, setShowEditOptionsMobile] = useState(false);
 
-  // ⬇ Ambil langsung dari localStorage di awal, jadi tidak kedip
+  // â¬‡ Ambil langsung dari localStorage di awal, jadi tidak kedip
   const [profileImage, setProfileImage] = useState(() => {
     return localStorage.getItem("profileImage") || "";
   });
