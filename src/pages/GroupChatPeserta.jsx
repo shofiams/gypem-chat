@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
 import BaseChatPage from "./base_chat_page";
+import GroupPopup from "../components/GroupPopup/GroupPopup"; // path ke popup
 
 const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId }) => {
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
   const getSenderColor = (sender) => {
     const colors = {
       "Admin A": "#4169E1",
-      "Admin B": "#32CD32", 
+      "Admin B": "#32CD32",
       "Pimpinan A": "#FF1493",
     };
     return colors[sender] || "#4C0D68";
@@ -30,17 +32,26 @@ const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId }) => {
   };
 
   return (
-    <BaseChatPage
-      isEmbedded={isEmbedded}
-      onClose={onClose}
-      chatId={chatId}
-      isGroupChat={true}
-      canSendMessages={false}
-      showSenderNames={true}
-      getSenderColor={getSenderColor}
-      customFooter={readOnlyFooter}
-      customChatBubbleProps={customChatBubbleProps}
-    />
+    <>
+      <BaseChatPage
+        isEmbedded={isEmbedded}
+        onClose={onClose}
+        chatId={chatId}
+        isGroupChat={true}
+        canSendMessages={false}
+        showSenderNames={true}
+        getSenderColor={getSenderColor}
+        customFooter={readOnlyFooter}
+        customChatBubbleProps={customChatBubbleProps}
+        onGroupHeaderClick={() => setIsPopupOpen(true)}
+      />
+
+      {isPopupOpen && (
+        <GroupPopup
+          onClose={() => setIsPopupOpen(false)}
+        />
+      )}
+    </>
   );
 };
 
