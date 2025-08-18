@@ -37,7 +37,7 @@ import Happy from '../assets/happy.svg'
 import Send from '../assets/Send.svg'
 import ArrowLeft from "../assets/arrow-left.svg";
 import PinFill from "../assets/Pin_fill.svg";
-
+import StarFill2 from "../assets/StarFill.svg";
 
 
 
@@ -80,5 +80,6 @@ export const assets = {
     Happy,
     Send,
     ArrowLeft,
-    PinFill
+    PinFill,
+    StarFill2
 }
