@@ -9,7 +9,7 @@ import { FaRegStar, FaUserCircle } from "react-icons/fa";
 import { CgProfile } from "react-icons/cg";
 import { useChatContext } from '../api/use_chat_context';
 import NewMessagePopup from '../components/new_message'; 
-import ProfilePopup from '../pages/profile_page';
+import ProfilePopup from '../components/profile_popup';
 
 // Desktop Sidebar Item Component
 const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {

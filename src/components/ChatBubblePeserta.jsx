@@ -3,16 +3,17 @@ import { assets } from "../assets/assets";
 import DropdownMenuPeserta from "./DropdownMenuPeserta";
 import { Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
-// ImageViewerModal component
-const ImageViewerModal = ({ 
-  isOpen, 
-  onClose, 
-  imageUrl, 
-  imageName = 'image.jpg',
-  onPrevious = null,
-  onNext = null,
-  hasMultiple = false 
-}) => {
+  // ImageViewerModal component
+  const ImageViewerModal = ({ 
+    isOpen, 
+    onClose, 
+    imageUrl, 
+    imageName = 'image.jpg',
+    onPrevious = null,
+    onNext = null,
+    hasMultiple = false 
+  }) => {
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -217,16 +218,15 @@ export default function ChatBubblePeserta({ ...props }) {
     sender,
     showSenderName = false,
     getSenderColor,
-    // New props for image modal
-    images = [], // Array of images if multiple
-    imageIndex = 0, // Current image index
-    onImageNavigation = null, // Callback for image navigation
+    images = [],
+    imageIndex = 0,
+    onImageNavigation = null, 
   } = props;
 
   const isSender = type === "sender";
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const [isStarred, setIsStarred] = useState(false);
+  const isStarred = props.isStarred || false;
   const [isPinned, setIsPinned] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState('below');
@@ -411,13 +411,17 @@ export default function ChatBubblePeserta({ ...props }) {
   };
 
   const handleStar = () => {
-    setIsStarred(true);
+    if (props.onStar) {
+      props.onStar();
+    }
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
   };
   
   const handleUnstar = () => {
-    setIsStarred(false);
+    if (props.onUnstar) {
+      props.onUnstar();
+    }
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
   };

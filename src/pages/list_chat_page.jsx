@@ -22,9 +22,12 @@ const ChatItem = ({
   onContextMenu,
   isSelected,
   highlightQuery,
-  onClick
+  onClick,
+  isStarredItem = false,
+  chatType,
+  sender
 }) => {
-  const highlightLastMessage = (text, query) => {
+  const highlightText = (text, query) => {
     if (!query) return text;
     const q = query.trim();
     if (!q) return text;
@@ -55,15 +58,56 @@ const ChatItem = ({
   let pressTimer = null;
 
   const handleTouchStart = (e) => {
-    pressTimer = setTimeout(() => {
-      if (onContextMenu) onContextMenu(e, id);
-    }, 600);
+    if (onContextMenu) {
+      pressTimer = setTimeout(() => {
+        onContextMenu(e, id);
+      }, 600);
+    }
   };
 
   const handleTouchEnd = () => {
     if (pressTimer) clearTimeout(pressTimer);
   };
 
+  // Different layout for starred items
+  if (isStarredItem) {
+    return (
+      <div
+        onClick={() => onClick && onClick(id)}
+        className={`
+          flex items-start px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 min-h-[56px]
+          md:px-3 md:py-2 md:min-h-[52px]
+          hover:bg-gray-50 transition-colors duration-150
+        `}
+        role="button"
+        tabIndex={0}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-semibold text-gray-900 truncate text-[12px] md:text-[13px] leading-tight mb-[3px]">
+                {highlightText(name, highlightQuery)}
+                {chatType === 'group' && <span className="ml-1 text-gray-400">(Group)</span>}
+              </h3>
+              <div className="flex items-center gap-1 min-w-0">
+                <span className="font-medium text-gray-600 text-[10px] md:text-[11px] flex-shrink-0">
+                  {sender}:
+                </span>
+                <p className="text-gray-400 truncate text-[10px] md:text-[11px] leading-tight min-w-0">
+                  {highlightText(lastMessage, highlightQuery)}
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 ml-3 text-right">
+              <span className="text-[10px] text-gray-400 leading-tight">{time}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Regular chat item layout
   return (
     <div
       onClick={() => onClick && onClick(id)}
@@ -113,7 +157,7 @@ const ChatItem = ({
               )}
 
               <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight mt-0">
-                {highlightLastMessage(lastMessage, highlightQuery)}
+                {highlightText(lastMessage, highlightQuery)}
               </p>
             </div>
           </div>
@@ -138,16 +182,40 @@ const ChatItem = ({
 export default function ChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { getAllChats, getChatById, deleteChat, activeChatId, setActiveChat, clearActiveChat } = useChatContext();
+  const urlParams = new URLSearchParams(location.search);
+  const highlightId = urlParams.get('highlight');
+  const { 
+    getAllChats, 
+    getChatById, 
+    deleteChat, 
+    activeChatId, 
+    setActiveChat, 
+    clearActiveChat,
+    getStarredMessages 
+  } = useChatContext();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [highlightMessageId, setHighlightMessageId] = useState(null);
+  
   const allChats = getAllChats();
 
+  // Determine page type based on location
   const isGroupPage = location.pathname.startsWith('/group');
-  const chats = isGroupPage 
-    ? allChats.filter(chat => chat.type === 'group')
-    : allChats;
+  const isStarPage = location.pathname === '/starred';
+  
+  // Get appropriate data based on page type
+  const getChat = () => {
+    if (isStarPage) {
+      return getStarredMessages();
+    } else if (isGroupPage) {
+      return allChats.filter(chat => chat.type === 'group');
+    } else {
+      return allChats;
+    }
+  };
+
+  const chats = getChat();
 
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chatId: null });
   const menuRef = useRef(null);
@@ -160,30 +228,62 @@ export default function ChatPage() {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return chats;
     const tokens = q.split(/\s+/).filter(Boolean);
-    return chats.filter(chat => {
-      const hay = (chat.name + ' ' + chat.lastMessage).toLowerCase();
-      return tokens.every(tok => hay.includes(tok));
-    });
-  }, [searchQuery, chats]);
+    
+    if (isStarPage) {
+      return chats.filter(item => {
+        const hay = (item.chatName + ' ' + item.message + ' ' + item.sender).toLowerCase();
+        return tokens.every(tok => hay.includes(tok));
+      });
+    } else {
+      return chats.filter(chat => {
+        const hay = (chat.name + ' ' + chat.lastMessage).toLowerCase();
+        return tokens.every(tok => hay.includes(tok));
+      });
+    }
+  }, [searchQuery, chats, isStarPage]);
 
   const clearSearch = useCallback(() => setSearchQuery(''), []);
 
   const handleChatClick = (chatId) => {
-    const chat = getChatById(chatId);
-    const currentIsMobile = window.innerWidth < 768;
-    
-    if (currentIsMobile) {
-      if (chat?.type === 'group') {
-        navigate(`/group/${chatId}`);
+    if (isStarPage) {
+      // Handle starred message click
+      const starredItem = chats.find(item => item.id === chatId);
+      if (!starredItem) return;
+
+      const currentIsMobile = window.innerWidth < 768;
+      
+      if (currentIsMobile) {
+        // Navigate to the chat page with highlight parameter
+        if (starredItem.chatType === 'group') {
+          navigate(`/group/${starredItem.chatId}?highlight=${starredItem.messageId}`);
+        } else {
+          navigate(`/chats/${starredItem.chatId}?highlight=${starredItem.messageId}`);
+        }
       } else {
-        navigate(`/chats/${chatId}`);
+        // Set active chat and highlight message for desktop split view
+        setActiveChat(starredItem.chatId);
+        setHighlightMessageId(starredItem.messageId);
       }
     } else {
-      setActiveChat(chatId);
+      // Handle regular chat click
+      const chat = getChatById(chatId);
+      const currentIsMobile = window.innerWidth < 768;
+      
+      if (currentIsMobile) {
+        if (chat?.type === 'group') {
+          navigate(`/group/${chatId}`);
+        } else {
+          navigate(`/chats/${chatId}`);
+        }
+      } else {
+        setActiveChat(chatId);
+      }
     }
   };
 
   const handleContextMenu = (e, chatId) => {
+    if (isStarPage) return;
+    
     e.preventDefault();
     e.stopPropagation();
     const menuWidth = 160;
@@ -223,7 +323,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     clearActiveChat();
-  }, [isGroupPage, clearActiveChat]);
+  }, [isGroupPage, isStarPage, clearActiveChat]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -257,12 +357,13 @@ export default function ChatPage() {
     const handleKeydown = (e) => {
       if (e.key === 'Escape' && activeChatId && !isMobile) {
         clearActiveChat();
+        if (isStarPage) setHighlightMessageId(null);
       }
     };
 
     window.addEventListener('keydown', handleKeydown);
     return () => window.removeEventListener('keydown', handleKeydown);
-  }, [activeChatId, isMobile, clearActiveChat]);
+  }, [activeChatId, isMobile, clearActiveChat, isStarPage]);
 
   useEffect(() => {
     function onDown(e) {
@@ -335,6 +436,34 @@ export default function ChatPage() {
     return () => { document.head.removeChild(style); };
   }, []);
 
+  // Get page title and placeholder text based on current page
+  const getPageConfig = () => {
+    if (isStarPage) {
+      return {
+        title: 'Starred Messages',
+        searchPlaceholder: 'Search starred messages',
+        emptyMessage: 'No starred messages found',
+        placeholderText: 'Click on a starred message to view the conversation.'
+      };
+    } else if (isGroupPage) {
+      return {
+        title: 'Group',
+        searchPlaceholder: 'Search here',
+        emptyMessage: 'No chats found',
+        placeholderText: 'Select a group to view messages.'
+      };
+    } else {
+      return {
+        title: 'Chats',
+        searchPlaceholder: 'Search here',
+        emptyMessage: 'No chats found',
+        placeholderText: 'Select a chat to view messages.'
+      };
+    }
+  };
+
+  const pageConfig = getPageConfig();
+
   // Mobile-first layout
   return (
     <div className="h-full flex bg-white">
@@ -342,7 +471,7 @@ export default function ChatPage() {
         {/* Header */}
         <div className="px-4 pt-4 pb-3 md:px-4 md:pt-3 md:pb-2">
           <h2 className="text-xl font-semibold text-gray-800 md:text-lg">
-            {isGroupPage ? 'Group' : 'Chats'}
+            {pageConfig.title}
           </h2>
         </div>
 
@@ -355,7 +484,7 @@ export default function ChatPage() {
               </div>
               <input
                 type="text"
-                placeholder="Search here"
+                placeholder={pageConfig.searchPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Escape') clearSearch(); }}
@@ -373,22 +502,40 @@ export default function ChatPage() {
           </div>
         </div>
 
-        {/* Chat List */}
+        {/* Messages Label for star page */}
+        {isStarPage && (
+          <div className="px-4 pt-2 pb-1">
+            <span className="text-[14px] text-gray-400">Messages</span>
+          </div>
+        )}
+
+        {/* List */}
         <div className="flex-1 overflow-y-auto min-h-0 elegant-scrollbar">
           {filteredChats.length === 0 ? (
             <div className="p-4 md:p-3 text-base md:text-sm text-gray-500 text-center">
-              No chats found
+              {pageConfig.emptyMessage}
             </div>
           ) : (
             <div className="divide-y divide-gray-100">
               {filteredChats.map(chat => (
                 <ChatItem
                   key={chat.id}
-                  {...chat}
-                  onContextMenu={handleContextMenu}
+                  id={chat.id}
+                  avatar={isStarPage ? null : chat.avatar}
+                  name={isStarPage ? chat.chatName : chat.name}
+                  lastMessage={isStarPage ? chat.message : chat.lastMessage}
+                  time={chat.time}
+                  unreadCount={isStarPage ? 0 : chat.unreadCount}
+                  isOnline={isStarPage ? false : chat.isOnline}
+                  showCentang={isStarPage ? false : chat.showCentang}
+                  showCentangAbu={isStarPage ? false : chat.showCentangAbu}
+                  onContextMenu={isStarPage ? null : handleContextMenu}
                   onClick={handleChatClick}
-                  isSelected={contextMenu.visible && contextMenu.chatId === chat.id}
+                  isSelected={!isStarPage && contextMenu.visible && contextMenu.chatId === chat.id}
                   highlightQuery={searchQuery}
+                  isStarredItem={isStarPage}
+                  chatType={isStarPage ? chat.chatType : chat.type}
+                  sender={isStarPage ? chat.sender : null}
                 />
               ))}
             </div>
@@ -402,9 +549,31 @@ export default function ChatPage() {
           (() => {
             const activeChat = getChatById(activeChatId);
             if (activeChat?.type === 'group') {
-              return <GroupChatPeserta chatId={activeChatId} isEmbedded={true} onClose={clearActiveChat} />;
+              return (
+                <GroupChatPeserta 
+                  chatId={activeChatId} 
+                  isEmbedded={true} 
+                  onClose={() => {
+                    clearActiveChat();
+                    if (isStarPage) setHighlightMessageId(null);
+                  }}
+                  highlightMessageId={isStarPage ? highlightMessageId : highlightId}
+                  onMessageHighlight={isStarPage ? () => setHighlightMessageId(null) : null}
+                />
+              );
             } else {
-              return <PesertaChatPage chatId={activeChatId} isEmbedded={true} onClose={clearActiveChat} />;
+              return (
+                <PesertaChatPage 
+                  chatId={activeChatId} 
+                  isEmbedded={true} 
+                  onClose={() => {
+                    clearActiveChat();
+                    if (isStarPage) setHighlightMessageId(null);
+                  }}
+                  highlightMessageId={isStarPage ? highlightMessageId : highlightId}
+                  onMessageHighlight={isStarPage ? () => setHighlightMessageId(null) : null}
+                />
+              );
             }
           })()
         ) : (
@@ -414,15 +583,14 @@ export default function ChatPage() {
             </div>
             <h3 className="text-lg font-semibold text-gray-800 mb-2">Gypem Indonesia</h3>
             <p className="text-center text-gray-500 max-w-md text-sm">
-              Silahkan tunggu pesan dari peserta sebelum memulai percakapan.
-              Admin hanya dapat membalas pesan jika peserta telah mengirimkan pesan terlebih dahulu.
+              {pageConfig.placeholderText}
             </p>
           </div>
         )}
       </main>
 
       {/* Context Menu */}
-      {contextMenu.visible && (
+      {!isStarPage && contextMenu.visible && (
         <div
           ref={menuRef}
           style={{ left: contextMenu.x, top: contextMenu.y }}
@@ -439,7 +607,7 @@ export default function ChatPage() {
       )}
 
       {/* Confirm Delete Modal */}
-      {confirmOpen && (
+      {!isStarPage && confirmOpen && (
         <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
           <div ref={confirmRef} className="relative z-10 w-full max-w-md bg-white rounded-xl shadow-2xl border border-gray-100 p-6">

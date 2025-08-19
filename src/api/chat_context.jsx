@@ -1,10 +1,11 @@
 import React, { useState, useCallback } from 'react';
-import { INITIAL_CHATS, INITIAL_MESSAGES } from './chat_constant';
+import { INITIAL_CHATS, INITIAL_MESSAGES, STARRED_MESSAGES } from './chat_constant';
 import { ChatContext } from './use_chat_context';
 
 export const ChatProvider = ({ children }) => {
   const [chats, setChats] = useState(INITIAL_CHATS);
   const [chatMessages, setChatMessages] = useState(INITIAL_MESSAGES);
+  const [starredMessages, setStarredMessages] = useState(STARRED_MESSAGES);
   const [activeChatId, setActiveChatId] = useState(null);
 
   // Get all chats
@@ -42,6 +43,72 @@ export const ChatProvider = ({ children }) => {
         : chat
     ));
   }, []);
+
+  // Get all starred messages for star page
+  const getStarredMessages = useCallback(() => {
+    return Object.keys(starredMessages)
+      .map((starredId) => {
+        const { chatId, messageId } = starredMessages[starredId];
+        const chat = chats.find((c) => c.id === chatId);
+        const message = chatMessages[chatId]?.find((m) => m.id === messageId);
+
+        if (!chat || !message) return null;
+
+        return {
+          id: parseInt(starredId),
+          chatId,
+          messageId,
+          chatName: chat.name,
+          message: message.message || message.file?.name || "Media",
+          sender: message.sender,
+          time: message.time,
+          chatType: chat.type,
+        };
+      })
+      .filter(Boolean);
+  }, [starredMessages, chats, chatMessages]);
+
+  // Add/remove starred message
+  const toggleStarMessage = useCallback((chatId, messageId) => {
+    const chatIdNum = parseInt(chatId);
+    const isCurrentlyStarred = Object.values(starredMessages).some(star => 
+      star.chatId === chatIdNum && star.messageId === messageId
+    );
+
+    setStarredMessages(prev => {
+      const starKey = Object.keys(prev).find(key => 
+        prev[key].chatId === chatIdNum && prev[key].messageId === messageId
+      );
+      
+      if (starKey) {
+        // Remove star
+        const newStarred = { ...prev };
+        delete newStarred[starKey];
+        return newStarred;
+      } else {
+        // Add star
+        const newId = Math.max(...Object.keys(prev).map(k => parseInt(k)), 0) + 1;
+        return {
+          ...prev,
+          [newId]: { chatId: chatIdNum, messageId }
+        };
+      }
+    });
+
+    setChatMessages(prev => ({
+      ...prev,
+      [chatIdNum]: prev[chatIdNum]?.map(msg => 
+        msg.id === messageId ? { ...msg, isStarred: !isCurrentlyStarred } : msg
+      ) || []
+    }));
+  }, [starredMessages]);
+
+  // Check if message is starred
+  const isMessageStarred = useCallback((chatId, messageId) => {
+    return Object.values(starredMessages).some(star => 
+      star.chatId === parseInt(chatId) && star.messageId === messageId
+    );
+  }, [starredMessages]);
 
   // Delete message from specific chat
   const deleteMessage = useCallback((chatId, messageId) => {
@@ -120,6 +187,11 @@ export const ChatProvider = ({ children }) => {
     addMessage,
     deleteMessage,
     updateMessage,
+
+    // Starred messages operations
+    getStarredMessages,
+    toggleStarMessage,
+    isMessageStarred,
   };
 
   return (

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import BaseChatPage from "./base_chat_page";
 import GroupPopup from "../components/GroupPopup/GroupPopup"; // path ke popup
 
-const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId }) => {
+const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId, highlightMessageId = null, onMessageHighlight = null }) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const getSenderColor = (sender) => {
     const colors = {
@@ -44,6 +44,8 @@ const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId }) => {
         customFooter={readOnlyFooter}
         customChatBubbleProps={customChatBubbleProps}
         onGroupHeaderClick={() => setIsPopupOpen(true)}
+        highlightMessageId={highlightMessageId}
+        onMessageHighlight={onMessageHighlight}
       />
 
       {isPopupOpen && (

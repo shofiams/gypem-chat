@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useChatContext } from "../api/use_chat_context";
 import ChatBubblePeserta from "../components/ChatBubblePeserta";
 import FileUploadPopup from "../components/FileUploadPopup";
@@ -26,6 +26,8 @@ const BaseChatPage = ({
   canSendMessages = true,
   showSenderNames = false,
   getSenderColor = null,
+  highlightMessageId = null,
+  onMessageHighlight = null,
   customChatBubbleProps = {},
   onGroupHeaderClick = null
 }) => {
@@ -41,12 +43,15 @@ const BaseChatPage = ({
     addMessage, 
     deleteMessage, 
     updateMessage,
-    markChatAsRead 
+    markChatAsRead,
+    toggleStarMessage,
+    isMessageStarred,
   } = useChatContext();
   
   // Get chat info and messages from context
   const chatInfo = getChatById(actualChatId);
   const contextMessages = getChatMessages(actualChatId);
+  const location = useLocation();
 
   // Updated state for multiple pinned messages
   const [replyingMessage, setReplyingMessage] = useState(null);
@@ -141,6 +146,43 @@ const BaseChatPage = ({
     return () => { document.head.removeChild(style); };
   }, []);
 
+  useEffect(() => {
+    if (highlightMessageId && messageRefs.current[highlightMessageId]) {
+      messageRefs.current[highlightMessageId].scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      
+      setHighlightedMessageId(highlightMessageId);
+      
+      if (onMessageHighlight) {
+        onMessageHighlight(highlightMessageId);
+      }
+      
+      setTimeout(() => setHighlightedMessageId(null), 2000);
+    }
+  }, [highlightMessageId, onMessageHighlight]);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const urlHighlightId = urlParams.get('highlight');
+    const messageIdToHighlight = highlightMessageId || urlHighlightId;
+    
+    if (messageIdToHighlight && messageRefs.current[messageIdToHighlight]) {
+      messageRefs.current[messageIdToHighlight].scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      
+      setHighlightedMessageId(messageIdToHighlight);
+      
+      if (onMessageHighlight) {
+        onMessageHighlight(messageIdToHighlight);
+      }
+      
+      setTimeout(() => setHighlightedMessageId(null), 2000);
+    }
+  }, [highlightMessageId, location.search, onMessageHighlight]);
 
   // Function to check selected message types
   const getSelectedMessageTypes = () => {
@@ -486,6 +528,9 @@ const BaseChatPage = ({
             isSelected={selectedMessages.has(msg.id)}
             onStartSelection={() => handleStartSelection(msg.id)}
             onToggleSelection={() => handleToggleSelection(msg.id)}
+            onStar={() => toggleStarMessage && toggleStarMessage(actualChatId, msg.id)}
+            onUnstar={() => toggleStarMessage && toggleStarMessage(actualChatId, msg.id)}
+            isStarred={isMessageStarred && isMessageStarred(actualChatId, msg.id)}
             // Group chat specific props
             showSenderName={showSenderNameInBubble}
             sender={msg.sender}
@@ -537,7 +582,12 @@ const BaseChatPage = ({
         <p className="font-semibold text-sm">{chatInfo.name}</p>
         {isGroupChat && chatInfo.members ? (
           <div className="text-xs text-gray-500 leading-4">
-            <span>{chatInfo.members.join(', ')}</span>
+            <span className="truncate block">
+              {chatInfo.members.length > 3 
+                ? `${chatInfo.members.slice(0, 3).join(', ')}...` 
+                : chatInfo.members.join(', ')
+              }
+            </span>
           </div>
         ) : (
           <p className="text-xs text-gray-500">{chatInfo.isOnline ? 'Online' : 'Offline'}</p>
