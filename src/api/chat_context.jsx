@@ -130,6 +130,37 @@ export const ChatProvider = ({ children }) => {
     }));
   }, []);
 
+  // add new chat
+  const createNewChat = (chatData) => {
+    const newChatId = Math.max(...chats.map(c => c.id), 0) + 1;
+    
+    const newChat = {
+      id: newChatId, 
+      lastMessage: "", 
+      time: new Date().toLocaleTimeString('id-ID', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      }).replace(':', '.'),
+      unreadCount: 0,
+      isOnline: false,
+      showCentang: false,
+      showCentangAbu: false,
+      type: "one-to-one", 
+      ...chatData, 
+    };
+    
+    setChats(prevChats => [...prevChats, newChat]);
+    
+    // Initialize empty messages array for new chat
+    setChatMessages(prev => ({
+      ...prev,
+      [newChatId]: []
+    }));
+    
+    return newChatId;
+  };
+
   // Delete entire chat
   const deleteChat = useCallback((chatId) => {
     const id = parseInt(chatId);
@@ -176,6 +207,7 @@ export const ChatProvider = ({ children }) => {
     // Chat operations
     getAllChats,
     getChatById,
+    createNewChat,
     deleteChat,
     markChatAsRead,
     updateChatOnlineStatus,
