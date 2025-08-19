@@ -530,6 +530,37 @@ export default function ChatBubblePeserta({ ...props }) {
     return `chat-image-${timestamp}.jpg`;
   };
 
+  // Function to render reply with conditional styling
+  const renderReply = () => {
+    if (!reply) return null;
+
+    // Untuk bubble ungu (pesan dari orang lain), reply styling abu-abu
+    if (!isSender) {
+      return (
+        <div className="mb-1 p-1 border-l-4 border-[#4C0D68] bg-gray-50 text-xs text-gray-500 rounded">
+        <div className="font-semibold text-[#4C0D68]">
+            {reply.sender}
+          </div>
+          <div>
+            {reply.message}
+          </div>
+        </div>
+      );
+    }
+    
+    // Untuk bubble putih (pesan sendiri), reply styling tetap seperti kode asli
+    return (
+      <div className="mb-1 p-1 border-l-4 border-[#bd2cfc] bg-gray-50 text-xs text-gray-500 rounded">
+        <div className="font-semibold text-[#bd2cfc]">
+          {reply.sender}
+        </div>
+        <div>
+          {reply.message}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <>
       <div
@@ -598,16 +629,8 @@ export default function ChatBubblePeserta({ ...props }) {
                 </div>
               )}
 
-              {reply && (
-                <div className="mb-1 p-1 border-l-4 border-[#4C0D68] bg-gray-50 text-xs text-gray-500 rounded">
-                  <div className="font-semibold text-[#4C0D68]">
-                    {reply.sender}
-                  </div>
-                  <div>
-                    {reply.message}
-                  </div>
-                </div>
-              )}
+              {/* Render reply dengan pengondisian styling */}
+              {renderReply()}
 
               {image && (
                 <div className="mb-1">
