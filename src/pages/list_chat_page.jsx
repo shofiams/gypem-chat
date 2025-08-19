@@ -398,6 +398,20 @@ export default function ChatPage() {
     }
   }, [confirmOpen]);
 
+  useEffect(() => {
+    // Handle activeChat parameter dari URL
+    const urlParams = new URLSearchParams(location.search);
+    const activeChat = urlParams.get('activeChat');
+    
+    if (activeChat && !isMobile) {
+      setActiveChat(activeChat);
+      // Remove activeChat parameter from URL
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.delete('activeChat');
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [location.search, isMobile, setActiveChat]);
+
   // Enhanced scrollbar styling
   useEffect(() => {
     const style = document.createElement("style");

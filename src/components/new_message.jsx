@@ -1,9 +1,13 @@
 import React, { useEffect, useRef } from "react";
 import { FiArrowLeft } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
+import { useChatContext } from "../api/use_chat_context";
 import profileList from "../assets/profile_list.svg";
 
 const NewMessagePopup = ({ isOpen, onClose }) => {
   const popupRef = useRef(null);
+  const navigate = useNavigate();
+  const { getAllChats, createNewChat } = useChatContext();
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -18,6 +22,52 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen, onClose]);
+
+  const handleContactClick = (contact) => {
+    const allChats = getAllChats();
+    
+    const existingChat = allChats.find(chat => 
+      chat.name === contact.name && chat.type !== 'group'
+    );
+
+    // Redirect to existing chat
+    if (existingChat) {
+      const isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        navigate(`/chats/${existingChat.id}`);
+      } else {
+        navigate(`/chats?activeChat=${existingChat.id}`);
+      }
+    } else {
+      const newChatData = {
+        name: contact.name,
+        avatar: profileList,
+        lastMessage: "",
+        time: new Date().toLocaleTimeString('id-ID', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false 
+        }).replace(':', '.'),
+        unreadCount: 0,
+        isOnline: false,
+        showCentang: false,
+        showCentangAbu: false,
+        type: 'one-to-one'
+      };
+
+      const newChatId = createNewChat(newChatData);
+      
+      // Redirect to new chat
+      const isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        navigate(`/chats/${newChatId}`);
+      } else {
+        navigate(`/chats?activeChat=${newChatId}`);
+      }
+    }
+    
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -75,6 +125,7 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
         {contacts.map((contact, index) => (
           <div
             key={contact.id}
+            onClick={() => handleContactClick(contact)}
             className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 cursor-pointer transition-colors duration-200 md:gap-3 md:px-4 md:py-2 md:hover:bg-gray-100 md:transition-none md:duration-0"
           >
             <img
