@@ -462,7 +462,7 @@ export default function ChatBubblePeserta({ ...props }) {
 
   const hasContent = message || image || file || reply;
 
-  // Render status icons
+  // Render status icons dengan pengondisian warna berdasarkan bubble
   const renderStatusIcons = () => {
     if (isDeleted) return null;
     
@@ -476,14 +476,24 @@ export default function ChatBubblePeserta({ ...props }) {
           <img 
             src={assets.StarFill2} 
             alt="star" 
-            className="w-4 h-4" 
+            className="w-4 h-4"
+            style={{
+              filter: isSender 
+                ? 'brightness(0) saturate(100%) invert(1)' // Putih untuk bubble ungu
+                : 'brightness(0) saturate(100%) invert(14%) sepia(71%) saturate(2034%) hue-rotate(269deg) brightness(92%) contrast(100%)' // Ungu #4C0D68 untuk bubble putih
+            }}
           />
         )}
         {isPinned && (
           <img 
             src={assets.PinFill} 
             alt="pin" 
-            className="w-4 h-4" 
+            className="w-4 h-4"
+            style={{
+              filter: isSender 
+                ? 'brightness(0) saturate(100%) invert(1)' // Putih untuk bubble ungu
+                : 'brightness(0) saturate(100%) invert(14%) sepia(71%) saturate(2034%) hue-rotate(269deg) brightness(92%) contrast(100%)' // Ungu #4C0D68 untuk bubble putih
+            }}
           />
         )}
         {isSender && (
