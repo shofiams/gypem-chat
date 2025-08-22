@@ -7,7 +7,7 @@ import profileList from "../assets/profile_list.svg";
 const NewMessagePopup = ({ isOpen, onClose }) => {
   const popupRef = useRef(null);
   const navigate = useNavigate();
-  const { getAllChats, createNewChat } = useChatContext();
+  const { getAllChats, createNewChat, getChatById } = useChatContext();
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -27,11 +27,13 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
     const allChats = getAllChats();
     
     const existingChat = allChats.find(chat => 
-      chat.name === contact.name && chat.type !== 'group'
+      chat.name === contact.name && 
+      chat.type !== 'group' && 
+      chat.id
     );
 
     // Redirect to existing chat
-    if (existingChat) {
+    if (existingChat && getChatById && getChatById(existingChat.id)) {
       const isMobile = window.innerWidth < 768;
       if (isMobile) {
         navigate(`/chats/${existingChat.id}`);
@@ -58,11 +60,13 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
       const newChatId = createNewChat(newChatData);
       
       // Redirect to new chat
-      const isMobile = window.innerWidth < 768;
-      if (isMobile) {
-        navigate(`/chats/${newChatId}`);
-      } else {
-        navigate(`/chats?activeChat=${newChatId}`);
+      if (newChatId) {
+        const isMobile = window.innerWidth < 768;
+        if (isMobile) {
+          navigate(`/chats/${newChatId}`);
+        } else {
+          navigate(`/chats?activeChat=${newChatId}`);
+        }
       }
     }
     
@@ -88,11 +92,11 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
         bg-white rounded-lg shadow-lg border border-gray-200 z-50
 
         /* Desktop */
-        sm:absolute sm:top-20 sm:left-16 sm:w-[230px] sm:h-[330px] sm:translate-x-1 sm:translate-y-36
+        md:absolute md:top-20 md:left-16 md:w-[230px] md:h-[330px] md:translate-x-1 md:translate-y-36
 
         /* Mobile */
-        max-sm:fixed max-sm:top-0 max-sm:left-0 max-sm:right-0 max-sm:bottom-0 
-        max-sm:w-full max-sm:h-full max-sm:rounded-none
+        max-md:fixed max-md:top-0 max-md:left-0 max-md:right-0 max-md:bottom-0 
+        max-md:w-full max-md:h-full max-md:rounded-none
       `}
     >
 

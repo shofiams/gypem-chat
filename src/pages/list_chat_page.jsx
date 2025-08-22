@@ -307,11 +307,19 @@ export default function ChatPage() {
 
   const doDelete = () => {
     if (chatToDelete != null) {
+      // Force clear active chat immediately
+      clearActiveChat();
+      
+      // Delete the chat
       deleteChat(chatToDelete);
-      // If deleting active chat, clear it
-      if (chatToDelete === activeChatId) {
+      
+      // Force a re-render by updating component state
+      setHighlightMessageId(null);
+      
+      // Additional safety: set a timeout to ensure state is cleared
+      setTimeout(() => {
         clearActiveChat();
-      }
+      }, 0);
     }
     closeConfirm();
   };
@@ -411,6 +419,19 @@ export default function ChatPage() {
       window.history.replaceState({}, '', newUrl);
     }
   }, [location.search, isMobile, setActiveChat]);
+
+  // Ensure to clear the state after delete chat
+  useEffect(() => {
+    // Check if the current active chat still exists
+    if (activeChatId && !isMobile) {
+      const activeChat = getChatById(activeChatId);
+      if (!activeChat) {
+        // Active chat was deleted, clear it
+        clearActiveChat();
+        setHighlightMessageId(null);
+      }
+    }
+  }, [activeChatId, chats, getChatById, clearActiveChat, isMobile]);
 
   // Enhanced scrollbar styling
   useEffect(() => {
@@ -512,6 +533,9 @@ export default function ChatPage() {
                   <FiX className="w-5 h-5 md:w-4 md:h-4" />
                 </button>
               )}
+              <span className="absolute left-0 right-0 bottom-0 h-1 transform scale-x-0 origin-left 
+                bg-[#4C0D68] pointer-events-none group-focus-within:scale-x-100"
+              />
             </div>
           </div>
         </div>
@@ -559,7 +583,7 @@ export default function ChatPage() {
 
       {/* Desktop Right Panel */}
       <main className="flex-1 hidden md:block">
-        {activeChatId ? (
+        {activeChatId && getChatById(activeChatId) ? (
           (() => {
             const activeChat = getChatById(activeChatId);
             if (activeChat?.type === 'group') {
@@ -622,8 +646,8 @@ export default function ChatPage() {
 
       {/* Confirm Delete Modal */}
       {!isStarPage && confirmOpen && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-[1px]" />
           <div ref={confirmRef} className="relative z-10 w-full max-w-md bg-white rounded-xl shadow-2xl border border-gray-100 p-6">
             <div className="text-center">
               <h4 className="text-base text-gray-700 mb-4">

@@ -220,14 +220,16 @@ export default function ChatBubblePeserta({ ...props }) {
     getSenderColor,
     images = [],
     imageIndex = 0,
-    onImageNavigation = null, 
+    onImageNavigation = null,
+    searchQuery,
+    highlightSearchTerm,
   } = props;
 
   const isSender = type === "sender";
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const isStarred = props.isStarred || false;
-  const [isPinned, setIsPinned] = useState(false);
+  const isPinned = props.isPinned || false;
   const [showCopied, setShowCopied] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState('below');
   const [isMobile, setIsMobile] = useState(false);
@@ -396,13 +398,11 @@ export default function ChatBubblePeserta({ ...props }) {
     if (props.onPin) {
       props.onPin({ sender: isSender ? "You" : "Other User", message, image, file });
     }
-    setIsPinned(true);
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
   };
 
   const handleUnpin = () => {
-    setIsPinned(false);
     if (props.onUnpin) {
       props.onUnpin();
     }
@@ -495,6 +495,17 @@ export default function ChatBubblePeserta({ ...props }) {
         )}
       </div>
     );
+  };
+
+  // Render message text with search highlighting
+  const renderMessageText = () => {
+    if (!message) return null;
+    
+    if (searchQuery && highlightSearchTerm) {
+      return highlightSearchTerm(message, searchQuery);
+    }
+    
+    return message;
   };
 
   // Determine when to show dropdown button
@@ -701,7 +712,7 @@ export default function ChatBubblePeserta({ ...props }) {
                       {isDeleted && (
                         <img src={assets.Tarik} alt="deleted" className="w-4 h-4 flex-shrink-0" />
                       )}
-                      <span className="flex-1">{message}</span>
+                      <span className="flex-1">{renderMessageText()}</span>
                     </div>
 
                     {/* Status icons for message */}

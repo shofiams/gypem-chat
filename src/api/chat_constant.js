@@ -97,6 +97,7 @@ export const INITIAL_MESSAGES = {
       sender: "Anda",
       message: "Great, thanks for the update",
       time: "16.02",
+      isPinned: true,
     },
   ],
   5: [
@@ -122,6 +123,7 @@ export const INITIAL_MESSAGES = {
       sender: "Admin WIB",
       message: "Mongols",
       time: "16.01",
+      isPinned: true,
     },
     {
       id: 2,
@@ -278,3 +280,8 @@ export const STARRED_MESSAGES = {
   7: { chatId: 2, messageId: 1 }, // "Hello everyone!" from chat 2
   11: { chatId: 4, messageId: 1 }, // "System update completed" from chat 4
 };
+
+export const PINNED_MESSAGES = {
+  4 : { chatId: 4, messageId:2 },
+  6 : { chatId: 6, messageId:1 },
+}
