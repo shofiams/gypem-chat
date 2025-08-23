@@ -16,6 +16,45 @@ const DateSeparator = ({ children }) => (
   </div>
 );
 
+// Helper function to determine time grouping properties
+const getTimeGroupingProps = (currentMsg, currentIndex, allMessages) => {
+  const nextMsg = allMessages[currentIndex + 1];
+  const previousMsg = currentIndex > 0 ? allMessages[currentIndex - 1] : null;
+  
+  // Get sender information
+  const currentSender = currentMsg.type === "sender" ? "You" : currentMsg.sender;
+  const nextSender = nextMsg ? (nextMsg.type === "sender" ? "You" : nextMsg.sender) : null;
+  const previousSender = previousMsg ? (previousMsg.type === "sender" ? "You" : previousMsg.sender) : null;
+  
+  // Get time information
+  const currentTime = currentMsg.time;
+  const nextTime = nextMsg ? nextMsg.time : null;
+  const previousTime = previousMsg ? previousMsg.time : null;
+  
+  // Determine if this is the last message in a time group
+  const isLastInTimeGroup = !nextMsg || 
+    nextSender !== currentSender || 
+    nextTime !== currentTime;
+  
+  // Determine if this is the first message in a time group
+  const isFirstInTimeGroup = !previousMsg || 
+    previousSender !== currentSender || 
+    previousTime !== currentTime;
+  
+  // Determine if time should be shown
+  const showTime = isLastInTimeGroup;
+  
+  return {
+    showTime,
+    isLastInTimeGroup,
+    isFirstInTimeGroup,
+    nextMessageTime: nextTime,
+    previousMessageTime: previousTime,
+    nextMessageSender: nextSender,
+    previousMessageSender: previousSender
+  };
+};
+
 const BaseChatPage = ({ 
   isEmbedded = false, 
   onClose, 
@@ -624,6 +663,9 @@ const BaseChatPage = ({
     const isLastFromSender = !nextMsg || nextMsg.type !== msg.type || (isGroupChat && nextMsg.sender !== msg.sender);
     const isLastFromReceiver = !nextMsg || nextMsg.type !== msg.type || (isGroupChat && nextMsg.sender !== msg.sender);
     const showSenderNameInBubble = shouldShowSenderNameInBubble(msg, idx);
+    
+    // Get time grouping properties
+    const timeGroupingProps = getTimeGroupingProps(msg, idx, arr);
 
     return (
       <div key={msg.id} className="mb-2">
@@ -657,7 +699,6 @@ const BaseChatPage = ({
               {...msg}
               isLastFromSender={isLastFromSender}
               isLastFromReceiver={isLastFromReceiver}
-              hideTime={!isLastFromSender}
               onCopy={() => {}}
               onReply={canSendMessages ? () => setReplyingMessage(msg) : null}
               onPin={() => handlePinMessage(msg)}
@@ -681,6 +722,8 @@ const BaseChatPage = ({
               sender={msg.sender}
               getSenderColor={getSenderColor}
               isGroupChat={isGroupChat}
+              {...timeGroupingProps}
+              isLastBubble={idx === arr.length - 1}
               // Custom props from parent
               {...customChatBubbleProps}
             />
@@ -689,6 +732,7 @@ const BaseChatPage = ({
       </div>
     );
   };
+
 
   // Default header component
   const defaultHeader = (

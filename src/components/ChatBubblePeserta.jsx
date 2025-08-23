@@ -223,6 +223,9 @@ export default function ChatBubblePeserta({ ...props }) {
     onImageNavigation = null,
     searchQuery,
     highlightSearchTerm,
+    showTime = false,
+    nextMessageTime = null,
+    nextMessageSender = null,
   } = props;
 
   const isSender = type === "sender";
@@ -253,6 +256,88 @@ export default function ChatBubblePeserta({ ...props }) {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  // Fungsi untuk menentukan apakah harus menampilkan waktu
+  const shouldShowTime = () => {
+    // Jika showTime prop diberikan secara eksplisit, gunakan itu
+    if (showTime !== undefined) {
+      return showTime;
+    }
+
+    // Jika ini pesan terakhir di chat, selalu tampilkan waktu
+    if (isLastBubble) {
+      return true;
+    }
+
+    // Untuk backward compatibility, jika tidak ada props time grouping, 
+    // gunakan logika lama berdasarkan isLastFromSender/isLastFromReceiver
+    if (nextMessageTime === undefined && nextMessageSender === undefined) {
+      return (isSender && isLastFromSender) || (!isSender && isLastFromReceiver);
+    }
+
+    // Logika time grouping baru:
+    // Tampilkan waktu hanya jika ini adalah pesan terakhir dalam grup waktu yang sama
+    const currentSender = isSender ? "You" : sender;
+    
+    // Cek apakah pesan berikutnya dari sender yang berbeda atau waktu berbeda
+    const shouldShow = !nextMessageSender || 
+      nextMessageSender !== currentSender || 
+      nextMessageTime !== time;
+    
+    return shouldShow;
+  };
+
+  // Fungsi untuk menentukan apakah bubble harus memiliki ekor
+  const shouldHaveTail = () => {
+    return shouldShowTime();
+  };
+
+  // Fungsi untuk mendapatkan class bubble dengan ekor
+  const getBubbleClasses = () => {
+    const baseClasses = "relative max-w-xs p-2 transition-all";
+    const hasTail = shouldHaveTail();
+    
+    if (isSender) {
+      // Bubble untuk sender (ungu) - pojok kanan bawah lancip
+      return `${baseClasses} bg-[#4C0D68] text-white ${
+        hasTail ? "rounded-tl-lg rounded-tr-lg rounded-bl-lg rounded-br-sm" : "rounded-lg"
+      } ${isDeleted ? "italic opacity-80" : ""}`;
+    } else {
+      // Bubble untuk receiver (putih) - pojok kiri bawah lancip
+      return `${baseClasses} bg-white text-black ${
+        hasTail ? "rounded-tl-lg rounded-tr-lg rounded-br-lg rounded-bl-sm" : "rounded-lg"
+      }`;
+    }
+  };
+
+  // Bubble tail component
+  const BubbleTail = () => {
+    if (!shouldHaveTail()) return null;
+
+    return (
+      <div 
+        className="absolute"
+        style={{
+          bottom: '2px',
+          ...(isSender ? {
+            right: '2px',
+            width: '0',
+            height: '0',
+            borderLeft: '8px solid #4C0D68',
+            borderTop: '8px solid transparent',
+            borderBottom: '2px solid transparent'
+          } : {
+            left: '2px',
+            width: '0',
+            height: '0',
+            borderRight: '8px solid white',
+            borderTop: '8px solid transparent',
+            borderBottom: '2px solid transparent'
+          })
+        }}
+      />
+    );
+  };
 
   const toggleDropdown = () => setDropdownOpen((prev) => !prev);
 
@@ -627,19 +712,14 @@ export default function ChatBubblePeserta({ ...props }) {
         <div className={`${isSender ? "items-end ml-auto" : "items-start"} flex flex-col relative z-10`}>
           <div className="flex items-start">
             <div
-              className={`relative max-w-xs p-2 rounded-lg cursor-pointer transition-all ${
-                isSender
-                  ? `bg-[#4C0D68] text-white ${
-                      isLastFromSender ? "rounded-br-none" : ""
-                    } ${isDeleted ? "italic opacity-80" : ""}`
-                  : `bg-white text-black ${
-                      isLastFromReceiver ? "rounded-bl-none" : ""
-                    }`
-              } ${
+              className={`${getBubbleClasses()} cursor-pointer ${
                 isSelectionMode ? 'hover:opacity-80' : ''
               }`}
               onClick={handleBubbleClick}
             >
+              {/* Bubble Tail */}
+              <BubbleTail />
+
               {/* Show sender name if enabled */}
               {showSenderName && sender && !isSender && (
                 <div 
@@ -765,8 +845,8 @@ export default function ChatBubblePeserta({ ...props }) {
             </div>
           </div>
           
-          {/* Timestamp - hide in selection mode */}
-          {(isLastFromSender || isLastFromReceiver) && !isSelectionMode && (
+          {/* Timestamp dengan logika time grouping - hide in selection mode */}
+          {shouldShowTime() && !isSelectionMode && (
             <span className="text-[10px] text-gray-500 mt-1">{time}</span>
           )}
         </div>
