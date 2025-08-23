@@ -617,11 +617,11 @@ const BaseChatPage = ({
               className="absolute inset-0 bg-yellow-200 rounded-lg pointer-events-none z-0 opacity-70"
               style={{
                 margin: '-2px',
-                padding: '2px'
+                padding: '2px',
               }}
             />
           )}
-          <div className="relative z-10">
+          <div className="z-10">
             <ChatBubblePeserta
               {...msg}
               isLastFromSender={isLastFromSender}
@@ -631,7 +631,7 @@ const BaseChatPage = ({
               onReply={canSendMessages ? () => setReplyingMessage(msg) : null}
               onPin={() => handlePinMessage(msg)}
               onUnpin={() => handleUnpinMessage(msg.id)}
-              isPinned={checkIsMessagePinned(actualChatId, msg.id)}
+              isPinned={checkIsMessagePinned(msg.id)}
               onDelete={() => handleDeleteRequest(msg.id, msg.type)}
               onEdit={canSendMessages ? () => handleEdit(msg.id) : null} 
               isEdited={msg.isEdited}
