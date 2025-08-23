@@ -84,6 +84,7 @@ const BaseChatPage = ({
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
+  const searchHighlightTimer = useRef(null);
 
   // Check if chatId is valid and mark as read
   useEffect(() => {
@@ -190,7 +191,7 @@ const BaseChatPage = ({
         onMessageHighlight(highlightMessageId);
       }
       
-      setTimeout(() => setHighlightedMessageId(null), 2000);
+      setTimeout(() => setHighlightedMessageId(null), 1500);
     }
   }, [highlightMessageId, onMessageHighlight]);
 
@@ -211,9 +212,17 @@ const BaseChatPage = ({
         onMessageHighlight(messageIdToHighlight);
       }
       
-      setTimeout(() => setHighlightedMessageId(null), 2000);
+      setTimeout(() => setHighlightedMessageId(null), 1500);
     }
   }, [highlightMessageId, location.search, onMessageHighlight]);
+
+  useEffect(() => {
+    return () => {
+      if (searchHighlightTimer.current) {
+        clearTimeout(searchHighlightTimer.current);
+      }
+    };
+  }, []);
 
   // Function to check selected message types
   const getSelectedMessageTypes = () => {
@@ -367,6 +376,11 @@ const BaseChatPage = ({
 
   // Search function
   const handleSearch = useCallback((query) => {
+    if (searchHighlightTimer.current) {
+      clearTimeout(searchHighlightTimer.current);
+      searchHighlightTimer.current = null;
+    }
+
     setSearchQuery(query);
     if (!query.trim()) {
       setSearchResults([]);
@@ -387,6 +401,11 @@ const BaseChatPage = ({
     if (results.length > 0) {
       setCurrentSearchIndex(0);
       scrollToMessage(results[0].id);
+      
+      searchHighlightTimer.current = setTimeout(() => {
+        setHighlightedMessageId(null);
+        searchHighlightTimer.current = null;
+      }, 1500);
     } else {
       setCurrentSearchIndex(-1);
       setHighlightedMessageId(null);
@@ -397,6 +416,11 @@ const BaseChatPage = ({
   const navigateSearchResults = (direction) => {
     if (searchResults.length === 0) return;
     
+    if (searchHighlightTimer.current) {
+      clearTimeout(searchHighlightTimer.current);
+      searchHighlightTimer.current = null;
+    }
+    
     let newIndex;
     if (direction === 'next') {
       newIndex = currentSearchIndex + 1 >= searchResults.length ? 0 : currentSearchIndex + 1;
@@ -406,6 +430,11 @@ const BaseChatPage = ({
     
     setCurrentSearchIndex(newIndex);
     scrollToMessage(searchResults[newIndex].id);
+    
+    searchHighlightTimer.current = setTimeout(() => {
+      setHighlightedMessageId(null);
+      searchHighlightTimer.current = null;
+    }, 1500);
   };
 
   const scrollToMessage = (messageId) => {
@@ -415,7 +444,9 @@ const BaseChatPage = ({
         block: "center",
       });
       setHighlightedMessageId(messageId);
-      setTimeout(() => setHighlightedMessageId(null), 2000);
+      if (!searchQuery) {
+        setTimeout(() => setHighlightedMessageId(null), 800);
+      }
     }
   };
 
@@ -757,19 +788,29 @@ const BaseChatPage = ({
 
       {/* Floating Search Bar */}
       {showSearchResults && !isSelectionMode && (
-        <div className="absolute top-16 right-0 z-50 w-3/5 max-w-md pr-4">
-          <div className="bg-[#f4f0f0] bg-opacity-80 rounded-lg shadow-lg border overflow-hidden" style={{ borderColor: '#4C0D68' }}>
+        <div className="absolute top-[66px] right-0 z-50 w-3/5 max-w-md">
+          <div className="bg-[#f4f0f0] bg-opacity-80 rounded-bl-xl shadow-lg border overflow-hidden" style={{ borderColor: '#4C0D68' }}>
             {/* Search Input Header */}
-            <div className="px-4 py-3 flex items-center gap-2">
-              <div className="flex-1 border-[1px] border-b-[6px] rounded-lg text-sm outline-none" style={{ borderColor: '#4C0D68' }}>
+            <div className="pl-5 pr-3 py-3 flex items-center gap-2">
+              <div className="flex-1 border-[1px] border-b-[6px] rounded-lg text-sm outline-none relative" style={{ borderColor: '#4C0D68' }}>
                 <input
                   type="text"
                   placeholder="Search..."
                   value={searchQuery}
                   onChange={(e) => handleSearch(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg"
+                  className={`w-full px-3 py-2 ${searchQuery ? (searchResults.length > 0 ? 'pr-16' : 'pr-24') : '' } rounded-lg`}
                   autoFocus
                 />
+                
+                {/* Results counter inside search input */}
+                {searchQuery && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 bg-white px-2 py-1 rounded border pointer-events-none">
+                    {searchResults.length > 0 
+                      ? `${currentSearchIndex + 1} of ${searchResults.length}`
+                      : "Not Found"
+                    }
+                  </div>
+                )}
               </div>
               
               {/* Navigation buttons */}
@@ -809,18 +850,6 @@ const BaseChatPage = ({
                 </button>
               </div>
             </div>
-            
-            {/* Results counter */}
-            <div className="px-4 pb-3">
-              {searchQuery && (
-                <div className="text-xs text-gray-500 text-center">
-                  {searchResults.length > 0 
-                    ? `${currentSearchIndex + 1} of ${searchResults.length} results`
-                    : "No messages found"
-                  }
-                </div>
-              )}
-            </div>
           </div>
         </div>
       )}
@@ -846,7 +875,7 @@ const BaseChatPage = ({
                     block: "center",
                   });
                   setHighlightedMessageId(currentPin.messageId);
-                  setTimeout(() => setHighlightedMessageId(null), 2000);
+                  setTimeout(() => setHighlightedMessageId(null), 1500);
                 }
               }}
             >
