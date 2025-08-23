@@ -1,10 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { INITIAL_CHATS, INITIAL_MESSAGES } from './chat_constant';
+import { INITIAL_CHATS, INITIAL_MESSAGES, STARRED_MESSAGES, PINNED_MESSAGES } from './chat_constant';
 import { ChatContext } from './use_chat_context';
 
 export const ChatProvider = ({ children }) => {
   const [chats, setChats] = useState(INITIAL_CHATS);
   const [chatMessages, setChatMessages] = useState(INITIAL_MESSAGES);
+  const [starredMessages, setStarredMessages] = useState(STARRED_MESSAGES);
+  const [pinnedMessages, setPinnedMessages] = useState(PINNED_MESSAGES);
   const [activeChatId, setActiveChatId] = useState(null);
 
   // Get all chats
@@ -19,8 +21,15 @@ export const ChatProvider = ({ children }) => {
 
   // Get messages for specific chat
   const getChatMessages = useCallback((chatId) => {
-    return chatMessages[parseInt(chatId)] || [];
-  }, [chatMessages]);
+    const messages = chatMessages[parseInt(chatId)] || [];
+
+    return messages.map(msg => ({
+      ...msg,
+      isPinned: Object.values(pinnedMessages).some(pin => 
+        pin.chatId === parseInt(chatId) && pin.messageId === msg.id
+      )
+    }));
+  }, [chatMessages, pinnedMessages]);
 
   // Add new message to specific chat
   const addMessage = useCallback((chatId, message) => {
@@ -43,6 +52,138 @@ export const ChatProvider = ({ children }) => {
     ));
   }, []);
 
+  // Get all starred messages for star page
+  const getStarredMessages = useCallback(() => {
+    return Object.keys(starredMessages)
+      .map((starredId) => {
+        const { chatId, messageId } = starredMessages[starredId];
+        const chat = chats.find((c) => c.id === chatId);
+        const message = chatMessages[chatId]?.find((m) => m.id === messageId);
+
+        if (!chat || !message) return null;
+
+        return {
+          id: parseInt(starredId),
+          chatId,
+          messageId,
+          chatName: chat.name,
+          message: message.message || message.file?.name || "Media",
+          sender: message.sender,
+          time: message.time,
+          chatType: chat.type,
+        };
+      })
+      .filter(Boolean);
+  }, [starredMessages, chats, chatMessages]);
+
+  // Add/remove starred message
+  const toggleStarMessage = useCallback((chatId, messageId) => {
+    const chatIdNum = parseInt(chatId);
+    const isCurrentlyStarred = Object.values(starredMessages).some(star => 
+      star.chatId === chatIdNum && star.messageId === messageId
+    );
+
+    setStarredMessages(prev => {
+      const starKey = Object.keys(prev).find(key => 
+        prev[key].chatId === chatIdNum && prev[key].messageId === messageId
+      );
+      
+      if (starKey) {
+        // Remove star
+        const newStarred = { ...prev };
+        delete newStarred[starKey];
+        return newStarred;
+      } else {
+        // Add star
+        const newId = Math.max(...Object.keys(prev).map(k => parseInt(k)), 0) + 1;
+        return {
+          ...prev,
+          [newId]: { chatId: chatIdNum, messageId }
+        };
+      }
+    });
+
+    setChatMessages(prev => ({
+      ...prev,
+      [chatIdNum]: prev[chatIdNum]?.map(msg => 
+        msg.id === messageId ? { ...msg, isStarred: !isCurrentlyStarred } : msg
+      ) || []
+    }));
+  }, [starredMessages]);
+
+  // Check if message is starred
+  const isMessageStarred = useCallback((chatId, messageId) => {
+    return Object.values(starredMessages).some(star => 
+      star.chatId === parseInt(chatId) && star.messageId === messageId
+    );
+  }, [starredMessages]);
+
+  // Get all pinned messages
+  const getPinnedMessage = useCallback(() => {
+    return Object.keys(pinnedMessages)
+      .map((pinnedId) => {
+        const { chatId, messageId } = pinnedMessages[pinnedId];
+        const chat = chats.find((c) => c.id === chatId);
+        const message = chatMessages[chatId]?.find((m) => m.id === messageId);
+
+        if (!chat || !message) return null;
+
+        return{
+          id: parseInt(pinnedId),
+          chatId,
+          messageId,
+          chatName: chat.name,
+          message: message.message || message.file?.name,
+          sender: message.sender,
+          time: message.time,
+          chatType: chat.type,
+        }
+      })
+      .filter(Boolean);
+  }, [pinnedMessages, chats, chatMessages]);
+
+  // Check if message is pinned
+  const isMessagePinned = useCallback((chatId, messageId) => {
+    return Object.values(pinnedMessages).some(pin => 
+      pin.chatId === parseInt(chatId) && pin.messageId === messageId
+    );
+  }, [pinnedMessages]);
+
+  // Add/remove pinned message
+  const togglePinMessage = useCallback((chatId, messageId) => {
+    const chatIdNum = parseInt(chatId);
+    const isCurrentlyPinned = Object.values(pinnedMessages).some(pin => 
+      pin.chatId === chatIdNum && pin.messageId === messageId
+    );
+
+    setPinnedMessages(prev => {
+      const pinKey = Object.keys(prev).find(key => 
+        prev[key].chatId === chatIdNum && prev[key].messageId === messageId
+      );
+      
+      if (pinKey) {
+        // Remove pin
+        const newPinned = { ...prev };
+        delete newPinned[pinKey];
+        return newPinned;
+      } else {
+        // Add pin
+        const newId = Math.max(...Object.keys(prev).map(k => parseInt(k)), 0) + 1;
+        return {
+          ...prev,
+          [newId]: { chatId: chatIdNum, messageId }
+        };
+      }
+    });
+
+    setChatMessages(prev => ({
+      ...prev,
+      [chatIdNum]: prev[chatIdNum]?.map(msg => 
+        msg.id === messageId ? { ...msg, isPinned: !isCurrentlyPinned } : msg
+      ) || []
+    }));
+  }, [pinnedMessages]);
+
   // Delete message from specific chat
   const deleteMessage = useCallback((chatId, messageId) => {
     const id = parseInt(chatId);
@@ -62,6 +203,37 @@ export const ChatProvider = ({ children }) => {
       ) || []
     }));
   }, []);
+
+  // add new chat
+  const createNewChat = (chatData) => {
+    const newChatId = Math.max(...chats.map(c => c.id), 0) + 1;
+    
+    const newChat = {
+      id: newChatId, 
+      lastMessage: "", 
+      time: new Date().toLocaleTimeString('id-ID', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: false 
+      }).replace(':', '.'),
+      unreadCount: 0,
+      isOnline: false,
+      showCentang: false,
+      showCentangAbu: false,
+      type: "one-to-one", 
+      ...chatData, 
+    };
+    
+    setChats(prevChats => [...prevChats, newChat]);
+    
+    // Initialize empty messages array for new chat
+    setChatMessages(prev => ({
+      ...prev,
+      [newChatId]: []
+    }));
+    
+    return newChatId;
+  };
 
   // Delete entire chat
   const deleteChat = useCallback((chatId) => {
@@ -109,6 +281,7 @@ export const ChatProvider = ({ children }) => {
     // Chat operations
     getAllChats,
     getChatById,
+    createNewChat,
     deleteChat,
     markChatAsRead,
     updateChatOnlineStatus,
@@ -120,6 +293,16 @@ export const ChatProvider = ({ children }) => {
     addMessage,
     deleteMessage,
     updateMessage,
+
+    // Starred messages operations
+    getStarredMessages,
+    toggleStarMessage,
+    isMessageStarred,
+
+    // Pinned messages operations
+    getPinnedMessage,
+    togglePinMessage,
+    isMessagePinned,
   };
 
   return (

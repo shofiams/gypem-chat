@@ -19,6 +19,7 @@ export const INITIAL_MESSAGES = {
       sender: "Pak Ketua",
       message: "Welcome to Class All!",
       time: "16.01",
+      isStarred: true,
     },
     {
       id: 2,
@@ -45,6 +46,7 @@ export const INITIAL_MESSAGES = {
       },
       message: "Here's the document you requested",
       time: "16.04",
+      isStarred: true,
     },
   ],
   2: [
@@ -54,6 +56,7 @@ export const INITIAL_MESSAGES = {
       sender: "Admin A",
       message: "Hello everyone!",
       time: "16.02",
+      isStarred: true,
     },
     {
       id: 2,
@@ -86,6 +89,7 @@ export const INITIAL_MESSAGES = {
       sender: "Admin Gypem",
       message: "System update completed",
       time: "16.01",
+      isStarred: true,
     },
     {
       id: 2,
@@ -93,6 +97,7 @@ export const INITIAL_MESSAGES = {
       sender: "Anda",
       message: "Great, thanks for the update",
       time: "16.02",
+      isPinned: true,
     },
   ],
   5: [
@@ -118,6 +123,7 @@ export const INITIAL_MESSAGES = {
       sender: "Admin WIB",
       message: "Mongols",
       time: "16.01",
+      isPinned: true,
     },
     {
       id: 2,
@@ -267,3 +273,15 @@ export const INITIAL_CHATS = [
     lastMessageTime: last.time,
   };
 });
+
+export const STARRED_MESSAGES = {
+  1: { chatId: 1, messageId: 1 }, // "Welcome to Class All!" from chat 1
+  4: { chatId: 1, messageId: 4 }, // PDF document from chat 1
+  7: { chatId: 2, messageId: 1 }, // "Hello everyone!" from chat 2
+  11: { chatId: 4, messageId: 1 }, // "System update completed" from chat 4
+};
+
+export const PINNED_MESSAGES = {
+  4 : { chatId: 4, messageId:2 },
+  6 : { chatId: 6, messageId:1 },
+}

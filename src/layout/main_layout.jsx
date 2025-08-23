@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import Logo from '../assets/logo.png';
 import { assets } from '../assets/assets';
@@ -9,7 +9,7 @@ import { FaRegStar, FaUserCircle } from "react-icons/fa";
 import { CgProfile } from "react-icons/cg";
 import { useChatContext } from '../api/use_chat_context';
 import NewMessagePopup from '../components/new_message'; 
-import ProfilePopup from '../pages/profile_page';
+import ProfilePopup from '../components/profile_popup';
 
 // Desktop Sidebar Item Component
 const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
@@ -120,7 +120,7 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
 };
 
 // Desktop Sidebar Component
-const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile, isNewMessageOpen, isProfilePopupOpen }) => {
+const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile, isNewMessageOpen, isProfilePopupOpen, sidebarRef }) => {
   const menuItems = [
     { icon: <BsChatSquareText size={20} />, label: "Chats", badge: 10, route: "/chats" },
     { icon: <MdOutlineGroups size={25} />, label: "Group", route: "/group" },
@@ -150,9 +150,10 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
 
   return (
     <aside
+      ref={sidebarRef}
       className={`
         hidden md:block bg-white
-        fixed top-16 left-0 z-50 shadow-lg
+        fixed top-16 left-0 z-30 shadow-lg
         ${isOpen ? 'w-60' : 'w-16'}
         transition-all duration-300 ease-out
       `}
@@ -416,6 +417,7 @@ const MainLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isChatRoute = location.pathname.startsWith('/chats/') && location.pathname !== '/chats' || location.pathname.startsWith('/group/') && location.pathname !== '/group';
+  const sidebarRef = useRef(null);
 
   // Auto-redirect to /chats if on root path
   useEffect(() => {
@@ -440,6 +442,7 @@ const MainLayout = () => {
     if (isNewMessageOpen) {
       setIsNewMessageOpen(false);
     }
+    setIsSidebarOpen(false)
   };
 
   const handleProfileUpdate = (newProfileImage) => {
@@ -453,6 +456,7 @@ const MainLayout = () => {
       if (isProfilePopupOpen) {
         setIsProfilePopupOpen(false);
       }
+      setIsSidebarOpen(false)
       return;
     }
 
@@ -515,6 +519,26 @@ const MainLayout = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [navigate, setActiveChat, clearActiveChat, location.pathname]);
 
+  useEffect(() => {
+    function handleOutsideClick(e) {
+      if (window.innerWidth < 768) return;
+      if (!isSidebarOpen) return;
+      if (!sidebarRef.current) return;
+
+      if (!sidebarRef.current.contains(e.target)) {
+        setIsSidebarOpen(false);
+      }
+    }
+
+    window.addEventListener('mousedown', handleOutsideClick);
+    window.addEventListener('touchstart', handleOutsideClick);
+
+    return () => {
+      window.removeEventListener('mousedown', handleOutsideClick);
+      window.removeEventListener('touchstart', handleOutsideClick);
+    };
+  }, [isSidebarOpen, sidebarRef]);
+
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       {/* Full-width Desktop Header */}
@@ -527,6 +551,7 @@ const MainLayout = () => {
       <div className="flex flex-1 overflow-hidden relative">
         {/* Desktop Sidebar */}
         <DesktopSidebar
+          sidebarRef={sidebarRef}
           isOpen={isSidebarOpen}
           toggleSidebar={toggleSidebar}
           activeRoute={location.pathname}

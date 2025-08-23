@@ -3,16 +3,17 @@ import { assets } from "../assets/assets";
 import DropdownMenuPeserta from "./DropdownMenuPeserta";
 import { Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
-// ImageViewerModal component
-const ImageViewerModal = ({ 
-  isOpen, 
-  onClose, 
-  imageUrl, 
-  imageName = 'image.jpg',
-  onPrevious = null,
-  onNext = null,
-  hasMultiple = false 
-}) => {
+  // ImageViewerModal component
+  const ImageViewerModal = ({ 
+    isOpen, 
+    onClose, 
+    imageUrl, 
+    imageName = 'image.jpg',
+    onPrevious = null,
+    onNext = null,
+    hasMultiple = false 
+  }) => {
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -217,17 +218,18 @@ export default function ChatBubblePeserta({ ...props }) {
     sender,
     showSenderName = false,
     getSenderColor,
-    // New props for image modal
-    images = [], // Array of images if multiple
-    imageIndex = 0, // Current image index
-    onImageNavigation = null, // Callback for image navigation
+    images = [],
+    imageIndex = 0,
+    onImageNavigation = null,
+    searchQuery,
+    highlightSearchTerm,
   } = props;
 
   const isSender = type === "sender";
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const [isStarred, setIsStarred] = useState(false);
-  const [isPinned, setIsPinned] = useState(false);
+  const isStarred = props.isStarred || false;
+  const isPinned = props.isPinned || false;
   const [showCopied, setShowCopied] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState('below');
   const [isMobile, setIsMobile] = useState(false);
@@ -396,13 +398,11 @@ export default function ChatBubblePeserta({ ...props }) {
     if (props.onPin) {
       props.onPin({ sender: isSender ? "You" : "Other User", message, image, file });
     }
-    setIsPinned(true);
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
   };
 
   const handleUnpin = () => {
-    setIsPinned(false);
     if (props.onUnpin) {
       props.onUnpin();
     }
@@ -411,13 +411,17 @@ export default function ChatBubblePeserta({ ...props }) {
   };
 
   const handleStar = () => {
-    setIsStarred(true);
+    if (props.onStar) {
+      props.onStar();
+    }
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
   };
   
   const handleUnstar = () => {
-    setIsStarred(false);
+    if (props.onUnstar) {
+      props.onUnstar();
+    }
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
   };
@@ -458,7 +462,7 @@ export default function ChatBubblePeserta({ ...props }) {
 
   const hasContent = message || image || file || reply;
 
-  // Render status icons
+  // Render status icons dengan pengondisian warna berdasarkan bubble
   const renderStatusIcons = () => {
     if (isDeleted) return null;
     
@@ -472,14 +476,24 @@ export default function ChatBubblePeserta({ ...props }) {
           <img 
             src={assets.StarFill2} 
             alt="star" 
-            className="w-4 h-4" 
+            className="w-4 h-4"
+            style={{
+              filter: isSender 
+                ? 'brightness(0) saturate(100%) invert(1)' // Putih untuk bubble ungu
+                : 'brightness(0) saturate(100%) invert(14%) sepia(71%) saturate(2034%) hue-rotate(269deg) brightness(92%) contrast(100%)' // Ungu #4C0D68 untuk bubble putih
+            }}
           />
         )}
         {isPinned && (
           <img 
             src={assets.PinFill} 
             alt="pin" 
-            className="w-4 h-4" 
+            className="w-4 h-4"
+            style={{
+              filter: isSender 
+                ? 'brightness(0) saturate(100%) invert(1)' // Putih untuk bubble ungu
+                : 'brightness(0) saturate(100%) invert(14%) sepia(71%) saturate(2034%) hue-rotate(269deg) brightness(92%) contrast(100%)' // Ungu #4C0D68 untuk bubble putih
+            }}
           />
         )}
         {isSender && (
@@ -491,6 +505,17 @@ export default function ChatBubblePeserta({ ...props }) {
         )}
       </div>
     );
+  };
+
+  // Render message text with search highlighting
+  const renderMessageText = () => {
+    if (!message) return null;
+    
+    if (searchQuery && highlightSearchTerm) {
+      return highlightSearchTerm(message, searchQuery);
+    }
+    
+    return message;
   };
 
   // Determine when to show dropdown button
@@ -524,6 +549,37 @@ export default function ChatBubblePeserta({ ...props }) {
   const getImageName = () => {
     const timestamp = new Date().getTime();
     return `chat-image-${timestamp}.jpg`;
+  };
+
+  // Function to render reply with conditional styling
+  const renderReply = () => {
+    if (!reply) return null;
+
+    // Untuk bubble ungu (pesan dari orang lain), reply styling abu-abu
+    if (!isSender) {
+      return (
+        <div className="mb-1 p-1 border-l-4 border-[#4C0D68] bg-gray-50 text-xs text-gray-500 rounded">
+        <div className="font-semibold text-[#4C0D68]">
+            {reply.sender}
+          </div>
+          <div>
+            {reply.message}
+          </div>
+        </div>
+      );
+    }
+    
+    // Untuk bubble putih (pesan sendiri), reply styling tetap seperti kode asli
+    return (
+      <div className="mb-1 p-1 border-l-4 border-[#bd2cfc] bg-gray-50 text-xs text-gray-500 rounded">
+        <div className="font-semibold text-[#bd2cfc]">
+          {reply.sender}
+        </div>
+        <div>
+          {reply.message}
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -594,16 +650,8 @@ export default function ChatBubblePeserta({ ...props }) {
                 </div>
               )}
 
-              {reply && (
-                <div className="mb-1 p-1 border-l-4 border-[#4C0D68] bg-gray-50 text-xs text-gray-500 rounded">
-                  <div className="font-semibold text-[#4C0D68]">
-                    {reply.sender}
-                  </div>
-                  <div>
-                    {reply.message}
-                  </div>
-                </div>
-              )}
+              {/* Render reply dengan pengondisian styling */}
+              {renderReply()}
 
               {image && (
                 <div className="mb-1">
@@ -674,7 +722,7 @@ export default function ChatBubblePeserta({ ...props }) {
                       {isDeleted && (
                         <img src={assets.Tarik} alt="deleted" className="w-4 h-4 flex-shrink-0" />
                       )}
-                      <span className="flex-1">{message}</span>
+                      <span className="flex-1">{renderMessageText()}</span>
                     </div>
 
                     {/* Status icons for message */}

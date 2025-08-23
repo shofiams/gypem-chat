@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useChatContext } from "../api/use_chat_context";
 import ChatBubblePeserta from "../components/ChatBubblePeserta";
 import FileUploadPopup from "../components/FileUploadPopup";
@@ -26,6 +26,8 @@ const BaseChatPage = ({
   canSendMessages = true,
   showSenderNames = false,
   getSenderColor = null,
+  highlightMessageId = null,
+  onMessageHighlight = null,
   customChatBubbleProps = {},
   onGroupHeaderClick = null
 }) => {
@@ -41,23 +43,34 @@ const BaseChatPage = ({
     addMessage, 
     deleteMessage, 
     updateMessage,
-    markChatAsRead 
+    markChatAsRead,
+    toggleStarMessage,
+    isMessageStarred,
+    togglePinMessage,
+    isMessagePinned,
+    getPinnedMessage,
   } = useChatContext();
   
   // Get chat info and messages from context
   const chatInfo = getChatById(actualChatId);
   const contextMessages = getChatMessages(actualChatId);
+  const location = useLocation();
 
   // Updated state for multiple pinned messages
   const [replyingMessage, setReplyingMessage] = useState(null);
-  const [pinnedMessages, setPinnedMessages] = useState([]); // Changed from single to array
-  const [currentPinnedMessage, setCurrentPinnedMessage] = useState(null); // Currently displayed pinned message
+  // const [pinnedMessages, setPinnedMessages] = useState([]);
+  const allPinnedMessages = getPinnedMessage();
+  const currentChatPinnedMessages = allPinnedMessages.filter(pin => pin.chatId === parseInt(actualChatId));
+  const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState(null);
   const [showDeleteOptions, setShowDeleteOptions] = useState(false);
   const [selectedDeleteOption, setSelectedDeleteOption] = useState('me');
   const messageRefs = useRef({});
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+  const [showScrollButton, setShowScrollButton] = useState(false);
   const [message, setMessage] = useState("");
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showFileUpload, setShowFileUpload] = useState(false);
@@ -67,20 +80,26 @@ const BaseChatPage = ({
   const [editingMessage, setEditingMessage] = useState(null);
   const [editText, setEditText] = useState("");
   const [messages, setMessages] = useState(contextMessages);
-
-  // Update messages when context messages change
-  useEffect(() => {
-    setMessages(contextMessages);
-  }, [contextMessages]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
 
   // Check if chatId is valid and mark as read
   useEffect(() => {
-    if (!actualChatId) return;
+    if (!actualChatId) {
+      if (!isEmbedded) {
+        navigate('/chats', { replace: true });
+      }
+      return;
+    }
     
     const currentChatInfo = getChatById(actualChatId);
     if (!currentChatInfo) {
       if (!isEmbedded) {
-        navigate('/chats');
+        navigate('/chats', { replace: true });
+      } else if (onClose) {
+        onClose();
       }
       return;
     }
@@ -141,6 +160,60 @@ const BaseChatPage = ({
     return () => { document.head.removeChild(style); };
   }, []);
 
+  // Scroll detection for floating button
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const scrollFromBottom = scrollHeight - scrollTop - clientHeight;
+      
+      // Show button if scrolled up more than 100px from bottom
+      setShowScrollButton(scrollFromBottom > 100);
+    };
+
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (highlightMessageId && messageRefs.current[highlightMessageId]) {
+      messageRefs.current[highlightMessageId].scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      
+      setHighlightedMessageId(highlightMessageId);
+      
+      if (onMessageHighlight) {
+        onMessageHighlight(highlightMessageId);
+      }
+      
+      setTimeout(() => setHighlightedMessageId(null), 2000);
+    }
+  }, [highlightMessageId, onMessageHighlight]);
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search);
+    const urlHighlightId = urlParams.get('highlight');
+    const messageIdToHighlight = highlightMessageId || urlHighlightId;
+    
+    if (messageIdToHighlight && messageRefs.current[messageIdToHighlight]) {
+      messageRefs.current[messageIdToHighlight].scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      
+      setHighlightedMessageId(messageIdToHighlight);
+      
+      if (onMessageHighlight) {
+        onMessageHighlight(messageIdToHighlight);
+      }
+      
+      setTimeout(() => setHighlightedMessageId(null), 2000);
+    }
+  }, [highlightMessageId, location.search, onMessageHighlight]);
 
   // Function to check selected message types
   const getSelectedMessageTypes = () => {
@@ -150,7 +223,7 @@ const BaseChatPage = ({
     let hasSender = false;
     
     selectedMessages.forEach(messageId => {
-      const message = messages.find(msg => msg.id === messageId);
+      const message = contextMessages.find(msg => msg.id === messageId);
       if (message) {
         if (message.type === 'receiver') {
           hasReceiver = true;
@@ -178,7 +251,7 @@ const BaseChatPage = ({
       }
     } else if (messageToDelete) {
       // Single message delete
-      const message = messages.find(msg => msg.id === messageToDelete);
+      const message = contextMessages.find(msg => msg.id === messageToDelete);
       return message?.type === 'sender' ? 'sender-only' : 'receiver-included';
     }
     
@@ -187,53 +260,30 @@ const BaseChatPage = ({
 
   // New functions for handling multiple pins
   const handlePinMessage = (message) => {
-    const messageWithId = { ...message, id: message.id };
-    
-    // Check if message is already pinned
-    const isAlreadyPinned = pinnedMessages.some(pin => pin.id === message.id);
-    
-    if (!isAlreadyPinned) {
-      const newPinnedMessages = [...pinnedMessages, messageWithId];
-      setPinnedMessages(newPinnedMessages);
-      // Set the newly pinned message as current
-      setCurrentPinnedMessage(messageWithId);
-    }
+    togglePinMessage(actualChatId, message.id);
   };
 
   const handleUnpinMessage = (messageId) => {
-    const updatedPinnedMessages = pinnedMessages.filter(pin => pin.id !== messageId);
-    setPinnedMessages(updatedPinnedMessages);
-    
-    // If the unpinned message was currently displayed, show the previous one
-    if (currentPinnedMessage?.id === messageId) {
-      if (updatedPinnedMessages.length > 0) {
-        // Show the most recent pinned message (last in array)
-        setCurrentPinnedMessage(updatedPinnedMessages[updatedPinnedMessages.length - 1]);
-      } else {
-        setCurrentPinnedMessage(null);
-      }
-    }
+    togglePinMessage(actualChatId, messageId);
   };
 
   // Function to check if a message is pinned
-  const isMessagePinned = (messageId) => {
-    return pinnedMessages.some(pin => pin.id === messageId);
+  const checkIsMessagePinned = (messageId) => {
+    return isMessagePinned(actualChatId, messageId);
   };
 
   // Function to navigate through pinned messages
   const navigatePinnedMessage = (direction) => {
-    if (pinnedMessages.length <= 1) return;
+    if (currentChatPinnedMessages.length <= 1) return;
     
-    const currentIndex = pinnedMessages.findIndex(pin => pin.id === currentPinnedMessage?.id);
     let newIndex;
-    
     if (direction === 'next') {
-      newIndex = currentIndex + 1 >= pinnedMessages.length ? 0 : currentIndex + 1;
+      newIndex = currentPinnedIndex + 1 >= currentChatPinnedMessages.length ? 0 : currentPinnedIndex + 1;
     } else {
-      newIndex = currentIndex - 1 < 0 ? pinnedMessages.length - 1 : currentIndex - 1;
+      newIndex = currentPinnedIndex - 1 < 0 ? currentChatPinnedMessages.length - 1 : currentPinnedIndex - 1;
     }
     
-    setCurrentPinnedMessage(pinnedMessages[newIndex]);
+    setCurrentPinnedIndex(newIndex);
   };
 
   const handleSend = () => {
@@ -256,11 +306,15 @@ const BaseChatPage = ({
     setMessage("");
     setReplyingMessage(null);
     setShowEmojiPicker(false);
+
+    setTimeout(() => {
+      scrollToBottom();
+    }, 100);
   };
 
   // Handle edit message
   const handleEdit = (messageId) => {
-    const messageToEdit = messages.find(msg => msg.id === messageId);
+    const messageToEdit = contextMessages.find(msg => msg.id === messageId);
     if (messageToEdit && messageToEdit.message) {
       setEditingMessage(messageId);
       setEditText(messageToEdit.message);
@@ -308,6 +362,96 @@ const BaseChatPage = ({
       }
       
       return newSet;
+    });
+  };
+
+  // Search function
+  const handleSearch = useCallback((query) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      setSearchResults([]);
+      setCurrentSearchIndex(-1);
+      setHighlightedMessageId(null);
+      return;
+    }
+
+    const results = contextMessages.filter(msg => 
+      msg.message && msg.message.toLowerCase().includes(query.toLowerCase())
+    ).reverse().map(msg => ({
+      ...msg,
+      chatName: chatInfo?.name || 'Unknown'
+    }));
+
+    setSearchResults(results);
+    
+    if (results.length > 0) {
+      setCurrentSearchIndex(0);
+      scrollToMessage(results[0].id);
+    } else {
+      setCurrentSearchIndex(-1);
+      setHighlightedMessageId(null);
+    }
+  }, [contextMessages, chatInfo]);
+
+  // Navigation functions for search results
+  const navigateSearchResults = (direction) => {
+    if (searchResults.length === 0) return;
+    
+    let newIndex;
+    if (direction === 'next') {
+      newIndex = currentSearchIndex + 1 >= searchResults.length ? 0 : currentSearchIndex + 1;
+    } else {
+      newIndex = currentSearchIndex - 1 < 0 ? searchResults.length - 1 : currentSearchIndex - 1;
+    }
+    
+    setCurrentSearchIndex(newIndex);
+    scrollToMessage(searchResults[newIndex].id);
+  };
+
+  const scrollToMessage = (messageId) => {
+    if (messageRefs.current[messageId]) {
+      messageRefs.current[messageId].scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      setHighlightedMessageId(messageId);
+      setTimeout(() => setHighlightedMessageId(null), 2000);
+    }
+  };
+
+  const scrollToBottom = () => {
+  if (messagesContainerRef.current) {
+    messagesContainerRef.current.scrollTo({
+      top: messagesContainerRef.current.scrollHeight,
+      behavior: 'smooth'
+    });
+  }
+};
+
+  const highlightSearchTerm = (text, searchTerm) => {
+    if (!searchTerm || !text) return text;
+    
+    const regex = new RegExp(`(${searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    
+    return parts.map((part, index) => {
+      if (part.toLowerCase() === searchTerm.toLowerCase()) {
+        return (
+          <mark 
+            key={index} 
+            className="bg-yellow-300 text-black font-medium"
+            style={{
+              padding: '0',
+              margin: '0',
+              borderRadius: '2px',
+              boxShadow: 'none'
+            }}
+          >
+            {part}
+          </mark>
+        );
+      }
+      return part;
     });
   };
 
@@ -439,7 +583,7 @@ const BaseChatPage = ({
   // Function to determine if sender name should be shown in bubble
   const shouldShowSenderNameInBubble = (message, index) => {
     if (!showSenderNames) return false;
-    const prevMessage = index > 0 ? messages[index - 1] : null;
+    const prevMessage = index > 0 ? contextMessages[index - 1] : null;
     return !prevMessage || prevMessage.sender !== message.sender;
   };
 
@@ -451,7 +595,7 @@ const BaseChatPage = ({
     const showSenderNameInBubble = shouldShowSenderNameInBubble(msg, idx);
 
     return (
-      <div key={msg.id} className="mb-4">
+      <div key={msg.id} className="mb-2">
         {/* Show sender name outside bubble for group chat if not shown inside */}
         {isGroupChat && showSenderNames && !showSenderNameInBubble && (
           <div>
@@ -466,34 +610,50 @@ const BaseChatPage = ({
 
         <div
           ref={(el) => (messageRefs.current[msg.id] = el)}
-          className={highlightedMessageId === msg.id ? "animate-pulse bg-yellow-200 rounded-lg p-1 transition" : ""}
+          className={`relative ${highlightedMessageId === msg.id ? "" : ""}`}
         >
-          <ChatBubblePeserta
-            {...msg}
-            isLastFromSender={isLastFromSender}
-            isLastFromReceiver={isLastFromReceiver}
-            hideTime={!isLastFromSender}
-            onCopy={() => {}}
-            onReply={canSendMessages ? () => setReplyingMessage(msg) : null}
-            onPin={() => handlePinMessage(msg)}
-            onUnpin={() => handleUnpinMessage(msg.id)}
-            onDelete={() => handleDeleteRequest(msg.id, msg.type)}
-            onEdit={canSendMessages ? () => handleEdit(msg.id) : null} 
-            isEdited={msg.isEdited}
-            isPinned={isMessagePinned(msg.id)}
-            isDeleted={msg.isDeleted}
-            isSelectionMode={isSelectionMode}
-            isSelected={selectedMessages.has(msg.id)}
-            onStartSelection={() => handleStartSelection(msg.id)}
-            onToggleSelection={() => handleToggleSelection(msg.id)}
-            // Group chat specific props
-            showSenderName={showSenderNameInBubble}
-            sender={msg.sender}
-            getSenderColor={getSenderColor}
-            isGroupChat={isGroupChat}
-            // Custom props from parent
-            {...customChatBubbleProps}
-          />
+          {highlightedMessageId === msg.id && (
+            <div 
+              className="absolute inset-0 bg-yellow-200 rounded-lg pointer-events-none z-0 opacity-70"
+              style={{
+                margin: '-2px',
+                padding: '2px',
+              }}
+            />
+          )}
+          <div className="z-10">
+            <ChatBubblePeserta
+              {...msg}
+              isLastFromSender={isLastFromSender}
+              isLastFromReceiver={isLastFromReceiver}
+              hideTime={!isLastFromSender}
+              onCopy={() => {}}
+              onReply={canSendMessages ? () => setReplyingMessage(msg) : null}
+              onPin={() => handlePinMessage(msg)}
+              onUnpin={() => handleUnpinMessage(msg.id)}
+              isPinned={checkIsMessagePinned(msg.id)}
+              onDelete={() => handleDeleteRequest(msg.id, msg.type)}
+              onEdit={canSendMessages ? () => handleEdit(msg.id) : null} 
+              isEdited={msg.isEdited}
+              isDeleted={msg.isDeleted}
+              isSelectionMode={isSelectionMode}
+              isSelected={selectedMessages.has(msg.id)}
+              onStartSelection={() => handleStartSelection(msg.id)}
+              onToggleSelection={() => handleToggleSelection(msg.id)}
+              onStar={() => toggleStarMessage && toggleStarMessage(actualChatId, msg.id)}
+              onUnstar={() => toggleStarMessage && toggleStarMessage(actualChatId, msg.id)}
+              isStarred={isMessageStarred && isMessageStarred(actualChatId, msg.id)}
+              searchQuery={searchQuery}
+              highlightSearchTerm={highlightSearchTerm}
+              // Group chat specific props
+              showSenderName={showSenderNameInBubble}
+              sender={msg.sender}
+              getSenderColor={getSenderColor}
+              isGroupChat={isGroupChat}
+              // Custom props from parent
+              {...customChatBubbleProps}
+            />
+          </div>
         </div>
       </div>
     );
@@ -519,11 +679,11 @@ const BaseChatPage = ({
       
       <div className="relative">
         <img
-          src={chatInfo.avatar || groupPhoto}
+          src={chatInfo?.avatar || groupPhoto}
           alt="profile"
           className="w-10 h-10 rounded-full"
         />
-        {chatInfo.isOnline && (
+        {chatInfo?.isOnline && (
           <span
             className="absolute bottom-0 right-0 w-3 h-3 border-2 border-white rounded-full"
             style={{ backgroundColor: "#FFB400" }}
@@ -534,42 +694,37 @@ const BaseChatPage = ({
         className={`flex-1 ${isGroupChat && onGroupHeaderClick ? 'cursor-pointer' : ''}`}
         onClick={isGroupChat && onGroupHeaderClick ? onGroupHeaderClick : undefined}
       >
-        <p className="font-semibold text-sm">{chatInfo.name}</p>
-        {isGroupChat && chatInfo.members ? (
+        <p className="font-semibold text-sm">{chatInfo?.name || 'Loading...'}</p>
+        {isGroupChat && chatInfo?.members ? (
           <div className="text-xs text-gray-500 leading-4">
-            <span>{chatInfo.members.join(', ')}</span>
+            <span className="truncate block">
+              {chatInfo.members.length > 3 
+                ? `${chatInfo.members.slice(0, 3).join(', ')}...` 
+                : chatInfo.members.join(', ')
+              }
+            </span>
           </div>
         ) : (
-          <p className="text-xs text-gray-500">{chatInfo.isOnline ? 'Online' : 'Offline'}</p>
+          <p className="text-xs text-gray-500">{chatInfo?.isOnline ? 'Online' : 'Offline'}</p>
         )}
       </div>
-      <button className="w-8 h-8 flex items-center justify-center border border-gray-300 rounded-lg hover:bg-gray-100 transition">
+
+      {/* Search Section */}
+      <button 
+        data-search-button
+        onClick={() => setShowSearchResults(!showSearchResults)}
+        className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded transition"
+      >
         <img src={assets.Search} alt="Search" className="w-5 h-5" />
       </button>
     </div>
   );
 
-  if (!chatInfo) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <p className="text-gray-500">Chat not found</p>
-          <button 
-            onClick={() => navigate('/chats')}
-            className="mt-2 px-4 py-2 bg-[#4C0D68] text-white rounded"
-          >
-            Back to Chats
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   // Get delete behavior for current selection
   const deleteBehavior = getDeleteBehavior();
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden border-l-[1px]">
       {/* Header - use custom or default */}
       {isSelectionMode ? (
         <div className="flex items-center justify-between p-3 border-b bg-white">
@@ -600,8 +755,78 @@ const BaseChatPage = ({
         customHeader || defaultHeader
       )}
 
+      {/* Floating Search Bar */}
+      {showSearchResults && !isSelectionMode && (
+        <div className="absolute top-16 right-0 z-50 w-3/5 max-w-md pr-4">
+          <div className="bg-[#f4f0f0] bg-opacity-80 rounded-lg shadow-lg border overflow-hidden" style={{ borderColor: '#4C0D68' }}>
+            {/* Search Input Header */}
+            <div className="px-4 py-3 flex items-center gap-2">
+              <div className="flex-1 border-[1px] border-b-[6px] rounded-lg text-sm outline-none" style={{ borderColor: '#4C0D68' }}>
+                <input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
+                  className="w-full px-4 py-2 rounded-lg"
+                  autoFocus
+                />
+              </div>
+              
+              {/* Navigation buttons */}
+              <div className="flex items-center gap-1">
+                {searchResults.length > 0 && (
+                  <>
+                    <button
+                      onClick={() => navigateSearchResults('next')}
+                      className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-gray-600"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => navigateSearchResults('prev')}
+                      className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-gray-600"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </button>
+                  </>
+                )}
+                <div className="w-0.5 h-6 bg-gray-400 mx-1"></div>
+                <button
+                  onClick={() => {
+                    setShowSearchResults(false);
+                    setSearchQuery("");
+                    setSearchResults([]);
+                    setCurrentSearchIndex(-1);
+                    setHighlightedMessageId(null);
+                  }}
+                  className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded text-gray-500"
+                >
+                  <img src={assets.CancelClose} alt="CancelClose" className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+            
+            {/* Results counter */}
+            <div className="px-4 pb-3">
+              {searchQuery && (
+                <div className="text-xs text-gray-500 text-center">
+                  {searchResults.length > 0 
+                    ? `${currentSearchIndex + 1} of ${searchResults.length} results`
+                    : "No messages found"
+                  }
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Enhanced Pinned Message Section */}
-      {currentPinnedMessage && !isSelectionMode && (
+      {currentChatPinnedMessages.length > 0 && !isSelectionMode && (
         <div
           className="flex items-center gap-2 px-3 py-2 border-b"
           style={{ backgroundColor: "#4C0D68" }}
@@ -614,24 +839,26 @@ const BaseChatPage = ({
             <div 
               className="flex-1 cursor-pointer"
               onClick={() => {
-                if (messageRefs.current[currentPinnedMessage.id]) {
-                  messageRefs.current[currentPinnedMessage.id].scrollIntoView({
+                const currentPin = currentChatPinnedMessages[currentPinnedIndex];
+                if (messageRefs.current[currentPin.messageId]) {
+                  messageRefs.current[currentPin.messageId].scrollIntoView({
                     behavior: "smooth",
                     block: "center",
                   });
-                  setHighlightedMessageId(currentPinnedMessage.id);
+                  setHighlightedMessageId(currentPin.messageId);
                   setTimeout(() => setHighlightedMessageId(null), 2000);
                 }
               }}
             >
               <p className="text-xs font-semibold">
-                {currentPinnedMessage?.type === "sender" ? "You" : currentPinnedMessage?.sender}
+                {currentChatPinnedMessages[currentPinnedIndex]?.sender}
               </p>
               <p className="text-xs truncate max-w-xs">
-                {currentPinnedMessage?.message || currentPinnedMessage?.file?.name || "Gambar"}
+                {currentChatPinnedMessages[currentPinnedIndex]?.message || "Media"}
               </p>
             </div>
-            {pinnedMessages.length > 1 && (
+            
+            {currentChatPinnedMessages.length > 1 && (
               <>
                 <button
                   onClick={() => navigatePinnedMessage('prev')}
@@ -640,7 +867,7 @@ const BaseChatPage = ({
                   <img src={assets.ArrowUp} alt="previous" className="w-6 h-6" />
                 </button>
                 <span className="text-xs">
-                  {pinnedMessages.findIndex(p => p.id === currentPinnedMessage.id) + 1}/{pinnedMessages.length}
+                  {currentPinnedIndex + 1}/{currentChatPinnedMessages.length}
                 </span>
                 <button
                   onClick={() => navigatePinnedMessage('next')}
@@ -657,21 +884,21 @@ const BaseChatPage = ({
       {/* Chat Area */}
       <div className="flex-1 flex flex-col min-h-0">
         <div
-  className={`flex-1 overflow-y-auto p-4 relative transition-all duration-300 elegant-scrollbar ${
-    showDeleteModal ? 'blur-sm' : ''
-  }`}
-  style={{
-    backgroundImage: `url(${chatBg})`,
-    backgroundSize: "cover",
-  }}
-  onClick={() => {
-    if (showEmojiPicker) setShowEmojiPicker(false);
-  }}
->
+          ref={messagesContainerRef}
+          className={`flex-1 overflow-y-auto p-4 relative transition-all duration-300 elegant-scrollbar`}
+          style={{
+            backgroundImage: `url(${chatBg})`,
+            backgroundSize: "cover",
+          }}
+          onClick={() => {
+            if (showEmojiPicker) setShowEmojiPicker(false);
+          }}
+        >
           {messages.length > 0 ? (
             <>
               <DateSeparator>Today</DateSeparator>
-              {messages.map((msg, idx, arr) => renderMessage(msg, idx, arr))}
+              {contextMessages.map((msg, idx, arr) => renderMessage(msg, idx, arr))}
+              <div ref={messagesEndRef} />
             </>
           ) : (
             <div className="flex items-center justify-center h-full">
@@ -683,13 +910,24 @@ const BaseChatPage = ({
           )}
         </div>
 
+        {/* Floating Scroll to Bottom Button */}
+        {showScrollButton && !isSelectionMode && (
+          <div className="absolute bottom-24 right-4 z-40">
+            <button
+              onClick={scrollToBottom}
+              className="w-10 h-10 bg-white rounded-full flex items-center justify-center"
+              
+            >
+              <img src={assets.ArrowDownThin} alt="Scroll to bottom" className="w-6 h-6" />
+            </button>
+          </div>
+        )}
+
         {/* Reply Preview */}
         {replyingMessage && !isSelectionMode && canSendMessages && (
-          <div className={`flex items-center justify-between bg-gray-100 px-3 py-2 border-l-4 border-[#4C0D68] transition-all duration-300 ${
-            showDeleteModal ? 'blur-sm' : ''
-          }`}>
+          <div className={`flex items-center justify-between bg-gray-100 px-3 py-2 border-l-4 border-[#bd2cfc] transition-all duration-300`}>
             <div>
-              <p className="text-xs font-semibold text-[#4C0D68]">
+              <p className="text-xs font-semibold text-[#bd2cfc]">
                 {replyingMessage.sender || "Anda"}
               </p>
               <p className="text-xs text-gray-600 truncate w-48">
@@ -708,9 +946,7 @@ const BaseChatPage = ({
         {/* Edit Preview */}
         {editingMessage && !isSelectionMode && canSendMessages && (
         <div
-            className={`flex items-center justify-between bg-[#4C0D68]/10 px-3 py-2 border-l-4 border-[#4C0D68] transition-all duration-300 ${
-            showDeleteModal ? 'blur-sm' : ''
-            }`}
+            className={`flex items-center justify-between bg-[#4C0D68]/10 px-3 py-2 border-l-4 border-[#4C0D68] transition-all duration-300`}
         >
             <div>
             <p className="text-xs font-semibold text-[#4C0D68]">
@@ -732,9 +968,7 @@ const BaseChatPage = ({
         {/* Input Section - hide if can't send messages or in selection mode */}
         {canSendMessages && !isSelectionMode && (
           <div
-            className={`relative p-3 flex items-center gap-2 border-t transition-all duration-300 ${
-              showDeleteModal ? 'blur-sm' : ''
-            }`}
+            className={`relative p-3 flex items-center gap-2 border-t transition-all duration-300`}
             style={{ borderColor: "#bababa" }}
           >
             {/* Emoji and File buttons */}
@@ -801,7 +1035,7 @@ const BaseChatPage = ({
                     setMessage(e.target.value);
                   }
                 }}
-                onKeyPress={(e) => {
+                onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     if (editingMessage) {
                       handleSaveEdit();
@@ -837,17 +1071,7 @@ const BaseChatPage = ({
         <div>
             {customFooter}
         </div>
-        )}
-
-        {/* Read-only footer untuk yang tidak bisa kirim pesan */}
-        {!canSendMessages && !customFooter && (
-        <div
-            className="text-center text-white text-sm py-4 font-medium"
-            style={{ backgroundColor: "#4C0D68" }}
-        >
-            Only admins can send messages.
-        </div>
-        )}
+        )} 
       </div>
 
       {/* File Upload Popup */}
@@ -886,6 +1110,8 @@ const BaseChatPage = ({
 
       {/* Updated Delete Modal with conditional behavior */}
       {showDeleteModal && (
+        <>
+        <div className="fixed inset-0 bg-black bg-opacity-10 backdrop-blur-[1px] z-[9998]" />
         <div className="fixed inset-0 flex items-center justify-center z-[9999]">
           <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl border border-gray-200">
             {deleteBehavior === 'receiver-included' ? (
@@ -1031,6 +1257,7 @@ const BaseChatPage = ({
             )}
           </div>
         </div>
+        </>
       )}
     </div>
   );

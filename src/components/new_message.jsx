@@ -1,9 +1,13 @@
 import React, { useEffect, useRef } from "react";
 import { FiArrowLeft } from "react-icons/fi";
+import { useNavigate } from "react-router-dom";
+import { useChatContext } from "../api/use_chat_context";
 import profileList from "../assets/profile_list.svg";
 
 const NewMessagePopup = ({ isOpen, onClose }) => {
   const popupRef = useRef(null);
+  const navigate = useNavigate();
+  const { getAllChats, createNewChat, getChatById } = useChatContext();
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -18,6 +22,56 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isOpen, onClose]);
+
+  const handleContactClick = (contact) => {
+    const allChats = getAllChats();
+    
+    const existingChat = allChats.find(chat => 
+      chat.name === contact.name && 
+      chat.type !== 'group' && 
+      chat.id
+    );
+
+    // Redirect to existing chat
+    if (existingChat && getChatById && getChatById(existingChat.id)) {
+      const isMobile = window.innerWidth < 768;
+      if (isMobile) {
+        navigate(`/chats/${existingChat.id}`);
+      } else {
+        navigate(`/chats?activeChat=${existingChat.id}`);
+      }
+    } else {
+      const newChatData = {
+        name: contact.name,
+        avatar: profileList,
+        lastMessage: "",
+        time: new Date().toLocaleTimeString('id-ID', { 
+          hour: '2-digit', 
+          minute: '2-digit',
+          hour12: false 
+        }).replace(':', '.'),
+        unreadCount: 0,
+        isOnline: false,
+        showCentang: false,
+        showCentangAbu: false,
+        type: 'one-to-one'
+      };
+
+      const newChatId = createNewChat(newChatData);
+      
+      // Redirect to new chat
+      if (newChatId) {
+        const isMobile = window.innerWidth < 768;
+        if (isMobile) {
+          navigate(`/chats/${newChatId}`);
+        } else {
+          navigate(`/chats?activeChat=${newChatId}`);
+        }
+      }
+    }
+    
+    onClose();
+  };
 
   if (!isOpen) return null;
 
@@ -38,11 +92,11 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
         bg-white rounded-lg shadow-lg border border-gray-200 z-50
 
         /* Desktop */
-        sm:absolute sm:top-20 sm:left-16 sm:w-[230px] sm:h-[330px] sm:translate-x-1 sm:translate-y-36
+        md:absolute md:top-20 md:left-16 md:w-[230px] md:h-[330px] md:translate-x-1 md:translate-y-36
 
         /* Mobile */
-        max-sm:fixed max-sm:top-0 max-sm:left-0 max-sm:right-0 max-sm:bottom-0 
-        max-sm:w-full max-sm:h-full max-sm:rounded-none
+        max-md:fixed max-md:top-0 max-md:left-0 max-md:right-0 max-md:bottom-0 
+        max-md:w-full max-md:h-full max-md:rounded-none
       `}
     >
 
@@ -75,6 +129,7 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
         {contacts.map((contact, index) => (
           <div
             key={contact.id}
+            onClick={() => handleContactClick(contact)}
             className="flex items-center gap-4 px-5 py-3 hover:bg-gray-50 cursor-pointer transition-colors duration-200 md:gap-3 md:px-4 md:py-2 md:hover:bg-gray-100 md:transition-none md:duration-0"
           >
             <img

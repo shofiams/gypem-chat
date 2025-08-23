@@ -40,6 +40,8 @@ import PinFill from "../assets/Pin_fill.svg";
 import StarFill2 from "../assets/StarFill.svg";
 import ArrowUp from "../assets/arrow-up.svg";
 import ArrowDown from "../assets/arrow-down.svg";
+import CancelClose from "../assets/cancel-close.svg";
+import ArrowDownThin from "../assets/arrow-down-thin.svg";
 
 
 
@@ -85,5 +87,7 @@ export const assets = {
     PinFill,
     StarFill2,
     ArrowUp,
-    ArrowDown
+    ArrowDown,
+    CancelClose,
+    ArrowDownThin
 }
