@@ -5,6 +5,7 @@ import {
   FileText,
   Image as ImageIcon,
   Link as LinkIcon,
+  ArrowLeft,
 } from "react-feather";
 
 import logo from "../../assets/logo.png";
@@ -35,19 +36,6 @@ export default function GroupPopup({ onClose }) {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (popupRef.current && !popupRef.current.contains(event.target)) {
-        onClose();
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [onClose]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -131,137 +119,117 @@ export default function GroupPopup({ onClose }) {
 
   return (
     <>
-      <style>{`
-        /* Scrollbar style */
-        .custom-scroll {
-          overflow-y: overlay;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(200,200,200,0.7) transparent;
-          scrollbar-gutter: stable;
-        }
-        .custom-scroll::-webkit-scrollbar { width: 6px; }
-        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        .custom-scroll::-webkit-scrollbar-thumb {
-          background: rgba(200,200,200,0.7);
-          border-radius: 10px;
-          transition: opacity 0.3s ease;
-        }
-        .custom-scroll.scroll-hidden::-webkit-scrollbar-thumb { opacity: 0; }
-        .custom-scroll.scroll-visible::-webkit-scrollbar-thumb { opacity: 1; }
-        
-        /* Mobile sidebar */
-        .sidebar-vertical {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          background: #f9fafb;
-          border-right: 1px solid #e5e7eb;
-          width: 60px;
-          min-width: 60px;
-          padding: 0.5rem 0;
-          gap: 1.5rem;
-        }
-        .sidebar-vertical button {
-          display: flex;
-          justify-content: center;
-          align-items: center;
-          width: 40px;
-          height: 40px;
-          border-radius: 8px;
-          position: relative;
-        }
-        .sidebar-vertical button:hover { background-color: #f3f4f6; }
-        .sidebar-vertical button.active { background-color: #ffffff; }
-        .sidebar-vertical button.active::before {
-          content: "";
-          position: absolute;
-          left: 0;
-          width: 3px;
-          height: 60%;
-          background-color: #fbbf24;
-          border-radius: 0 4px 4px 0;
-        }
-      `}</style>
-
-      {/* Container */}
       <div
         ref={popupRef}
-        className={`flex rounded-xl shadow-lg overflow-hidden ${isMobile ? "w-[95%] max-w-[400px] h-[65%] fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" : "h-[450px] w-[650px] fixed top-[10px] left-[390px]" } z-50 bg-white`}
+        className={`fixed z-50 bg-white shadow-lg overflow-hidden 
+        ${isMobile ? "top-0 left-0 w-full h-full" : "h-[450px] w-[650px] top-[10px] left-[390px] rounded-xl"}`}
       >
-        {/* Sidebar */}
-        {isMobile ? (
-          <div className="sidebar-vertical">
-            {tabs.map((tab) => {
-              const IconComp = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={activeTab === tab.id ? "active" : ""}
-                >
-                  <IconComp size={20} strokeWidth={1} />
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="w-52 bg-gray-50 border-r border-gray-200 flex-shrink-0">
-            <nav className="flex flex-col py-2">
-              {tabs.map((tab) => {
-                const IconComp = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center relative px-4 py-3 text-left rounded-r-full transition-all
-                      ${activeTab === tab.id ? "bg-white font-semibold text-gray-900" : "text-gray-600 hover:bg-gray-100"}`}
-                  >
-                    {activeTab === tab.id && (
-                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-yellow-400 rounded-r"></span>
-                    )}
-                    <IconComp
-                      size={20}
-                      strokeWidth={1}
-                      className={`mr-3 ${activeTab === tab.id ? "text-gray-900" : "text-gray-500"}`}
-                    />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </nav>
+        {/* Header untuk mobile */}
+        {isMobile && (
+          <div className="flex items-center p-4 border-b border-gray-200 bg-white">
+            <button onClick={onClose} className="mr-3">
+              <ArrowLeft size={24} strokeWidth={2} />
+            </button>
+            <h2 className="font-semibold text-lg">Group Detail</h2>
           </div>
         )}
 
-        {/* Main Content */}
-        <div
-          ref={scrollRef}
-          className={`flex-1 overflow-y-auto ${isMobile ? "p-7" : "p-7 custom-scroll"} ${showScrollbar ? "scroll-visible" : "scroll-hidden"} bg-white`}
+        <div className="flex h-full">
+          {/* Sidebar */}
+          {/* Sidebar */}
+{/* Sidebar */}
+{isMobile ? (
+  <div className="w-14 bg-gray-50 border-r border-gray-200 flex flex-col items-center py-3 gap-4">
+    {tabs.map((tab) => {
+      const IconComp = tab.icon;
+      const isActive = activeTab === tab.id;
+      return (
+        <button
+          key={tab.id}
+          onClick={() => setActiveTab(tab.id)}
+          className={`relative flex items-center justify-center w-full py-3 transition-all
+            ${isActive ? "bg-white" : "hover:bg-gray-100"}`}
         >
-          {activeTab === "overview" && (
-            <GroupOverview
-              groupLogo={logo}
-              seeMore={seeMore}
-              setSeeMore={setSeeMore}
-              descriptionText={descriptionText}
-              handleExit={handleExit}
-              exitLoading={exitLoading}
-              exitText={exitText}
-              setExitText={setExitText}
-              groupPhoto={logo}
+          {/* strip kuning di kiri */}
+          {isActive && (
+            <span className="absolute left-0 h-6 w-1 bg-yellow-400 rounded-r"></span>
+          )}
+          <IconComp
+  size={20}
+  strokeWidth={1.5}
+  className={isActive ? "text-gray-900" : "text-gray-500"}
+/>
+
+        </button>
+      );
+    })}
+  </div>
+) : (
+  <div className="w-52 bg-gray-50 border-r border-gray-200 flex-shrink-0">
+    <nav className="flex flex-col py-2">
+      {tabs.map((tab) => {
+        const IconComp = tab.icon;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`flex items-center relative px-4 py-3 text-left rounded-r-full transition-all
+              ${
+                activeTab === tab.id
+                  ? "bg-white font-semibold text-gray-900"
+                  : "text-gray-600 hover:bg-gray-100"
+              }`}
+          >
+            {activeTab === tab.id && (
+              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-yellow-400 rounded-r"></span>
+            )}
+            <IconComp
+              size={20}
+              strokeWidth={1}
+              className={`mr-3 ${
+                activeTab === tab.id ? "text-gray-900" : "text-gray-500"
+              }`}
             />
-          )}
-          {activeTab === "members" && (
-            <GroupMembers
-              members={members}
-              seeAllMembers={seeAllMembers}
-              setSeeAllMembers={setSeeAllMembers}
-            />
-          )}
-          {activeTab === "links" && <GroupLinks links={links} />}
-          {activeTab === "media" && (
-            <GroupMedia mediaList={mediaList} openLightbox={openLightbox} />
-          )}
-          {activeTab === "files" && <GroupFiles files={files} />}
+            {tab.label}
+          </button>
+        );
+      })}
+    </nav>
+  </div>
+)}
+
+
+          {/* Main Content */}
+          <div
+            ref={scrollRef}
+            className={`flex-1 overflow-y-auto p-6 bg-white ${showScrollbar ? "scroll-visible" : "scroll-hidden"}`}
+          >
+            {activeTab === "overview" && (
+              <GroupOverview
+                groupLogo={logo}
+                seeMore={seeMore}
+                setSeeMore={setSeeMore}
+                descriptionText={descriptionText}
+                handleExit={handleExit}
+                exitLoading={exitLoading}
+                exitText={exitText}
+                setExitText={setExitText}
+                groupPhoto={logo}
+              />
+            )}
+            {activeTab === "members" && (
+              <GroupMembers
+                members={members}
+                seeAllMembers={seeAllMembers}
+                setSeeAllMembers={setSeeAllMembers}
+              />
+            )}
+            {activeTab === "links" && <GroupLinks links={links} />}
+            {activeTab === "media" && (
+              <GroupMedia mediaList={mediaList} openLightbox={openLightbox} />
+            )}
+            {activeTab === "files" && <GroupFiles files={files} />}
+          </div>
         </div>
       </div>
     </>
