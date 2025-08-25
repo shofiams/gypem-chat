@@ -1,7 +1,7 @@
 const getLastMessage = (chatId) => {
   const msgs = INITIAL_MESSAGES[chatId] ?? [];
   if (!Array.isArray(msgs) || msgs.length === 0)
-    return { message: "", time: "" };
+    return { message: "", time: "", type: "" };
   const last = msgs[msgs.length - 1];
   return {
     message: last.message ?? "",
@@ -144,7 +144,7 @@ export const INITIAL_MESSAGES = {
     },
     {
       id: 2,
-      sender: "Admin A", 
+      sender: "Admin A",
       message: "Thank you",
       time: "16:01",
       type: "receiver",
@@ -157,7 +157,7 @@ export const INITIAL_MESSAGES = {
       id: 3,
       sender: "Pimpinan A",
       message: "The leader added an answer",
-      time: "16:01", 
+      time: "16:01",
       type: "receiver",
     },
     {
@@ -183,7 +183,14 @@ export const INITIAL_CHATS = [
     showCentang: false,
     showCentangAbu: false,
     type: "group",
-    members: ["Pak Ketua", "Pimpinan A", "Pimpinan B", "Admin A", "Admin B", "Admin WITA"],
+    members: [
+      "Pak Ketua",
+      "Pimpinan A",
+      "Pimpinan B",
+      "Admin A",
+      "Admin B",
+      "Admin WITA",
+    ],
     isReadOnly: true,
   },
   {
@@ -197,7 +204,14 @@ export const INITIAL_CHATS = [
     showCentang: true,
     showCentangAbu: false,
     type: "group",
-    members: ["Pak Ketua", "Pimpinan A", "Pimpinan B", "Admin A", "Admin B", "Admin WITA"],
+    members: [
+      "Pak Ketua",
+      "Pimpinan A",
+      "Pimpinan B",
+      "Admin A",
+      "Admin B",
+      "Admin WITA",
+    ],
     isReadOnly: true,
   },
   {
@@ -211,7 +225,14 @@ export const INITIAL_CHATS = [
     showCentang: false,
     showCentangAbu: true,
     type: "group",
-    members: ["Pak Ketua", "Pimpinan A", "Pimpinan B", "Admin A", "Admin B", "Admin WITA"],
+    members: [
+      "Pak Ketua",
+      "Pimpinan A",
+      "Pimpinan B",
+      "Admin A",
+      "Admin B",
+      "Admin WITA",
+    ],
     isReadOnly: true,
   },
   {
@@ -262,7 +283,14 @@ export const INITIAL_CHATS = [
     showCentang: false,
     showCentangAbu: false,
     type: "group",
-    members: ["Pak Ketua", "Pimpinan A", "Pimpinan B", "Admin A", "Admin B", "Admin WITA"],
+    members: [
+      "Pak Ketua",
+      "Pimpinan A",
+      "Pimpinan B",
+      "Admin A",
+      "Admin B",
+      "Admin WITA",
+    ],
     isReadOnly: true,
   },
 ].map((chat) => {
@@ -271,6 +299,7 @@ export const INITIAL_CHATS = [
     ...chat,
     lastMessage: last.message,
     lastMessageTime: last.time,
+    lastMessageType: last.type
   };
 });
 
@@ -282,6 +311,6 @@ export const STARRED_MESSAGES = {
 };
 
 export const PINNED_MESSAGES = {
-  4 : { chatId: 4, messageId:2 },
-  6 : { chatId: 6, messageId:1 },
-}
+  4: { chatId: 4, messageId: 2 },
+  6: { chatId: 6, messageId: 1 },
+};

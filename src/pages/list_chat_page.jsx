@@ -17,8 +17,7 @@ const ChatItem = ({
   time,
   unreadCount,
   isOnline,
-  showCentang,
-  showCentangAbu,
+  lastMessageType,
   onContextMenu,
   isSelected,
   highlightQuery,
@@ -28,7 +27,7 @@ const ChatItem = ({
   sender
 }) => {
   const highlightText = (text, query) => {
-    if (!query) return text;
+    if (!isStarredItem || !query) return text;
     const q = query.trim();
     if (!q) return text;
 
@@ -74,34 +73,42 @@ const ChatItem = ({
     return (
       <div
         onClick={() => onClick && onClick(id)}
-        className={`
-          flex items-start px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 min-h-[56px]
-          md:px-3 md:py-2 md:min-h-[52px]
-          hover:bg-gray-50 transition-colors duration-150
-        `}
         role="button"
         tabIndex={0}
+        className="w-full"
       >
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between">
-            <div className="min-w-0 flex-1">
-              <h3 className="font-semibold text-gray-900 truncate text-[12px] md:text-[13px] leading-tight mb-[3px]">
-                {highlightText(name, highlightQuery)}
-                {chatType === 'group' && <span className="ml-1 text-gray-400">(Group)</span>}
-              </h3>
-              <div className="flex items-center gap-1 min-w-0">
-                <span className="font-medium text-gray-600 text-[10px] md:text-[11px] flex-shrink-0">
-                  {sender}:
-                </span>
-                <p className="text-gray-400 truncate text-[10px] md:text-[11px] leading-tight min-w-0">
-                  {highlightText(lastMessage, highlightQuery)}
-                </p>
+        <div
+          className={`
+            flex items-start px-4 py-3 cursor-pointer min-h-[56px]
+            md:px-3 md:py-2 md:min-h-[52px]
+            hover:bg-gray-100 transition-colors duration-150
+            mx-2 rounded-lg relative
+          `}
+        >
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between">
+              <div className="min-w-0 flex-1 py-1">
+                <h3 className="font-semibold text-gray-900 truncate text-[12px] md:text-[13px] leading-tight mb-[3px]">
+                  {highlightText(name, highlightQuery)}
+                  {chatType === 'group' && (
+                    <span className="ml-1 text-gray-400">(Group)</span>
+                  )}
+                </h3>
+                <div className="flex items-center gap-1 min-w-0">
+                  <span className="font-medium text-gray-600 text-[10px] md:text-[11px] flex-shrink-0">
+                    {sender}:
+                  </span>
+                  <p className="text-gray-400 truncate text-[10px] md:text-[11px] leading-tight min-w-0">
+                    {highlightText(lastMessage, highlightQuery)}
+                  </p>
+                </div>
+              </div>
+              <div className="shrink-0 ml-3 text-right">
+                <span className="text-[10px] text-gray-400 leading-tight">{time}</span>
               </div>
             </div>
-            <div className="shrink-0 ml-3 text-right">
-              <span className="text-[10px] text-gray-400 leading-tight">{time}</span>
-            </div>
           </div>
+          <div className="absolute bottom-0 left-0 right-0 border-b border-gray-100"></div>
         </div>
       </div>
     );
@@ -115,12 +122,6 @@ const ChatItem = ({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
-      className={`
-        flex items-center px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 min-h-[70px]
-        md:px-3 md:py-2 md:min-h-[52px]
-        ${isSelected ? 'bg-[#efe6f3]' : 'hover:bg-gray-50'}
-        transition-colors duration-150
-      `}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -129,51 +130,62 @@ const ChatItem = ({
           onClick && onClick(id);
         }
       }}
+      className="w-full"
     >
-      <div className="relative flex-shrink-0">
-        <img
-          src={avatar || assets.profile_list || assets.user}
-          alt={name}
-          className="w-12 h-12 md:w-10 md:h-10 rounded-full object-cover"
-        />
-        {isOnline && (
-          <span className="absolute bottom-0 right-0 w-4 h-4 md:w-3 md:h-3 bg-yellow-500 rounded-full border-2 border-white"></span>
-        )}
-      </div>
+      <div
+        className={`
+          flex items-center px-4 py-3 cursor-pointer min-h-[70px] 
+          md:px-3 md:py-2 md:min-h-[52px]
+          ${isSelected ? 'bg-[#efe6f3]' : 'hover:bg-gray-100'}
+          transition-colors duration-150
+          rounded-lg
+          mx-2
+          relative
+        `}
+      >
+        <div className="relative flex-shrink-0">
+          <img
+            src={avatar || assets.profile_list || assets.user}
+            alt={name}
+            className="w-12 h-12 md:w-10 md:h-10 rounded-full object-cover"
+          />
+          {isOnline && (
+            <span className="absolute bottom-0 right-0 w-4 h-4 md:w-3 md:h-3 bg-yellow-500 rounded-full border-2 border-white"></span>
+          )}
+        </div>
 
-      <div className="flex-1 ml-4 md:ml-3 min-w-0">
-        <div className="flex items-center justify-between">
-          <div className="min-w-0 flex-1">
-            <h3 className="font-medium text-gray-900 truncate text-base md:text-[13px] leading-tight mb-1 md:mb-[2px]">
-              {name}
-            </h3>
+        <div className="flex-1 ml-4 md:ml-3 min-w-0">
+          <div className="flex items-center justify-between">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-medium text-gray-900 truncate text-base md:text-[13px] leading-tight mb-1 md:mb-[2px]">
+                {name}
+              </h3>
 
-            <div className="flex items-center gap-x-1 min-w-0">
-              {showCentang && (
-                <MdDoneAll className="text-base md:text-[14px] flex-shrink-0 text-blue-500" aria-hidden="true" />
+              <div className="flex items-center gap-x-1 min-w-0">
+                {lastMessageType === 'sender' && (
+                  <MdDoneAll className="text-base md:text-[14px] flex-shrink-0 text-blue-500" aria-hidden="true" />
+                )}
+
+                <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight mt-0">
+                  {highlightText(lastMessage, highlightQuery)}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end ml-3 shrink-0">
+              <span className="text-xs md:text-[10px] text-gray-400 leading-tight">{time}</span>
+              {unreadCount > 0 && (
+                <span
+                  className="bg-purple-800 text-white text-xs md:text-[9px] rounded-full w-5 h-5 md:w-4 md:h-4 flex items-center justify-center leading-none mt-1"
+                  aria-label={`${unreadCount} unread`}
+                >
+                  {unreadCount}
+                </span>
               )}
-              {!showCentang && showCentangAbu && (
-                <MdDoneAll className="text-base md:text-[14px] flex-shrink-0 text-gray-400" aria-hidden="true" />
-              )}
-
-              <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight mt-0">
-                {highlightText(lastMessage, highlightQuery)}
-              </p>
             </div>
           </div>
-
-          <div className="flex flex-col items-end ml-3 shrink-0">
-            <span className="text-xs md:text-[10px] text-gray-400 leading-tight">{time}</span>
-            {unreadCount > 0 && (
-              <span
-                className="bg-purple-800 text-white text-xs md:text-[9px] rounded-full w-5 h-5 md:w-4 md:h-4 flex items-center justify-center leading-none mt-1"
-                aria-label={`${unreadCount} unread`}
-              >
-                {unreadCount}
-              </span>
-            )}
-          </div>
         </div>
+        <div className="absolute bottom-0 left-1 right-1 border-b border-gray-100"></div>
       </div>
     </div>
   );
@@ -191,7 +203,8 @@ export default function ChatPage() {
     activeChatId, 
     setActiveChat, 
     clearActiveChat,
-    getStarredMessages 
+    getStarredMessages,
+    searchAllMessages 
   } = useChatContext();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -224,23 +237,24 @@ export default function ChatPage() {
   const [chatToDelete, setChatToDelete] = useState(null);
   const confirmRef = useRef(null);
 
-  const filteredChats = useMemo(() => {
+  const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return chats;
-    const tokens = q.split(/\s+/).filter(Boolean);
+    if (!q) return null;
     
     if (isStarPage) {
-      return chats.filter(item => {
+      // Keep existing starred messages search logic
+      const tokens = q.split(/\s+/).filter(Boolean);
+      const filtered = chats.filter(item => {
         const hay = (item.chatName + ' ' + item.message + ' ' + item.sender).toLowerCase();
         return tokens.every(tok => hay.includes(tok));
       });
+      return { starredMessages: filtered };
     } else {
-      return chats.filter(chat => {
-        const hay = (chat.name + ' ' + chat.lastMessage).toLowerCase();
-        return tokens.every(tok => hay.includes(tok));
-      });
+      return searchAllMessages(searchQuery, isGroupPage);
     }
-  }, [searchQuery, chats, isStarPage]);
+  }, [searchQuery, chats, isStarPage, isGroupPage, searchAllMessages]);
+
+  const displayChats = searchQuery.trim() ? null : chats;
 
   const clearSearch = useCallback(() => setSearchQuery(''), []);
 
@@ -471,6 +485,49 @@ export default function ChatPage() {
     return () => { document.head.removeChild(style); };
   }, []);
 
+  const renderChatItems = (chats, options = {}) => {
+    const {
+      sectionTitle,
+      onContextMenu = handleContextMenu,
+      isSelected = (chat) => activeChatId === chat.id,
+      isStarredItem = false,
+      highlightQuery = searchQuery,
+      showSectionHeader = false
+    } = options;
+
+    if (!chats || chats.length === 0) return null;
+
+    return (
+      <>
+        {showSectionHeader && <SectionHeader title={sectionTitle} />}
+        <div>
+          {chats.map(chat => (
+            <ChatItem
+              key={chat.id}
+              id={chat.id}
+              avatar={isStarredItem ? null : chat.avatar}
+              name={isStarredItem ? chat.chatName : chat.name}
+              lastMessage={isStarredItem ? chat.message : chat.lastMessage}
+              time={chat.time}
+              unreadCount={isStarredItem ? 0 : chat.unreadCount}
+              isOnline={isStarredItem ? false : chat.isOnline}
+              showCentang={isStarredItem ? false : chat.showCentang}
+              showCentangAbu={isStarredItem ? false : chat.showCentangAbu}
+              lastMessageType={isStarredItem ? null : chat.lastMessageType}
+              onContextMenu={isStarredItem ? null : onContextMenu}
+              onClick={handleChatClick}
+              isSelected={!isMobile && (isStarredItem ? false : isSelected(chat))}
+              highlightQuery={highlightQuery}
+              isStarredItem={isStarredItem}
+              chatType={isStarredItem ? chat.chatType : chat.type}
+              sender={isStarredItem ? chat.sender : null}
+            />
+          ))}
+        </div>
+      </>
+    );
+  };
+
   // Get page title and placeholder text based on current page
   const getPageConfig = () => {
     if (isStarPage) {
@@ -498,6 +555,71 @@ export default function ChatPage() {
   };
 
   const pageConfig = getPageConfig();
+
+  const SectionHeader = ({ title }) => (
+    <div className="px-4 py-2 bg-gray-50 border-b border-gray-100">
+      <span className="text-sm font-medium text-gray-600">{title}</span>
+    </div>
+  );
+
+  const MessageItem = ({ item, highlightQuery, onClick }) => {
+    const highlightText = (text, query) => {
+      if (!query) return text;
+      const q = query.trim();
+      if (!q) return text;
+
+      const tokens = q.split(/\s+/).filter(Boolean).map(t => t.toLowerCase());
+      if (tokens.length === 0) return text;
+
+      const pattern = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+      const regex = new RegExp(`(${pattern})`, 'gi');
+
+      const parts = String(text).split(regex);
+      return parts.map((part, i) => {
+        if (!part) return part;
+        const lower = part.toLowerCase();
+        const isMatch = tokens.some(tok => tok === lower);
+        if (isMatch) {
+          return (
+            <span key={i} className="font-semibold" style={{ color: '#4C0D68' }}>
+              {part}
+            </span>
+          );
+        }
+        return part;
+      });
+    };
+
+    return (
+      <div
+        onClick={() => onClick && onClick(item.chatId)}
+        className="flex items-start px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors duration-150"
+        role="button"
+        tabIndex={0}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-medium text-gray-900 truncate text-base md:text-[13px] leading-tight mb-1">
+                {highlightText(item.chatName, highlightQuery)}
+              </h3>
+              <div className="flex items-center gap-1 min-w-0">
+                <span className="font-medium text-gray-600 text-sm md:text-[11px] flex-shrink-0">
+                  {item.sender}:
+                </span>
+                <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight">
+                  {highlightText(item.message, highlightQuery)}
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 ml-3">
+              <span className="text-xs md:text-[10px] text-gray-400">{item.time}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   // Mobile-first layout
   return (
@@ -549,34 +671,72 @@ export default function ChatPage() {
 
         {/* List */}
         <div className="flex-1 overflow-y-auto min-h-0 elegant-scrollbar">
-          {filteredChats.length === 0 ? (
-            <div className="p-4 md:p-3 text-base md:text-sm text-gray-500 text-center">
-              {pageConfig.emptyMessage}
-            </div>
+          {searchQuery.trim() ? (
+            // Search results view
+            <>
+              {isStarPage ? (
+                // Starred messages search results
+                searchResults?.starredMessages?.length === 0 ? (
+                  <div className="p-4 md:p-3 text-base md:text-sm text-gray-500 text-center">
+                    No starred messages found
+                  </div>
+                ) : (
+                  renderChatItems(searchResults?.starredMessages, { 
+                    isStarredItem: true 
+                  })
+                )
+              ) : (
+                // Chat and Group search results
+                <>
+                  {/* One-to-One Chats */}
+                  {renderChatItems(searchResults?.oneToOneChats)}
+                  
+                  {/* Groups */}
+                  {renderChatItems(searchResults?.groupChats, { 
+                    sectionTitle: "Groups", 
+                    showSectionHeader: true 
+                  })}
+
+                  {/* Messages Section */}
+                  {searchResults?.messages?.length > 0 && (
+                    <>
+                      <SectionHeader title="Messages" />
+                      <div>
+                        {searchResults.messages.map(message => (
+                          <MessageItem
+                            key={message.id}
+                            item={message}
+                            highlightQuery={searchQuery}
+                            onClick={handleChatClick}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+
+                  {/* No results message */}
+                  {(!searchResults?.oneToOneChats?.length && 
+                    !searchResults?.groupChats?.length && 
+                    !searchResults?.messages?.length) && (
+                    <div className="p-4 md:p-3 text-base md:text-sm text-gray-500 text-center">
+                      {pageConfig.emptyMessage}
+                    </div>
+                  )}
+                </>
+              )}
+            </>
           ) : (
-            <div className="divide-y divide-gray-100">
-              {filteredChats.map(chat => (
-                <ChatItem
-                  key={chat.id}
-                  id={chat.id}
-                  avatar={isStarPage ? null : chat.avatar}
-                  name={isStarPage ? chat.chatName : chat.name}
-                  lastMessage={isStarPage ? chat.message : chat.lastMessage}
-                  time={chat.time}
-                  unreadCount={isStarPage ? 0 : chat.unreadCount}
-                  isOnline={isStarPage ? false : chat.isOnline}
-                  showCentang={isStarPage ? false : chat.showCentang}
-                  showCentangAbu={isStarPage ? false : chat.showCentangAbu}
-                  onContextMenu={isStarPage ? null : handleContextMenu}
-                  onClick={handleChatClick}
-                  isSelected={!isStarPage && contextMenu.visible && contextMenu.chatId === chat.id}
-                  highlightQuery={searchQuery}
-                  isStarredItem={isStarPage}
-                  chatType={isStarPage ? chat.chatType : chat.type}
-                  sender={isStarPage ? chat.sender : null}
-                />
-              ))}
-            </div>
+            // Default view (no search)
+            displayChats?.length === 0 ? (
+              <div className="p-4 md:p-3 text-base md:text-sm text-gray-500 text-center">
+                {pageConfig.emptyMessage}
+              </div>
+            ) : (
+              renderChatItems(
+                isGroupPage ? displayChats?.filter(chat => chat.type === 'group') : displayChats,
+                { isStarredItem: isStarPage }
+              )
+            )
           )}
         </div>
       </aside>

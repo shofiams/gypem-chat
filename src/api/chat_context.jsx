@@ -46,6 +46,7 @@ export const ChatProvider = ({ children }) => {
             ...chat, 
             lastMessage: message.message || message.file?.name || "Media",
             time: message.time,
+            lastMessageType: message.type,
             unreadCount: message.type === 'receiver' ? chat.unreadCount + 1 : chat.unreadCount
           }
         : chat
@@ -184,6 +185,54 @@ export const ChatProvider = ({ children }) => {
     }));
   }, [pinnedMessages]);
 
+  // Search All Messages in all chats/rooms
+  const searchAllMessages = useCallback((query) => {
+    if (!query.trim()) return { oneToOneChats: [], groupChats: [], messages: [] };
+    
+    const q = query.trim().toLowerCase();
+    const tokens = q.split(/\s+/).filter(Boolean);
+    
+    const oneToOneChats = [];
+    const groupChats = [];
+    const messages = [];
+    
+    chats.forEach(chat => {
+      const chatNameMatches = tokens.every(tok => chat.name.toLowerCase().includes(tok));
+      
+      if (chatNameMatches) {
+        if (chat.type === 'group') {
+          groupChats.push(chat);
+        } else {
+          oneToOneChats.push(chat);
+        }
+      }
+      
+      // Check ALL messages in this chat (including last message)
+      const messagesInChat = chatMessages[chat.id] || [];
+      messagesInChat.forEach(message => {
+        const searchText = (message.message || message.file?.name || '').toLowerCase();
+        
+        const matches = tokens.every(token => searchText.includes(token));
+        
+        if (matches) {
+          messages.push({
+            id: `${chat.id}-${message.id}`,
+            chatId: chat.id,
+            messageId: message.id,
+            chatName: chat.name,
+            message: message.message || message.file?.name || 'Media',
+            sender: message.sender,
+            time: message.time,
+            chatType: chat.type,
+            type: 'message'
+          });
+        }
+      });
+    });
+    
+    return { oneToOneChats, groupChats, messages };
+  }, [chats, chatMessages]);
+
   // Delete message from specific chat
   const deleteMessage = useCallback((chatId, messageId) => {
     const id = parseInt(chatId);
@@ -289,6 +338,7 @@ export const ChatProvider = ({ children }) => {
     clearActiveChat,
     
     // Message operations
+    searchAllMessages,
     getChatMessages,
     addMessage,
     deleteMessage,
