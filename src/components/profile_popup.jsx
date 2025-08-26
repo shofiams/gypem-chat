@@ -100,10 +100,10 @@ export default function ProfilePopup({
         ref={popupRef}
         className="absolute left-[70px] bottom-2 bg-white shadow-md rounded-xl z-30 text-sm font-medium
           flex w-[600px] h-[430px]
-          max-sm:fixed max-sm:top-0 max-sm:left-0 max-sm:w-full max-sm:h-[calc(100vh-70px)] max-sm:rounded-none max-sm:shadow-none max-sm:bottom-auto max-sm:overflow-hidden max-sm:z-40"
+          max-md:fixed max-md:top-0 max-md:left-0 max-md:w-full max-md:h-[calc(100vh-70px)] max-md:rounded-none max-md:shadow-none max-md:bottom-auto max-md:overflow-hidden max-md:z-40"
       >
         {/* Desktop */}
-        <div className="sm:flex w-full max-sm:hidden overflow-hidden rounded-xl">
+        <div className="md:flex w-full max-md:hidden overflow-hidden rounded-xl">
           <div className="w-[180px] bg-[#f5f5f5] flex items-center justify-center gap-4 px-4">
             {isDefaultProfile ? (
               <FaUserCircle className="w-12 h-12 text-gray-400" />
@@ -212,11 +212,11 @@ export default function ProfilePopup({
         </div>
 
         {/* Mobile */}
-        <div className="sm:hidden w-full h-full bg-white overflow-hidden flex flex-col">
+        <div className="md:hidden w-full h-full bg-white overflow-hidden flex flex-col">
           <div className="flex flex-col place-items-center py-14">
             <div className="relative">
               {isDefaultProfile ? (
-                <FaUserCircle className="w-2 h-2 text-gray-300" />
+                <FaUserCircle className="w-28 h-28 text-gray-300" />
               ) : (
                 <img
                   src={profileImage}
@@ -315,7 +315,7 @@ export default function ProfilePopup({
           <img
             src={profileImage}
             alt="Full"
-            className="w-[400px] h-[400px] max-sm:w-[300px] max-sm:h-[300px] rounded-full object-cover"
+            className="w-[400px] h-[400px] max-md:w-[300px] max-md:h-[300px] rounded-full object-cover"
           />
         </div>
       )}

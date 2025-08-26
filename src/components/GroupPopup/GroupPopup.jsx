@@ -20,44 +20,56 @@ export default function GroupPopup({ onClose }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [seeMore, setSeeMore] = useState(false);
   const [seeAllMembers, setSeeAllMembers] = useState(false);
+
   const [exitLoading, setExitLoading] = useState(false);
   const [exitText, setExitText] = useState("Exit Group");
+
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
-  const [showScrollbar, setShowScrollbar] = useState(false);
-  const scrollRef = useRef(null);
-  const hideTimeout = useRef(null);
-  const popupRef = useRef(null);
 
-  // deteksi mobile
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 640);
+  const [showScrollbar, setShowScrollbar] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+
+  const scrollRef = useRef(null);
+  const popupRef = useRef(null);
+  const hideTimeout = useRef(null);
+
+  // Detect screen resize
   useEffect(() => {
-    const handleResize = () => setIsMobile(window.innerWidth <= 640);
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  // Auto-hide scrollbar
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
+
     const handleInteraction = () => {
       setShowScrollbar(true);
       if (hideTimeout.current) clearTimeout(hideTimeout.current);
-      hideTimeout.current = setTimeout(() => {
-        setShowScrollbar(false);
-      }, 2000);
+      hideTimeout.current = setTimeout(() => setShowScrollbar(false), 2000);
     };
-    el.addEventListener("scroll", handleInteraction);
-    el.addEventListener("wheel", handleInteraction);
-    el.addEventListener("touchstart", handleInteraction);
-    el.addEventListener("pointerdown", handleInteraction);
+
+    ["scroll", "wheel", "touchstart", "pointerdown"].forEach((event) => {
+      el.addEventListener(event, handleInteraction);
+    });
     return () => {
-      el.removeEventListener("scroll", handleInteraction);
-      el.removeEventListener("wheel", handleInteraction);
-      el.removeEventListener("touchstart", handleInteraction);
-      el.removeEventListener("pointerdown", handleInteraction);
+      ["scroll", "wheel", "touchstart", "pointerdown"].forEach((event) => {
+        el.removeEventListener(event, handleInteraction);
+      });
     };
   }, []);
+
+  // Close popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (popupRef.current && !popupRef.current.contains(e.target)) onClose();
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
 
   const tabs = [
     { id: "overview", label: "Overview", icon: Grid },
@@ -95,11 +107,12 @@ export default function GroupPopup({ onClose }) {
   const mediaList = Object.values(mediaFiles).map((mod) => {
     const url = mod.default;
     const ext = url.split(".").pop().toLowerCase();
-    return { type: ["mp4"].includes(ext) ? "video" : "image", url };
+    return { type: ext === "mp4" ? "video" : "image", url };
   });
 
   const descriptionText =
-    "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since. " +
+    "Lorem Ipsum is simply dummy text of the printing and typesetting industry. " +
+    "Lorem Ipsum has been the industry's standard dummy text ever since. " +
     "Additional text to simulate a longer description when see more is clicked. " +
     "Even more text to test scrolling in the main content area.".repeat(5);
 
@@ -119,12 +132,24 @@ export default function GroupPopup({ onClose }) {
 
   return (
     <>
+      {/* Custom CSS */}
+      <style>{`
+        .custom-scroll { overflow-y: overlay; scrollbar-width: thin; scrollbar-color: rgba(200,200,200,0.7) transparent; scrollbar-gutter: stable; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: rgba(200,200,200,0.7); border-radius: 10px; transition: opacity 0.3s ease; }
+        .custom-scroll.scroll-hidden::-webkit-scrollbar-thumb { opacity: 0; }
+        .custom-scroll.scroll-visible::-webkit-scrollbar-thumb { opacity: 1; }
+      `}</style>
+
       <div
         ref={popupRef}
         className={`fixed z-50 bg-white shadow-lg overflow-hidden 
-        ${isMobile ? "top-0 left-0 w-full h-full" : "h-[450px] w-[650px] top-[10px] left-[390px] rounded-xl"}`}
+          ${isMobile
+            ? "top-0 left-0 w-full h-full"
+            : "h-[450px] w-[650px] top-[10px] left-[390px] rounded-xl"}`}
       >
-        {/* Header untuk mobile */}
+        {/* Mobile Header */}
         {isMobile && (
           <div className="flex items-center p-4 border-b border-gray-200 bg-white">
             <button onClick={onClose} className="mr-3">
@@ -136,73 +161,49 @@ export default function GroupPopup({ onClose }) {
 
         <div className="flex h-full">
           {/* Sidebar */}
-          {/* Sidebar */}
-{/* Sidebar */}
-{isMobile ? (
-  <div className="w-14 bg-gray-50 border-r border-gray-200 flex flex-col items-center py-3 gap-4">
-    {tabs.map((tab) => {
-      const IconComp = tab.icon;
-      const isActive = activeTab === tab.id;
-      return (
-        <button
-          key={tab.id}
-          onClick={() => setActiveTab(tab.id)}
-          className={`relative flex items-center justify-center w-full py-3 transition-all
-            ${isActive ? "bg-white" : "hover:bg-gray-100"}`}
-        >
-          {/* strip kuning di kiri */}
-          {isActive && (
-            <span className="absolute left-0 h-6 w-1 bg-yellow-400 rounded-r"></span>
+          {isMobile ? (
+            <div className="w-14 min-w-[3.5rem] bg-gray-50 border-r border-gray-200 flex flex-col items-center py-2 gap-6">
+              {tabs.map(({ id, icon: Icon }) => (
+                <button
+                  key={id}
+                  icon={Icon}
+                  onClick={() => setActiveTab(id)}
+                  className={`relative flex items-center justify-center w-10 h-10 rounded-lg transition-all
+                    ${activeTab === id ? "bg-gray-100" : ""}`}
+                >
+                  {activeTab === id && (
+                    <span className="absolute left-0 h-6 w-1 bg-yellow-400 rounded-r" />
+                  )}
+                  <Icon size={20} strokeWidth={1.5} className={activeTab === id ? "text-gray-900" : "text-gray-500"} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="w-52 bg-gray-50 border-r border-gray-200 flex-shrink-0">
+              <nav className="flex flex-col py-2">
+                {tabs.map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    icon={Icon}
+                    onClick={() => setActiveTab(id)}
+                    className={`flex items-center relative px-4 py-3 text-left rounded-r-full transition-all
+                      ${activeTab === id ? "bg-white font-semibold text-gray-900" : "text-gray-600 hover:bg-gray-100"}`}
+                  >
+                    {activeTab === id && (
+                      <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-yellow-400 rounded-r" />
+                    )}
+                    <Icon size={20} strokeWidth={1} className={`mr-3 ${activeTab === id ? "text-gray-900" : "text-gray-500"}`} />
+                    {label}
+                  </button>
+                ))}
+              </nav>
+            </div>
           )}
-          <IconComp
-  size={20}
-  strokeWidth={1.5}
-  className={isActive ? "text-gray-900" : "text-gray-500"}
-/>
-
-        </button>
-      );
-    })}
-  </div>
-) : (
-  <div className="w-52 bg-gray-50 border-r border-gray-200 flex-shrink-0">
-    <nav className="flex flex-col py-2">
-      {tabs.map((tab) => {
-        const IconComp = tab.icon;
-        return (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex items-center relative px-4 py-3 text-left rounded-r-full transition-all
-              ${
-                activeTab === tab.id
-                  ? "bg-white font-semibold text-gray-900"
-                  : "text-gray-600 hover:bg-gray-100"
-              }`}
-          >
-            {activeTab === tab.id && (
-              <span className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-yellow-400 rounded-r"></span>
-            )}
-            <IconComp
-              size={20}
-              strokeWidth={1}
-              className={`mr-3 ${
-                activeTab === tab.id ? "text-gray-900" : "text-gray-500"
-              }`}
-            />
-            {tab.label}
-          </button>
-        );
-      })}
-    </nav>
-  </div>
-)}
-
 
           {/* Main Content */}
           <div
             ref={scrollRef}
-            className={`flex-1 overflow-y-auto p-6 bg-white ${showScrollbar ? "scroll-visible" : "scroll-hidden"}`}
+            className={`flex-1 overflow-y-auto p-6 bg-white custom-scroll ${showScrollbar ? "scroll-visible" : "scroll-hidden"}`}
           >
             {activeTab === "overview" && (
               <GroupOverview
@@ -225,9 +226,7 @@ export default function GroupPopup({ onClose }) {
               />
             )}
             {activeTab === "links" && <GroupLinks links={links} />}
-            {activeTab === "media" && (
-              <GroupMedia mediaList={mediaList} openLightbox={openLightbox} />
-            )}
+            {activeTab === "media" && <GroupMedia mediaList={mediaList} openLightbox={openLightbox} />}
             {activeTab === "files" && <GroupFiles files={files} />}
           </div>
         </div>

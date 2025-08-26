@@ -769,7 +769,7 @@ const BaseChatPage = ({
         className={`flex-1 ${isGroupChat && onGroupHeaderClick ? 'cursor-pointer' : ''}`}
         onClick={isGroupChat && onGroupHeaderClick ? onGroupHeaderClick : undefined}
       >
-        <p className="font-semibold text-sm">{chatInfo?.name || 'Loading...'}</p>
+        <p className="font-semibold text-sm">{chatInfo?.name}</p>
         {isGroupChat && chatInfo?.members ? (
           <div className="text-xs text-gray-500 leading-4">
             <span className="truncate block">
