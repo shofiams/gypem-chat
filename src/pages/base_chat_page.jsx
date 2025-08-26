@@ -660,13 +660,17 @@ const BaseChatPage = ({
   // Function to determine if sender name should be shown in bubble
   const shouldShowSenderNameInBubble = (message, index) => {
     if (!showSenderNames) return false;
+    if (message.type === 'sender') return false;
     const prevMessage = index > 0 ? contextMessages[index - 1] : null;
-    return !prevMessage || prevMessage.sender !== message.sender;
+    return !prevMessage || 
+         prevMessage.sender !== message.sender || 
+         prevMessage.type !== message.type;
   };
 
   // Render message function with group chat support
   const renderMessage = (msg, idx, arr) => {
     const nextMsg = arr[idx + 1];
+    const prevMsg = idx > 0 ? arr[idx - 1] : null;
     const isLastFromSender = !nextMsg || nextMsg.type !== msg.type || (isGroupChat && nextMsg.sender !== msg.sender);
     const isLastFromReceiver = !nextMsg || nextMsg.type !== msg.type || (isGroupChat && nextMsg.sender !== msg.sender);
     const showSenderNameInBubble = shouldShowSenderNameInBubble(msg, idx);
@@ -674,20 +678,26 @@ const BaseChatPage = ({
     // Get time grouping properties
     const timeGroupingProps = getTimeGroupingProps(msg, idx, arr);
 
+    const isFirstFromSender = !prevMsg || 
+      prevMsg.type !== msg.type || 
+      (isGroupChat && prevMsg.sender !== msg.sender);
+    
+    // Get previous message sender for fallback logic
+    const previousMessageSender = prevMsg ? 
+      (prevMsg.type === "sender" ? "You" : prevMsg.sender) : null;
+
+    // DEBUG: Console log untuk melihat nilai props
+    console.log(`Message ${idx}:`, {
+      sender: msg.sender,
+      type: msg.type,
+      isFirstFromSender,
+      previousMessageSender,
+      showSenderNames,
+      isGroupChat
+    });
+
     return (
       <div key={msg.id} className="mb-2">
-        {/* Show sender name outside bubble for group chat if not shown inside */}
-        {isGroupChat && showSenderNames && !showSenderNameInBubble && (
-          <div>
-            <span
-              className="text-sm font-semibold"
-              style={{ color: getSenderColor ? getSenderColor(msg.sender) : '#4C0D68' }}
-            >
-              {msg.sender}
-            </span>
-          </div>
-        )}
-
         <div
           ref={(el) => (messageRefs.current[msg.id] = el)}
           className={`relative ${highlightedMessageId === msg.id ? "" : ""}`}
@@ -729,6 +739,8 @@ const BaseChatPage = ({
               sender={msg.sender}
               getSenderColor={getSenderColor}
               isGroupChat={isGroupChat}
+              isFirstFromSender={isFirstFromSender}
+              previousMessageSender={previousMessageSender}
               {...timeGroupingProps}
               isLastBubble={idx === arr.length - 1}
               // Custom props from parent
