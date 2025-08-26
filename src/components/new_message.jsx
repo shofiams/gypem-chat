@@ -7,7 +7,7 @@ import profileList from "../assets/profile_list.svg";
 const NewMessagePopup = ({ isOpen, onClose }) => {
   const popupRef = useRef(null);
   const navigate = useNavigate();
-  const { getAllChats, createNewChat, getChatById } = useChatContext();
+  const { getAllChats, createNewChat, setActiveChat } = useChatContext();
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -24,23 +24,31 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
   }, [isOpen, onClose]);
 
   const handleContactClick = (contact) => {
+    const isMobile = window.innerWidth < 768;
+    
     const allChats = getAllChats();
     
     const existingChat = allChats.find(chat => 
       chat.name === contact.name && 
-      chat.type !== 'group' && 
-      chat.id
+      chat.type !== 'group'
     );
 
-    // Redirect to existing chat
-    if (existingChat && getChatById && getChatById(existingChat.id)) {
-      const isMobile = window.innerWidth < 768;
+    if (existingChat) {
+      // Navigate to existing chat
       if (isMobile) {
         navigate(`/chats/${existingChat.id}`);
       } else {
-        navigate(`/chats?activeChat=${existingChat.id}`);
+        // For desktop: ensure we're on chats page first
+        if (window.location.pathname !== '/chats') {
+          navigate('/chats');
+        }
+        // Set active chat after a brief delay to ensure state is ready
+        setTimeout(() => {
+          setActiveChat(existingChat.id);
+        }, 10);
       }
     } else {
+      // Create new chat
       const newChatData = {
         name: contact.name,
         avatar: profileList,
@@ -59,13 +67,18 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
 
       const newChatId = createNewChat(newChatData);
       
-      // Redirect to new chat
       if (newChatId) {
-        const isMobile = window.innerWidth < 768;
         if (isMobile) {
           navigate(`/chats/${newChatId}`);
         } else {
-          navigate(`/chats?activeChat=${newChatId}`);
+          // For desktop: ensure we're on chats page first
+          if (window.location.pathname !== '/chats') {
+            navigate('/chats');
+          }
+          // Set active chat after creation with longer delay to ensure state updates
+          setTimeout(() => {
+            setActiveChat(newChatId);
+          }, 50);
         }
       }
     }

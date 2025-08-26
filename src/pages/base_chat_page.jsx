@@ -118,12 +118,12 @@ const BaseChatPage = ({
   const [selectedMessages, setSelectedMessages] = useState(new Set());
   const [editingMessage, setEditingMessage] = useState(null);
   const [editText, setEditText] = useState("");
-  const [messages, setMessages] = useState(contextMessages);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]);
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
   const searchHighlightTimer = useRef(null);
+  const inputRef = useRef(null);
 
   // Check if chatId is valid and mark as read
   useEffect(() => {
@@ -146,22 +146,12 @@ const BaseChatPage = ({
     
     // Mark chat as read when opening
     markChatAsRead(actualChatId);
+    
+    // Instantly scroll to bottom when opening chat (no animation)
+    setTimeout(() => {
+      scrollToBottomInstant();
+    }, 10);
   }, [actualChatId, isEmbedded]);
-
-  useEffect(() => {
-    const handleResize = () => {
-      const isMobile = window.innerWidth < 768;
-      
-      // If we're in embedded mode and switched to desktop, ensure proper state
-      if (isEmbedded && !isMobile) {
-        // Force re-render to update button visibility
-        setMessages(prev => [...prev]);
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [isEmbedded]);
 
   useEffect(() => {
     const style = document.createElement("style");
@@ -263,6 +253,16 @@ const BaseChatPage = ({
     };
   }, []);
 
+  // Auto-focus input when chat opens
+  useEffect(() => {
+    if (canSendMessages && !isSelectionMode && inputRef.current) {
+      // Small delay to ensure component is fully rendered
+      setTimeout(() => {
+        inputRef.current.focus();
+      }, 100);
+    }
+  }, [actualChatId, canSendMessages, isSelectionMode]);
+
   // Function to check selected message types
   const getSelectedMessageTypes = () => {
     if (!isSelectionMode || selectedMessages.size === 0) return { hasReceiver: false, hasSender: false };
@@ -355,9 +355,10 @@ const BaseChatPage = ({
     setReplyingMessage(null);
     setShowEmojiPicker(false);
 
+    // Auto-scroll to bottom after adding message
     setTimeout(() => {
       scrollToBottom();
-    }, 100);
+    }, 50);
   };
 
   // Handle edit message
@@ -490,13 +491,19 @@ const BaseChatPage = ({
   };
 
   const scrollToBottom = () => {
-  if (messagesContainerRef.current) {
-    messagesContainerRef.current.scrollTo({
-      top: messagesContainerRef.current.scrollHeight,
-      behavior: 'smooth'
-    });
-  }
-};
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTo({
+        top: messagesContainerRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  const scrollToBottomInstant = () => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
+  };
 
   const highlightSearchTerm = (text, searchTerm) => {
     if (!searchTerm || !text) return text;
@@ -957,7 +964,12 @@ const BaseChatPage = ({
       {/* Chat Area */}
       <div className="flex-1 flex flex-col min-h-0">
         <div
-          ref={messagesContainerRef}
+          ref={(curr) => {
+            messagesContainerRef.current = curr;
+            if (curr && contextMessages.length > 0) {
+              curr.scrollTop = curr.scrollHeight;
+            }
+          }}
           className={`flex-1 overflow-y-auto p-4 relative transition-all duration-300 elegant-scrollbar`}
           style={{
             backgroundImage: `url(${chatBg})`,
@@ -967,7 +979,7 @@ const BaseChatPage = ({
             if (showEmojiPicker) setShowEmojiPicker(false);
           }}
         >
-          {messages.length > 0 ? (
+          {contextMessages.length > 0 ? (
             <>
               <DateSeparator>Today</DateSeparator>
               {contextMessages.map((msg, idx, arr) => renderMessage(msg, idx, arr))}
@@ -1026,7 +1038,7 @@ const BaseChatPage = ({
                 Editing Message
             </p>
             <p className="text-xs text-gray-600 truncate w-48">
-                {messages.find(msg => msg.id === editingMessage)?.message}
+                {contextMessages.find(msg => msg.id === editingMessage)?.message}
             </p>
             </div>
             <button
@@ -1098,6 +1110,7 @@ const BaseChatPage = ({
               style={{ borderColor: "#4C0D68" }}
             >
               <input
+                ref={inputRef}
                 type="text"
                 placeholder={editingMessage ? "Edit your message..." : "write down the message"}
                 value={editingMessage ? editText : message}
