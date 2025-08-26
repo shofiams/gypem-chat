@@ -124,6 +124,7 @@ const BaseChatPage = ({
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
   const searchHighlightTimer = useRef(null);
   const inputRef = useRef(null);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
 
   // Check if chatId is valid and mark as read
   useEffect(() => {
@@ -199,8 +200,9 @@ const BaseChatPage = ({
       const { scrollTop, scrollHeight, clientHeight } = container;
       const scrollFromBottom = scrollHeight - scrollTop - clientHeight;
       
-      // Show button if scrolled up more than 100px from bottom
       setShowScrollButton(scrollFromBottom > 100);
+      
+      setIsUserScrolling(scrollFromBottom > 10);
     };
 
     container.addEventListener('scroll', handleScroll);
@@ -355,7 +357,7 @@ const BaseChatPage = ({
     setReplyingMessage(null);
     setShowEmojiPicker(false);
 
-    // Auto-scroll to bottom after adding message
+    setIsUserScrolling(false);
     setTimeout(() => {
       scrollToBottom();
     }, 50);
@@ -503,6 +505,11 @@ const BaseChatPage = ({
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
     }
+  };
+
+  const handleScrollButtonClick = () => {
+    setIsUserScrolling(false);
+    scrollToBottom();
   };
 
   const highlightSearchTerm = (text, searchTerm) => {
@@ -966,8 +973,11 @@ const BaseChatPage = ({
         <div
           ref={(curr) => {
             messagesContainerRef.current = curr;
-            if (curr && contextMessages.length > 0) {
-              curr.scrollTop = curr.scrollHeight;
+            if (curr && contextMessages.length > 0 && !isUserScrolling) {
+              const isInitialLoad = !messagesContainerRef.current || messagesContainerRef.current.scrollTop === 0;
+              if (isInitialLoad) {
+                curr.scrollTop = curr.scrollHeight;
+              }
             }
           }}
           className={`flex-1 overflow-y-auto p-4 relative transition-all duration-300 elegant-scrollbar`}
@@ -999,7 +1009,7 @@ const BaseChatPage = ({
         {showScrollButton && !isSelectionMode && (
           <div className="absolute bottom-24 right-4 z-40">
             <button
-              onClick={scrollToBottom}
+              onClick={handleScrollButtonClick}
               className="w-10 h-10 bg-white rounded-full flex items-center justify-center"
               
             >
