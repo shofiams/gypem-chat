@@ -75,10 +75,24 @@ export const INITIAL_MESSAGES = {
       time: "16.01",
     },
     {
+      id: 1,
+      type: "receiver",
+      sender: "Admin A",
+      message: "hehe",
+      time: "16.01",
+    },
+    {
       id: 2,
       type: "receiver",
       sender: "Admin B",
       message: "Don't forget to submit your answers",
+      time: "16.02",
+    },
+    {
+      id: 3,
+      type: "receiver",
+      sender: "Admin B",
+      message: "yareuuu",
       time: "16.02",
     },
   ],
@@ -114,6 +128,13 @@ export const INITIAL_MESSAGES = {
       sender: "Anda",
       message: "I'll be there",
       time: "16.02",
+    },
+    {
+      id: 3,
+      type: "receiver",
+      sender: "Admin WITA",
+      message: "Do you understand?",
+      time: "16.01",
     },
   ],
   6: [
@@ -179,9 +200,6 @@ export const INITIAL_CHATS = [
     time: "10:15",
     unreadCount: 3,
     avatar: null,
-    isOnline: false,
-    showCentang: false,
-    showCentangAbu: false,
     type: "group",
     members: [
       "Pak Ketua",
@@ -200,9 +218,6 @@ export const INITIAL_CHATS = [
     time: "10:15",
     unreadCount: 1,
     avatar: null,
-    isOnline: true,
-    showCentang: true,
-    showCentangAbu: false,
     type: "group",
     members: [
       "Pak Ketua",
@@ -221,9 +236,6 @@ export const INITIAL_CHATS = [
     time: "10:15",
     unreadCount: 11,
     avatar: null,
-    isOnline: false,
-    showCentang: false,
-    showCentangAbu: true,
     type: "group",
     members: [
       "Pak Ketua",
@@ -243,8 +255,6 @@ export const INITIAL_CHATS = [
     unreadCount: 0,
     avatar: null,
     isOnline: true,
-    showCentang: true,
-    showCentangAbu: false,
     type: "one-to-one",
   },
   {
@@ -255,8 +265,6 @@ export const INITIAL_CHATS = [
     unreadCount: 0,
     avatar: null,
     isOnline: false,
-    showCentang: false,
-    showCentangAbu: true,
     type: "one-to-one",
   },
   {
@@ -267,8 +275,6 @@ export const INITIAL_CHATS = [
     unreadCount: 0,
     avatar: null,
     isOnline: false,
-    showCentang: false,
-    showCentangAbu: false,
     type: "one-to-one",
   },
   // ADD: Group chat example
@@ -280,8 +286,6 @@ export const INITIAL_CHATS = [
     unreadCount: 0,
     avatar: null,
     isOnline: false,
-    showCentang: false,
-    showCentangAbu: false,
     type: "group",
     members: [
       "Pak Ketua",

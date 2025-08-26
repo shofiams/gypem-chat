@@ -226,6 +226,9 @@ export default function ChatBubblePeserta({ ...props }) {
     showTime = false,
     nextMessageTime = null,
     nextMessageSender = null,
+    // New props for handling consecutive messages from same sender
+    previousMessageSender = null,
+    isFirstFromSender = false, // Indicates if this is the first message in a group from the same sender
   } = props;
 
   const isSender = type === "sender";
@@ -285,6 +288,29 @@ export default function ChatBubblePeserta({ ...props }) {
       nextMessageTime !== time;
     
     return shouldShow;
+  };
+
+  // Fungsi untuk menentukan apakah harus menampilkan nama sender
+  const shouldShowSenderName = () => {
+    // Jika showSenderName diset ke false, jangan tampilkan nama
+    if (!showSenderName) return false;
+    
+    // Jangan tampilkan nama untuk pesan sender (pesan sendiri)
+    if (isSender) return false;
+    
+    // Jangan tampilkan nama jika tidak ada sender
+    if (!sender) return false;
+
+    // Jika isFirstFromSender prop tersedia, gunakan itu
+    if (isFirstFromSender !== undefined) {
+      return isFirstFromSender;
+    }
+
+    // Fallback: cek apakah pesan sebelumnya dari sender yang berbeda
+    // Tampilkan nama jika pesan sebelumnya dari sender yang berbeda atau tidak ada
+    return !previousMessageSender || 
+         previousMessageSender !== sender || 
+         previousMessageSender === "You";
   };
 
   // Fungsi untuk menentukan apakah bubble harus memiliki ekor
@@ -720,10 +746,10 @@ export default function ChatBubblePeserta({ ...props }) {
               {/* Bubble Tail */}
               <BubbleTail />
 
-              {/* Show sender name if enabled */}
-              {showSenderName && sender && !isSender && (
+              {/* Show sender name hanya jika shouldShowSenderName() mengembalikan true */}
+              {shouldShowSenderName() && (
                 <div 
-                  className="text-xs font-semibold text-[16px]"
+                  className="text-xs font-semibold text-[16px] mb-1"
                   style={{ color: getSenderNameColor() }}
                 >
                   {sender}
