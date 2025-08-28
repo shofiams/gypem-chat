@@ -237,6 +237,12 @@ export default function ChatPage() {
   const [chatToDelete, setChatToDelete] = useState(null);
   const confirmRef = useRef(null);
 
+  // Clear search ketika berpindah halaman
+  useEffect(() => {
+    // Clear search query ketika pathname berubah (berpindah halaman)
+    setSearchQuery('');
+  }, [location.pathname]);
+
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return null;
