@@ -318,9 +318,9 @@ export default function ChatBubblePeserta({ ...props }) {
     return shouldShowTime();
   };
 
-  // Fungsi untuk mendapatkan class bubble dengan ekor - FIXED untuk pesan panjang
+  // Fungsi untuk mendapatkan class bubble dengan ekor
   const getBubbleClasses = () => {
-    const baseClasses = "relative max-w-xs p-2 transition-all break-all overflow-hidden"; // Changed to break-all
+    const baseClasses = "relative max-w-xs p-2 transition-all break-all";
     const hasTail = shouldHaveTail();
     
     if (isSender) {
