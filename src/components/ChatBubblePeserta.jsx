@@ -618,15 +618,37 @@ export default function ChatBubblePeserta({ ...props }) {
     );
   };
 
-  // Render message text with search highlighting
+  // Function to format message with line breaks
+  const formatMessageWithLineBreaks = (text) => {
+    if (!text) return null;
+    
+    // Split the text by line breaks and filter out empty strings
+    const lines = text.split('\n');
+    
+    return lines.map((line, index) => (
+      <React.Fragment key={index}>
+        {line}
+        {index < lines.length - 1 && <br />}
+      </React.Fragment>
+    ));
+  };
+
+  // Render message text with search highlighting and line breaks
   const renderMessageText = () => {
     if (!message) return null;
     
     if (searchQuery && highlightSearchTerm) {
-      return highlightSearchTerm(message, searchQuery);
+      // For search highlighting, we need to handle line breaks differently
+      const lines = message.split('\n');
+      return lines.map((line, index) => (
+        <React.Fragment key={index}>
+          {highlightSearchTerm(line, searchQuery)}
+          {index < lines.length - 1 && <br />}
+        </React.Fragment>
+      ));
     }
     
-    return message;
+    return formatMessageWithLineBreaks(message);
   };
 
   // Determine when to show dropdown button
@@ -666,6 +688,18 @@ export default function ChatBubblePeserta({ ...props }) {
   const renderReply = () => {
     if (!reply) return null;
 
+    // Format reply message with line breaks
+    const formatReplyMessage = (text) => {
+      if (!text) return null;
+      const lines = text.split('\n');
+      return lines.map((line, index) => (
+        <React.Fragment key={index}>
+          {line}
+          {index < lines.length - 1 && <br />}
+        </React.Fragment>
+      ));
+    };
+
     // Untuk bubble ungu (pesan dari orang lain), reply styling abu-abu
     if (!isSender) {
       return (
@@ -674,7 +708,7 @@ export default function ChatBubblePeserta({ ...props }) {
             {reply.sender}
           </div>
           <div className="break-all">
-            {reply.message}
+            {formatReplyMessage(reply.message)}
           </div>
         </div>
       );
@@ -687,7 +721,7 @@ export default function ChatBubblePeserta({ ...props }) {
           {reply.sender}
         </div>
         <div className="break-all">
-          {reply.message}
+          {formatReplyMessage(reply.message)}
         </div>
       </div>
     );
