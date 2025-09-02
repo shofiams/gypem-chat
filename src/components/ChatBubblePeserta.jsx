@@ -633,23 +633,144 @@ export default function ChatBubblePeserta({ ...props }) {
     ));
   };
 
-  // Render message text with search highlighting and line breaks
+  // Render message text dengan search highlighting, line breaks, dan read more
   const renderMessageText = () => {
     if (!message) return null;
     
     if (searchQuery && highlightSearchTerm) {
-      // For search highlighting, we need to handle line breaks differently
-      const lines = message.split('\n');
-      return lines.map((line, index) => (
+      // Untuk search highlighting
+      const needsReadMore = shouldShowReadMore(message);
+      const displayText = needsReadMore && !isExpanded 
+        ? truncateToLines(message, MAX_LINES) 
+        : message;
+      
+      const lines = displayText.split('\n');
+      const highlightedContent = lines.map((line, index) => (
         <React.Fragment key={index}>
           {highlightSearchTerm(line, searchQuery)}
           {index < lines.length - 1 && <br />}
         </React.Fragment>
       ));
+
+      return (
+        <div>
+          {highlightedContent}
+          {needsReadMore && !isExpanded && (
+            <div className="mt-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(true);
+                }}
+                className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${
+                  isSender ? 'text-white' : 'text-[#4C0D68]'
+                }`}
+              >
+                Read more
+              </button>
+            </div>
+          )}
+          {needsReadMore && isExpanded && (
+            <div className="mt-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(false);
+                }}
+                className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${
+                  isSender ? 'text-white' : 'text-[#4C0D68]'
+                }`}
+              >
+                Show less
+              </button>
+            </div>
+          )}
+        </div>
+      );
     }
     
-    return formatMessageWithLineBreaks(message);
+    return formatMessageWithReadMore(message);
   };
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const MAX_LINES = 15;
+
+  // Fungsi untuk menghitung jumlah baris dalam teks
+  const countLines = (text) => {
+    if (!text) return 0;
+    return text.split('\n').length;
+  };
+
+  // Fungsi untuk memotong teks hingga baris tertentu
+  const truncateToLines = (text, maxLines) => {
+    if (!text) return '';
+    const lines = text.split('\n');
+    if (lines.length <= maxLines) return text;
+    return lines.slice(0, maxLines).join('\n');
+  };
+
+  // Fungsi untuk menentukan apakah perlu tombol "read more"
+  const shouldShowReadMore = (text) => {
+    return countLines(text) > MAX_LINES;
+  };
+
+  // Fungsi untuk format pesan dengan read more
+  const formatMessageWithReadMore = (text) => {
+    if (!text) return null;
+    
+    const needsReadMore = shouldShowReadMore(text);
+    const displayText = needsReadMore && !isExpanded 
+      ? truncateToLines(text, MAX_LINES) 
+      : text;
+    
+    // Split the text by line breaks
+    const lines = displayText.split('\n');
+    
+    const formattedText = lines.map((line, index) => (
+      <React.Fragment key={index}>
+        {line}
+        {index < lines.length - 1 && <br />}
+      </React.Fragment>
+    ));
+
+    return (
+      <div>
+        {formattedText}
+        {needsReadMore && !isExpanded && (
+          <div className="mt-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(true);
+              }}
+              className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${
+                isSender ? 'text-white' : 'text-[#4C0D68]'
+              }`}
+            >
+              Read more
+            </button>
+          </div>
+        )}
+        {needsReadMore && isExpanded && (
+          <div className="mt-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(false);
+              }}
+              className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${
+                isSender ? 'text-white' : 'text-[#4C0D68]'
+              }`}
+            >
+              Show less
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  
 
   // Determine when to show dropdown button
   const shouldShowDropdownButton = () => {

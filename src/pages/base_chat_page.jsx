@@ -406,10 +406,10 @@ const BaseChatPage = ({
 
   const handleKeyDown = (e) => {
     if (editingMessage) {
-      if (e.key === 'Enter' && !e.altKey) {
+      if (e.key === 'Enter' && !e.altKey && !e.shiftKey) {
         e.preventDefault();
         handleSaveEdit();
-      } else if (e.key === 'Enter' && e.altKey) {
+      } else if (e.key === 'Enter' && (e.altKey || e.shiftKey)) {
         // Biarkan baris baru di mode edit dengan fokus kursor yang tepat
         e.preventDefault();
         const textarea = e.target;
@@ -428,13 +428,13 @@ const BaseChatPage = ({
         }, 0);
       }
     } else {
-      if (e.key === 'Enter' && !e.altKey) {
+      if (e.key === 'Enter' && !e.altKey && !e.shiftKey) {
         // Kirim pesan dengan Enter (desktop) atau selalu di mobile
         e.preventDefault();
         handleSend();
         setShowEmojiPicker(false);
-      } else if (e.key === 'Enter' && e.altKey) {
-        // Tambah baris baru dengan Alt+Enter (desktop saja) dengan fokus kursor yang tepat
+      } else if (e.key === 'Enter' && (e.altKey || e.shiftKey)) {
+        // Tambah baris baru dengan Alt+Enter atau Shift+Enter (desktop saja) dengan fokus kursor yang tepat
         if (!isMobileKeyboard) {
           e.preventDefault();
           const textarea = e.target;
