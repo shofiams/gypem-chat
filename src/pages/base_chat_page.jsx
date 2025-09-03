@@ -125,6 +125,7 @@ const BaseChatPage = ({
   const searchHighlightTimer = useRef(null);
   const inputRef = useRef(null);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [isMobileKeyboard, setIsMobileKeyboard] = useState(false);
 
   // Check if chatId is valid and mark as read
   useEffect(() => {
@@ -265,6 +266,37 @@ const BaseChatPage = ({
     }
   }, [actualChatId, canSendMessages, isSelectionMode]);
 
+  useEffect(() => {
+    const cekMobile = () => {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      setIsMobileKeyboard(isMobile || isTouchDevice);
+    };
+    
+    cekMobile();
+    window.addEventListener('resize', cekMobile);
+    return () => window.removeEventListener('resize', cekMobile);
+  }, []);
+
+  useEffect(() => {
+    if (editingMessage && editText && inputRef.current) {
+      // Delay sedikit untuk memastikan konten sudah ter-render
+      setTimeout(() => {
+        if (inputRef.current) {
+          autoResize(inputRef.current);
+          inputRef.current.focus();
+          
+          // Set kursor ke akhir teks
+          const textLength = editText.length;
+          inputRef.current.setSelectionRange(textLength, textLength);
+          
+          // Pastikan kursor terlihat pada teks panjang
+          scrollToCursor(inputRef.current);
+        }
+      }, 50);
+    }
+  }, [editingMessage, editText]);
+
   // Function to check selected message types
   const getSelectedMessageTypes = () => {
     if (!isSelectionMode || selectedMessages.size === 0) return { hasReceiver: false, hasSender: false };
@@ -351,16 +383,129 @@ const BaseChatPage = ({
       ...(replyingMessage && { reply: replyingMessage })
     };
     
-    // Add to context instead of local state
     addMessage(actualChatId, newMessage);
     setMessage("");
     setReplyingMessage(null);
     setShowEmojiPicker(false);
 
+    // Reset tinggi textarea ke ukuran awal setelah mengirim pesan
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = '24px'; // tinggi minimal
+        inputRef.current.style.overflowY = 'hidden'; // hilangkan scroll
+        inputRef.current.focus();
+      }
+    }, 10);
+
     setIsUserScrolling(false);
     setTimeout(() => {
       scrollToBottom();
     }, 50);
+  };
+
+  const handleKeyDown = (e) => {
+    if (editingMessage) {
+      if (e.key === 'Enter' && !e.altKey && !e.shiftKey) {
+        e.preventDefault();
+        handleSaveEdit();
+      } else if (e.key === 'Enter' && (e.altKey || e.shiftKey)) {
+        // Biarkan baris baru di mode edit dengan fokus kursor yang tepat
+        e.preventDefault();
+        const textarea = e.target;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const newValue = editText.substring(0, start) + '\n' + editText.substring(end);
+        setEditText(newValue);
+        
+        // Set posisi kursor setelah baris baru dan resize
+        setTimeout(() => {
+          textarea.selectionStart = textarea.selectionEnd = start + 1;
+          textarea.focus();
+          autoResize(textarea);
+          // Scroll ke posisi kursor jika textarea memiliki scroll
+          scrollToCursor(textarea);
+        }, 0);
+      }
+    } else {
+      if (e.key === 'Enter' && !e.altKey && !e.shiftKey) {
+        // Kirim pesan dengan Enter (desktop) atau selalu di mobile
+        e.preventDefault();
+        handleSend();
+        setShowEmojiPicker(false);
+      } else if (e.key === 'Enter' && (e.altKey || e.shiftKey)) {
+        // Tambah baris baru dengan Alt+Enter atau Shift+Enter (desktop saja) dengan fokus kursor yang tepat
+        if (!isMobileKeyboard) {
+          e.preventDefault();
+          const textarea = e.target;
+          const start = textarea.selectionStart;
+          const end = textarea.selectionEnd;
+          const newValue = message.substring(0, start) + '\n' + message.substring(end);
+          setMessage(newValue);
+          
+          // Set posisi kursor setelah baris baru dan resize
+          setTimeout(() => {
+            textarea.selectionStart = textarea.selectionEnd = start + 1;
+            textarea.focus();
+            autoResize(textarea);
+            // Scroll ke posisi kursor jika textarea memiliki scroll
+            scrollToCursor(textarea);
+          }, 0);
+        }
+      }
+    }
+    
+    // Handle tombol Escape untuk membatalkan edit
+    if (e.key === 'Escape' && editingMessage) {
+      handleCancelEdit();
+    }
+  };
+  
+  const scrollToCursor = (textarea) => {
+    if (!textarea) return;
+    
+    // Hanya scroll jika textarea memiliki scroll (tinggi konten > tinggi visible)
+    if (textarea.scrollHeight > textarea.clientHeight) {
+      const lineHeight = 24; // Sesuaikan dengan line-height CSS
+      const cursorPosition = textarea.selectionStart;
+      const textBeforeCursor = textarea.value.substring(0, cursorPosition);
+      const lines = textBeforeCursor.split('\n').length;
+      const cursorY = lines * lineHeight;
+      
+      // Scroll agar kursor tetap terlihat
+      const scrollTop = Math.max(0, cursorY - textarea.clientHeight + lineHeight);
+      textarea.scrollTop = scrollTop;
+    }
+  };
+
+  const autoResize = (textarea) => {
+    if (!textarea) return;
+    
+    // Reset height untuk mendapatkan scrollHeight yang akurat
+    textarea.style.height = 'auto';
+    const scrollHeight = textarea.scrollHeight;
+    const maxHeight = 120; // Tinggi maksimal dalam piksel (sekitar 5 baris)
+    const minHeight = 24;  // Tinggi minimal dalam piksel
+    
+    // Set height berdasarkan content, tapi tidak kurang dari minHeight
+    const newHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
+    textarea.style.height = newHeight + 'px';
+    textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
+  };
+
+  // Handler perubahan input yang ditingkatkan
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    if (editingMessage) {
+      setEditText(value);
+    } else {
+      setMessage(value);
+    }
+    
+    // Auto-resize textarea
+    setTimeout(() => {
+      autoResize(e.target);
+    }, 0);
   };
 
   // Handle edit message
@@ -369,6 +514,21 @@ const BaseChatPage = ({
     if (messageToEdit && messageToEdit.message) {
       setEditingMessage(messageId);
       setEditText(messageToEdit.message);
+      
+      // Pastikan textarea menyesuaikan ukuran dengan konten edit
+      setTimeout(() => {
+        if (inputRef.current) {
+          autoResize(inputRef.current);
+          inputRef.current.focus();
+          
+          // Pindahkan kursor ke akhir teks
+          const textLength = messageToEdit.message.length;
+          inputRef.current.setSelectionRange(textLength, textLength);
+          
+          // Scroll ke posisi kursor jika teks panjang
+          scrollToCursor(inputRef.current);
+        }
+      }, 10);
     }
   };
 
@@ -376,7 +536,6 @@ const BaseChatPage = ({
   const handleSaveEdit = () => {
     if (!editText.trim()) return;
     
-    // Update message in context instead of local state
     updateMessage(actualChatId, editingMessage, {
       message: editText.trim(),
       isEdited: true
@@ -384,12 +543,32 @@ const BaseChatPage = ({
     
     setEditingMessage(null);
     setEditText("");
+    
+    // Reset textarea ke ukuran minimal
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = '24px';
+        inputRef.current.style.overflowY = 'hidden';
+        inputRef.current.focus();
+      }
+    }, 10);
   };
 
   // Cancel edit
   const handleCancelEdit = () => {
     setEditingMessage(null);
     setEditText("");
+    
+    // Reset textarea ke ukuran minimal
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = '24px';
+        inputRef.current.style.overflowY = 'hidden';
+        inputRef.current.focus();
+      }
+    }, 10);
   };
 
   // Selection mode handlers
@@ -1078,7 +1257,7 @@ const BaseChatPage = ({
             className={`relative p-3 flex items-center gap-2 border-t transition-all duration-300`}
             style={{ borderColor: "#bababa" }}
           >
-            {/* Emoji and File buttons */}
+            {/* Tombol Emoji dan File */}
             <div className="relative">
               <div
                 className={`rounded-md p-1 cursor-pointer transition-colors ${
@@ -1101,7 +1280,32 @@ const BaseChatPage = ({
                   onClick={(e) => e.stopPropagation()}
                 >
                   <EmojiPicker onEmojiClick={(emojiData) => {
-                    setMessage((prev) => prev + emojiData.emoji);
+                    const textarea = inputRef.current;
+                    if (textarea) {
+                      const start = textarea.selectionStart;
+                      const end = textarea.selectionEnd;
+                      const currentValue = editingMessage ? editText : message;
+                      const newValue = currentValue.substring(0, start) + emojiData.emoji + currentValue.substring(end);
+                      
+                      if (editingMessage) {
+                        setEditText(newValue);
+                      } else {
+                        setMessage(newValue);
+                      }
+                      
+                      // Set posisi kursor setelah emoji
+                      setTimeout(() => {
+                        textarea.selectionStart = textarea.selectionEnd = start + emojiData.emoji.length;
+                        textarea.focus();
+                        autoResize(textarea);
+                      }, 0);
+                    } else {
+                      if (editingMessage) {
+                        setEditText(prev => prev + emojiData.emoji);
+                      } else {
+                        setMessage(prev => prev + emojiData.emoji);
+                      }
+                    }
                     setShowEmojiPicker(false);
                   }} />
                 </div>
@@ -1128,46 +1332,38 @@ const BaseChatPage = ({
 
             {/* Message Input */}
             <div
-              className="flex items-center flex-1 border rounded-full px-3 py-1"
+              className="flex items-center flex-1 border rounded-2xl px-3 py-1"
               style={{ borderColor: "#4C0D68" }}
             >
-              <input
+              <textarea
                 ref={inputRef}
-                type="text"
-                placeholder={editingMessage ? "Edit your message..." : "write down the message"}
+                placeholder={editingMessage ? "Edit your message..." : "Write down the message"}
                 value={editingMessage ? editText : message}
-                onChange={(e) => {
-                  if (editingMessage) {
-                    setEditText(e.target.value);
-                  } else {
-                    setMessage(e.target.value);
-                  }
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                rows="1"
+                className="flex-1 text-sm outline-none resize-none min-h-[24px] max-h-[120px] leading-6 py-0"
+                style={{
+                  scrollbarWidth: 'thin',
+                  scrollbarColor: 'rgba(156, 163, 175, 0.3) transparent'
                 }}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    if (editingMessage) {
-                      handleSaveEdit();
-                    } else {
-                      handleSend();
-                      setShowEmojiPicker(false);
-                    }
-                  }
-                }}
-                className="flex-1 text-sm outline-none"
               />
+              
+              {/* Tombol Kirim */}
               <button 
                 onClick={editingMessage ? handleSaveEdit : handleSend}
                 disabled={editingMessage ? !editText.trim() : !message.trim()}
-                className={`transition-opacity ${
+                className={`ml-2 p-1 rounded-full transition-all ${
                   (editingMessage ? !editText.trim() : !message.trim()) 
                     ? 'opacity-50 cursor-not-allowed' 
-                    : 'hover:opacity-80'
+                    : 'hover:opacity-80 hover:bg-gray-100'
                 }`}
+                title={editingMessage ? "Simpan perubahan" : "Kirim pesan"}
               >
                 <img
                   src={editingMessage ? assets.Check || assets.Send : assets.Send}
-                  alt={editingMessage ? "save" : "send"}
-                  className="w-6 h-6 cursor-pointer"
+                  alt={editingMessage ? "simpan" : "kirim"}
+                  className="w-6 h-6"
                 />
               </button>
             </div>

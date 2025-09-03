@@ -320,7 +320,7 @@ export default function ChatBubblePeserta({ ...props }) {
 
   // Fungsi untuk mendapatkan class bubble dengan ekor
   const getBubbleClasses = () => {
-    const baseClasses = "relative max-w-xs p-2 transition-all";
+    const baseClasses = "relative max-w-xs p-2 transition-all break-all";
     const hasTail = shouldHaveTail();
     
     if (isSender) {
@@ -618,16 +618,159 @@ export default function ChatBubblePeserta({ ...props }) {
     );
   };
 
-  // Render message text with search highlighting
+  // Function to format message with line breaks
+  const formatMessageWithLineBreaks = (text) => {
+    if (!text) return null;
+    
+    // Split the text by line breaks and filter out empty strings
+    const lines = text.split('\n');
+    
+    return lines.map((line, index) => (
+      <React.Fragment key={index}>
+        {line}
+        {index < lines.length - 1 && <br />}
+      </React.Fragment>
+    ));
+  };
+
+  // Render message text dengan search highlighting, line breaks, dan read more
   const renderMessageText = () => {
     if (!message) return null;
     
     if (searchQuery && highlightSearchTerm) {
-      return highlightSearchTerm(message, searchQuery);
+      // Untuk search highlighting
+      const needsReadMore = shouldShowReadMore(message);
+      const displayText = needsReadMore && !isExpanded 
+        ? truncateToLines(message, MAX_LINES) 
+        : message;
+      
+      const lines = displayText.split('\n');
+      const highlightedContent = lines.map((line, index) => (
+        <React.Fragment key={index}>
+          {highlightSearchTerm(line, searchQuery)}
+          {index < lines.length - 1 && <br />}
+        </React.Fragment>
+      ));
+
+      return (
+        <div>
+          {highlightedContent}
+          {needsReadMore && !isExpanded && (
+            <div className="mt-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(true);
+                }}
+                className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${
+                  isSender ? 'text-white' : 'text-[#4C0D68]'
+                }`}
+              >
+                Read more
+              </button>
+            </div>
+          )}
+          {needsReadMore && isExpanded && (
+            <div className="mt-2">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsExpanded(false);
+                }}
+                className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${
+                  isSender ? 'text-white' : 'text-[#4C0D68]'
+                }`}
+              >
+                Show less
+              </button>
+            </div>
+          )}
+        </div>
+      );
     }
     
-    return message;
+    return formatMessageWithReadMore(message);
   };
+
+  const [isExpanded, setIsExpanded] = useState(false);
+  const MAX_LINES = 15;
+
+  // Fungsi untuk menghitung jumlah baris dalam teks
+  const countLines = (text) => {
+    if (!text) return 0;
+    return text.split('\n').length;
+  };
+
+  // Fungsi untuk memotong teks hingga baris tertentu
+  const truncateToLines = (text, maxLines) => {
+    if (!text) return '';
+    const lines = text.split('\n');
+    if (lines.length <= maxLines) return text;
+    return lines.slice(0, maxLines).join('\n');
+  };
+
+  // Fungsi untuk menentukan apakah perlu tombol "read more"
+  const shouldShowReadMore = (text) => {
+    return countLines(text) > MAX_LINES;
+  };
+
+  // Fungsi untuk format pesan dengan read more
+  const formatMessageWithReadMore = (text) => {
+    if (!text) return null;
+    
+    const needsReadMore = shouldShowReadMore(text);
+    const displayText = needsReadMore && !isExpanded 
+      ? truncateToLines(text, MAX_LINES) 
+      : text;
+    
+    // Split the text by line breaks
+    const lines = displayText.split('\n');
+    
+    const formattedText = lines.map((line, index) => (
+      <React.Fragment key={index}>
+        {line}
+        {index < lines.length - 1 && <br />}
+      </React.Fragment>
+    ));
+
+    return (
+      <div>
+        {formattedText}
+        {needsReadMore && !isExpanded && (
+          <div className="mt-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(true);
+              }}
+              className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${
+                isSender ? 'text-white' : 'text-[#4C0D68]'
+              }`}
+            >
+              Read more
+            </button>
+          </div>
+        )}
+        {needsReadMore && isExpanded && (
+          <div className="mt-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsExpanded(false);
+              }}
+              className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${
+                isSender ? 'text-white' : 'text-[#4C0D68]'
+              }`}
+            >
+              Show less
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  
 
   // Determine when to show dropdown button
   const shouldShowDropdownButton = () => {
@@ -666,15 +809,27 @@ export default function ChatBubblePeserta({ ...props }) {
   const renderReply = () => {
     if (!reply) return null;
 
+    // Format reply message with line breaks
+    const formatReplyMessage = (text) => {
+      if (!text) return null;
+      const lines = text.split('\n');
+      return lines.map((line, index) => (
+        <React.Fragment key={index}>
+          {line}
+          {index < lines.length - 1 && <br />}
+        </React.Fragment>
+      ));
+    };
+
     // Untuk bubble ungu (pesan dari orang lain), reply styling abu-abu
     if (!isSender) {
       return (
-        <div className="mb-1 p-1 border-l-4 border-[#4C0D68] bg-gray-50 text-xs text-gray-500 rounded">
-        <div className="font-semibold text-[#4C0D68]">
+        <div className="mb-1 p-1 border-l-4 border-[#4C0D68] bg-gray-50 text-xs text-gray-500 rounded break-all">
+        <div className="font-semibold text-[#4C0D68] break-all">
             {reply.sender}
           </div>
-          <div>
-            {reply.message}
+          <div className="break-all">
+            {formatReplyMessage(reply.message)}
           </div>
         </div>
       );
@@ -682,12 +837,12 @@ export default function ChatBubblePeserta({ ...props }) {
     
     // Untuk bubble putih (pesan sendiri), reply styling tetap seperti kode asli
     return (
-      <div className="mb-1 p-1 border-l-4 border-[#bd2cfc] bg-gray-50 text-xs text-gray-500 rounded">
-        <div className="font-semibold text-[#bd2cfc]">
+      <div className="mb-1 p-1 border-l-4 border-[#bd2cfc] bg-gray-50 text-xs text-gray-500 rounded break-all">
+        <div className="font-semibold text-[#bd2cfc] break-all">
           {reply.sender}
         </div>
-        <div>
-          {reply.message}
+        <div className="break-all">
+          {formatReplyMessage(reply.message)}
         </div>
       </div>
     );
@@ -749,7 +904,7 @@ export default function ChatBubblePeserta({ ...props }) {
               {/* Show sender name hanya jika shouldShowSenderName() mengembalikan true */}
               {shouldShowSenderName() && (
                 <div 
-                  className="font-semibold text-[13px]"
+                  className="font-semibold text-[13px] mb-1"
                   style={{ color: getSenderNameColor() }}
                 >
                   {sender}
@@ -764,8 +919,9 @@ export default function ChatBubblePeserta({ ...props }) {
                   <img
                     src={getCurrentImageUrl()}
                     alt="chat-img"
-                    className="max-w-[200px] rounded-md cursor-pointer hover:opacity-90 transition-opacity"
+                    className="max-w-full rounded-md cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={handleImageClick}
+                    style={{ maxWidth: '200px' }}
                   />
                   {/* Status icons for image with caption */}
                   {!message && !isDeleted && (
@@ -784,13 +940,13 @@ export default function ChatBubblePeserta({ ...props }) {
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <img src={assets.File} alt="file" className="w-8 h-8" />
-                      <div className="flex flex-col text-sm text-black">
-                        <span className="font-semibold">{file.name}</span>
+                      <img src={assets.File} alt="file" className="w-8 h-8 flex-shrink-0" />
+                      <div className="flex flex-col text-sm text-black min-w-0 flex-1">
+                        <span className="font-semibold break-words">{file.name}</span>
                         <span className="text-xs text-gray-500">{file.size}</span>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <button
                         className="px-6 py-1 text-xs rounded-md border border-[#4C0D68] text-[#4C0D68] hover:bg-[#4C0D68] hover:text-white transition"
                         onClick={(e) => {
@@ -824,11 +980,13 @@ export default function ChatBubblePeserta({ ...props }) {
                   isSender ? "text-white" : "text-black"
                 }`}>
                   <div className="flex items-end justify-between gap-2">
-                    <div className="flex items-center gap-1 flex-1">
+                    <div className="flex items-start gap-1 flex-1 min-w-0">
                       {isDeleted && (
-                        <img src={assets.Tarik} alt="deleted" className="w-4 h-4 flex-shrink-0" />
+                        <img src={assets.Tarik} alt="deleted" className="w-4 h-4 flex-shrink-0 mt-0.5" />
                       )}
-                      <span className="flex-1">{renderMessageText()}</span>
+                      <div className="flex-1 break-all leading-relaxed">
+                        {renderMessageText()}
+                      </div>
                     </div>
 
                     {/* Status icons for message */}
