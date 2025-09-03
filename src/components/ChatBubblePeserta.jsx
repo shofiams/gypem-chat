@@ -704,6 +704,21 @@ export default function ChatBubblePeserta({ ...props }) {
   // Fungsi untuk memotong teks hingga baris tertentu
   const truncateToLines = (text, maxLines) => {
     if (!text) return '';
+    
+    const maxChars = 35 * maxLines; // 35 karakter per baris estimasi
+    
+    // Jika terlalu panjang berdasarkan karakter
+    if (text.length > maxChars) {
+      let truncatePos = maxChars;
+      // Cari spasi terdekat untuk memotong dengan rapi
+      while (truncatePos > 0 && text[truncatePos] !== ' ' && text[truncatePos] !== '\n') {
+        truncatePos--;
+      }
+      if (truncatePos === 0) truncatePos = maxChars;
+      return text.substring(0, truncatePos) + '...';
+    }
+    
+    // Jika tidak, gunakan metode berdasarkan line break
     const lines = text.split('\n');
     if (lines.length <= maxLines) return text;
     return lines.slice(0, maxLines).join('\n');
@@ -711,7 +726,12 @@ export default function ChatBubblePeserta({ ...props }) {
 
   // Fungsi untuk menentukan apakah perlu tombol "read more"
   const shouldShowReadMore = (text) => {
-    return countLines(text) > MAX_LINES;
+    if (!text) return false;
+    
+    const lineCount = text.split('\n').length;
+    const charCount = text.length;
+    
+    return lineCount > MAX_LINES || charCount > 500; // 500 bisa disesuaikan
   };
 
   // Fungsi untuk format pesan dengan read more
