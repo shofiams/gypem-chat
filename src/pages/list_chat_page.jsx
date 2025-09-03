@@ -237,6 +237,37 @@ export default function ChatPage() {
   const [chatToDelete, setChatToDelete] = useState(null);
   const confirmRef = useRef(null);
 
+  // PERBAIKAN: Clear search hanya ketika benar-benar berpindah ke halaman berbeda
+  const prevPathnameRef = useRef(location.pathname);
+
+  useEffect(() => {
+    const currentPathname = location.pathname;
+    const prevPathname = prevPathnameRef.current;
+    
+    // Definisikan halaman-halaman utama
+    const getPageType = (pathname) => {
+      if (pathname === '/starred') return 'starred';
+      if (pathname.startsWith('/group') && pathname === '/group') return 'group';
+      if (pathname.startsWith('/chats') && pathname === '/chats') return 'chats'; 
+      if (pathname === '/chats' || pathname === '/') return 'chats';
+      return null; // untuk halaman detail chat/group
+    };
+    
+    const currentPageType = getPageType(currentPathname);
+    const prevPageType = getPageType(prevPathname);
+    
+    // Clear search hanya jika:
+    // 1. Berpindah dari satu halaman utama ke halaman utama lainnya
+    // 2. Atau dari halaman detail kembali ke halaman utama yang berbeda
+    if (currentPageType && prevPageType && currentPageType !== prevPageType) {
+      setSearchQuery('');
+    }
+    // Jika dari halaman detail ke halaman utama yang sama, tidak clear search
+    // Jika navigasi di halaman yang sama, tidak clear search
+    
+    prevPathnameRef.current = currentPathname;
+  }, [location.pathname]);
+
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return null;
@@ -830,7 +861,7 @@ export default function ChatPage() {
                   Cancel
                 </button>
               </div>
-            </div>
+            </div>    
           </div>
         </div>
       )}
