@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { assets } from "../assets/assets";
 
 const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
@@ -7,6 +7,38 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
   const [caption, setCaption] = useState("");
   const imageInputRef = useRef(null);
   const documentInputRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Auto focus dan global event listener untuk Enter
+  useEffect(() => {
+    if (isOpen && selectedFile) {
+      // Auto focus pada container
+      if (containerRef.current) {
+        containerRef.current.focus();
+      }
+
+      // Global event listener untuk Enter key
+      const handleGlobalKeyDown = (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          e.stopPropagation();
+          // Langsung kirim file dengan caption (bisa kosong)
+          onSend({
+            file: selectedFile,
+            type: fileType,
+            caption: caption.trim()
+          });
+          handleClose();
+        }
+      };
+
+      document.addEventListener('keydown', handleGlobalKeyDown, true);
+      
+      return () => {
+        document.removeEventListener('keydown', handleGlobalKeyDown, true);
+      };
+    }
+  }, [isOpen, selectedFile, fileType, caption, onSend]);
 
   if (!isOpen) return null;
 
@@ -86,7 +118,6 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
             minWidth: '200px'
           }}
         >
-
           {/* Options */}
           <div className="p-2">
             <button
@@ -128,49 +159,53 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
 
   // File selected - show preview with caption (fullscreen like in the image)
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col">
-      {/* Header */}
-        <div className="flex items-center justify-end p-4 border-b border-gray-200 bg-white">
+    <div 
+      ref={containerRef}
+      className="fixed inset-0 bg-white z-50 flex flex-col max-h-screen outline-none"
+      tabIndex="0"
+    >
+      {/* Header - FIXED HEIGHT */}
+      <div className="flex-shrink-0 flex items-center justify-end p-4 border-b border-gray-200 bg-white">
         <button
-            onClick={handleClose}
-            className="px-3 py-1 text-lg text-gray-600 hover:bg-gray-100 rounded transition"
+          onClick={handleClose}
+          className="px-3 py-1 text-lg text-gray-600 hover:bg-gray-100 rounded transition"
         >
-            Cancel
+          Cancel
         </button>
-        </div>
-
-
-      {/* Preview Area */}
-      <div className="flex-1 flex items-center justify-center p-6 bg-gray-50">
-        {fileType === 'image' ? (
-          <div className="max-w-md w-full">
-            <img
-              src={selectedFile.preview}
-              alt="Preview"
-              className="w-full rounded-2xl shadow-lg"
-              style={{ maxHeight: '400px', objectFit: 'contain' }}
-            />
-            <div className="mt-4 text-center">
-              <p className="text-sm text-gray-600">{selectedFile.name}</p>
-              <p className="text-xs text-gray-400">{selectedFile.size}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl p-8 shadow-lg max-w-sm w-full text-center">
-            <div className="flex flex-col items-center gap-4">
-              <img src={assets.Doc} alt="Document" className="w-16 h-16" />
-              <div>
-                <p className="font-semibold text-lg text-gray-800">{selectedFile.name}</p>
-                <p className="text-sm text-gray-500">Document</p>
-                <p className="text-xs text-gray-400">{selectedFile.size}</p>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Caption Input - styled like the chat input in the image */}
-      <div className="p-4 border-t border-gray-200 bg-white">
+      {/* Preview Area - FLEXIBLE HEIGHT WITH LIMITS */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex flex-col items-center justify-center p-6 bg-gray-50">
+        <div className="max-w-md w-full flex flex-col items-center">
+          {fileType === 'image' ? (
+            <div className="w-full max-h-[60vh] flex items-center justify-center">
+              <img
+                src={selectedFile.preview}
+                alt="Preview"
+                className="max-w-full max-h-full object-contain rounded-2xl shadow-lg"
+              />
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl p-8 shadow-lg w-full text-center">
+              <div className="flex flex-col items-center gap-4">
+                <img src={assets.Doc} alt="Document" className="w-16 h-16" />
+                <div>
+                  <p className="text-sm text-gray-500">Document</p>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* File info - always shown below content */}
+          <div className="mt-4 text-center flex-shrink-0">
+            <p className="text-sm text-gray-600 font-medium">{selectedFile.name}</p>
+            <p className="text-xs text-gray-400">{selectedFile.size}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Caption Input - FIXED HEIGHT, ALWAYS VISIBLE */}
+      <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
         <div className="flex items-center gap-3 bg-gray-50 rounded-full p-2">          
           <input
             type="text"
