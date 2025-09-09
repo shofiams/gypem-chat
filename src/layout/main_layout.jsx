@@ -10,6 +10,7 @@ import { CgProfile } from "react-icons/cg";
 import { useChatContext } from '../api/use_chat_context';
 import NewMessagePopup from '../components/new_message'; 
 import ProfilePopup from '../components/profile_popup';
+import { ServiceTester } from '../components/ServiceTester';
 
 // Desktop Sidebar Item Component
 const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
@@ -568,6 +569,7 @@ const MainLayout = () => {
           {/* Main Content Area - Where all pages render */}
           <main className={`flex-1 overflow-y-auto ${isChatRoute ? 'pb-0' : 'pb-20'} md:pb-0 md:border-l-2 md:border-t-2 md:border-grey-600 md:rounded-tl-lg`}>
             <div className="h-full bg-white">
+              {/* <ServiceTester />  */}
               <Outlet />
             </div>
           </main>

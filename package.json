@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "axios": "^1.11.0",
     "color2k": "^2.0.3",
     "emoji-picker-react": "^4.13.2",
     "lucide-react": "^0.539.0",
