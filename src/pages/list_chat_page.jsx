@@ -6,26 +6,51 @@ import { MdDoneAll } from 'react-icons/md';
 import { FiX, FiSearch, FiTrash2 } from 'react-icons/fi';
 import PesertaChatPage from './PesertaChatPage';
 import GroupChatPeserta from './GroupChatPeserta';
+import { formatTime } from '../api/roomService';
+import { useRooms, useRoomOperations } from '../hooks/useRooms';
+import { useStarredMessages, useStarredMessagesSearch } from '../hooks/useStarredMessages';
+import { useGlobalSearch } from '../hooks/useSearch';
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const ChatItem = ({
-  id,
-  avatar,
+  room_id,
+  room_member_id,
+  room_type,
   name,
-  lastMessage,
-  time,
-  unreadCount,
-  isOnline,
-  lastMessageType,
+  description,
+  url_photo,
+  last_message,
+  last_time,
+  unread_count,
+  is_archived,
+  is_pinned,
+  // API fields for starred messages  
+  message_id,
+  content,
+  sender,
+  created_at,
+  file_type,
+  file_path,
+  reply_to_message,
+  message_status,
+  // Component props
   onContextMenu,
   isSelected,
   highlightQuery,
   onClick,
   isStarredItem = false,
-  chatType,
-  sender
+  chatName
 }) => {
+
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace("/api/", ""); 
+
+  const getPhotoUrl = (url) => {
+    if (!url) return assets.user;
+    if (url.startsWith("http")) return url;
+    return `${API_BASE_URL}/uploads/${url}`;
+  };
+  
   const highlightText = (text, query) => {
     if (!isStarredItem || !query) return text;
     const q = query.trim();
@@ -59,7 +84,7 @@ const ChatItem = ({
   const handleTouchStart = (e) => {
     if (onContextMenu) {
       pressTimer = setTimeout(() => {
-        onContextMenu(e, id);
+        onContextMenu(e, room_member_id);
       }, 600);
     }
   };
@@ -70,27 +95,24 @@ const ChatItem = ({
 
   // Different layout for starred items
   if (isStarredItem) {
+    const displayTime = formatTime(created_at);
+    const displayMessage = content;
+    const displayName = chatName || sender;
+    
     return (
       <div
-        onClick={() => onClick && onClick(id)}
+        onClick={() => onClick && onClick(message_id)}
         role="button"
         tabIndex={0}
         className="w-full"
       >
-        <div
-          className={`
-            flex items-start px-4 py-3 cursor-pointer min-h-[56px]
-            md:px-3 md:py-2 md:min-h-[52px]
-            hover:bg-gray-100 transition-colors duration-150
-            mx-2 rounded-lg relative
-          `}
-        >
+        <div className="flex items-start px-4 py-3 cursor-pointer min-h-[56px] md:px-3 md:py-2 md:min-h-[52px] hover:bg-gray-100 transition-colors duration-150 mx-2 rounded-lg relative">
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between">
               <div className="min-w-0 flex-1 py-1">
                 <h3 className="font-semibold text-gray-900 truncate text-[12px] md:text-[13px] leading-tight mb-[3px]">
-                  {highlightText(name, highlightQuery)}
-                  {chatType === 'group' && (
+                  {highlightText(displayName, highlightQuery)}
+                  {room_type === 'group' && (
                     <span className="ml-1 text-gray-400">(Group)</span>
                   )}
                 </h3>
@@ -99,12 +121,12 @@ const ChatItem = ({
                     {sender}:
                   </span>
                   <p className="text-gray-400 truncate text-[10px] md:text-[11px] leading-tight min-w-0">
-                    {highlightText(lastMessage, highlightQuery)}
+                    {highlightText(displayMessage, highlightQuery)}
                   </p>
                 </div>
               </div>
               <div className="shrink-0 ml-3 text-right">
-                <span className="text-[10px] text-gray-400 leading-tight">{time}</span>
+                <span className="text-[10px] text-gray-400 leading-tight">{displayTime}</span>
               </div>
             </div>
           </div>
@@ -115,10 +137,12 @@ const ChatItem = ({
   }
 
   // Regular chat item layout
+  const displayTime = formatTime(last_time);
+
   return (
     <div
-      onClick={() => onClick && onClick(id)}
-      onContextMenu={(e) => onContextMenu && onContextMenu(e, id)}
+      onClick={() => onClick && onClick(room_id)}
+      onContextMenu={(e) => onContextMenu && onContextMenu(e, room_member_id)}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
       onTouchCancel={handleTouchEnd}
@@ -127,7 +151,7 @@ const ChatItem = ({
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onClick && onClick(id);
+          onClick && onClick(room_id);
         }
       }}
       className="w-full"
@@ -145,13 +169,11 @@ const ChatItem = ({
       >
         <div className="relative flex-shrink-0">
           <img
-            src={avatar || assets.profile_list || assets.user}
+            src={getPhotoUrl(url_photo)}
             alt={name}
             className="w-12 h-12 md:w-10 md:h-10 rounded-full object-cover"
+            onLoad={() => console.log("ini Image URL:", getPhotoUrl(url_photo))}
           />
-          {isOnline && (
-            <span className="absolute bottom-0 right-0 w-4 h-4 md:w-3 md:h-3 bg-yellow-500 rounded-full border-2 border-white"></span>
-          )}
         </div>
 
         <div className="flex-1 ml-4 md:ml-3 min-w-0">
@@ -162,24 +184,20 @@ const ChatItem = ({
               </h3>
 
               <div className="flex items-center gap-x-1 min-w-0">
-                {lastMessageType === 'sender' && (
-                  <MdDoneAll className="text-base md:text-[14px] flex-shrink-0 text-blue-500" aria-hidden="true" />
-                )}
-
                 <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight mt-0">
-                  {highlightText(lastMessage, highlightQuery)}
+                  {last_message}
                 </p>
               </div>
             </div>
 
             <div className="flex flex-col items-end ml-3 shrink-0">
-              <span className="text-xs md:text-[10px] text-gray-400 leading-tight">{time}</span>
-              {unreadCount > 0 && (
+              <span className="text-xs md:text-[10px] text-gray-400 leading-tight">{displayTime}</span>
+              {unread_count > 0 && (
                 <span
                   className="bg-purple-800 text-white text-xs md:text-[9px] rounded-full w-5 h-5 md:w-4 md:h-4 flex items-center justify-center leading-none mt-1"
-                  aria-label={`${unreadCount} unread`}
+                  aria-label={`${unread_count} unread`}
                 >
-                  {unreadCount}
+                  {unread_count}
                 </span>
               )}
             </div>
@@ -196,137 +214,191 @@ export default function ChatPage() {
   const location = useLocation();
   const urlParams = new URLSearchParams(location.search);
   const highlightId = urlParams.get('highlight');
-  const { 
-    getAllChats, 
-    getChatById, 
-    deleteChat, 
-    activeChatId, 
-    setActiveChat, 
-    clearActiveChat,
-    getStarredMessages,
-    searchAllMessages 
-  } = useChatContext();
   
+  // State management
   const [searchQuery, setSearchQuery] = useState('');
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [highlightMessageId, setHighlightMessageId] = useState(null);
-  
-  const allChats = getAllChats();
+  const [activeChatId, setActiveChatId] = useState(null);
 
   // Determine page type based on location
   const isGroupPage = location.pathname.startsWith('/group');
   const isStarPage = location.pathname === '/starred';
   
+  // Use appropriate hooks based on page type
+  const { 
+    rooms: allRooms, 
+    loading: roomsLoading, 
+    error: roomsError,
+    refetch: refetchRooms 
+  } = useRooms();
+  
+  const { 
+    data: starredMessages, 
+    loading: starredLoading, 
+    error: starredError,
+    refetch: refetchStarred 
+  } = useStarredMessages({ manual: isStarPage ? false : true });
+  
+  const { 
+    deleteRooms,
+    loading: deleteLoading,
+    error: deleteError 
+  } = useRoomOperations();
+
+  const {
+    searchResults,
+    loading: searchLoading,
+    performSearch,
+    clearSearch: clearGlobalSearch
+  } = useGlobalSearch();
+
+  const {
+    searchResults: starredSearchResults,
+    loading: starredSearchLoading,
+    performSearch: performStarredSearch,
+    clearSearch: clearStarredSearch
+  } = useStarredMessagesSearch();
+
   // Get appropriate data based on page type
-  const getChat = () => {
+  const getPageData = () => {
     if (isStarPage) {
-      return getStarredMessages();
-    } else if (isGroupPage) {
-      return allChats.filter(chat => chat.type === 'group');
+      return {
+        data: starredMessages || [],
+        loading: starredLoading,
+        error: starredError
+      };
     } else {
-      return allChats;
+      const filteredRooms = isGroupPage 
+        ? allRooms?.filter(room => room.room_type === 'group') || []
+        : allRooms || [];
+      
+      return {
+        data: filteredRooms,
+        loading: roomsLoading,
+        error: roomsError
+      };
     }
   };
 
-  const chats = getChat();
+  const { data: chats, loading, error } = getPageData();
 
+  // Context menu and delete confirmation states
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chatId: null });
   const menuRef = useRef(null);
-
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [chatToDelete, setChatToDelete] = useState(null);
   const confirmRef = useRef(null);
 
-  // PERBAIKAN: Clear search hanya ketika benar-benar berpindah ke halaman berbeda
+  // Clear search when navigating between different page types
   const prevPathnameRef = useRef(location.pathname);
 
   useEffect(() => {
     const currentPathname = location.pathname;
     const prevPathname = prevPathnameRef.current;
     
-    // Definisikan halaman-halaman utama
     const getPageType = (pathname) => {
       if (pathname === '/starred') return 'starred';
       if (pathname.startsWith('/group') && pathname === '/group') return 'group';
       if (pathname.startsWith('/chats') && pathname === '/chats') return 'chats'; 
       if (pathname === '/chats' || pathname === '/') return 'chats';
-      return null; // untuk halaman detail chat/group
+      return null;
     };
     
     const currentPageType = getPageType(currentPathname);
     const prevPageType = getPageType(prevPathname);
     
-    // Clear search hanya jika:
-    // 1. Berpindah dari satu halaman utama ke halaman utama lainnya
-    // 2. Atau dari halaman detail kembali ke halaman utama yang berbeda
     if (currentPageType && prevPageType && currentPageType !== prevPageType) {
       setSearchQuery('');
+      clearGlobalSearch();
+      clearStarredSearch();
     }
-    // Jika dari halaman detail ke halaman utama yang sama, tidak clear search
-    // Jika navigasi di halaman yang sama, tidak clear search
     
     prevPathnameRef.current = currentPathname;
-  }, [location.pathname]);
+  }, [location.pathname, clearGlobalSearch, clearStarredSearch]);
 
-  const searchResults = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return null;
+  // Handle search
+  useEffect(() => {
+    const delayedSearch = setTimeout(() => {
+      if (searchQuery.trim()) {
+        if (isStarPage) {
+          performStarredSearch(searchQuery);
+        } else {
+          performSearch(searchQuery);
+        }
+      } else {
+        clearGlobalSearch();
+        clearStarredSearch();
+      }
+    }, 300); // Debounce search
+
+    return () => clearTimeout(delayedSearch);
+  }, [searchQuery, isStarPage, performSearch, performStarredSearch, clearGlobalSearch, clearStarredSearch]);
+
+  // Get current search results based on page type
+  const getCurrentSearchResults = () => {
+    if (!searchQuery.trim()) return null;
     
     if (isStarPage) {
-      // Keep existing starred messages search logic
-      const tokens = q.split(/\s+/).filter(Boolean);
-      const filtered = chats.filter(item => {
-        const hay = (item.chatName + ' ' + item.message + ' ' + item.sender).toLowerCase();
-        return tokens.every(tok => hay.includes(tok));
-      });
-      return { starredMessages: filtered };
+      return { starredMessages: starredSearchResults };
     } else {
-      return searchAllMessages(searchQuery, isGroupPage);
+      return searchResults;
     }
-  }, [searchQuery, chats, isStarPage, isGroupPage, searchAllMessages]);
+  };
 
-  const displayChats = searchQuery.trim() ? null : chats;
+  const currentSearchResults = getCurrentSearchResults();
 
-  const clearSearch = useCallback(() => setSearchQuery(''), []);
+  // Helper functions
+  const setActiveChat = (chatId) => {
+    setActiveChatId(chatId);
+  };
 
-  const handleChatClick = (chatId) => {
+  const clearActiveChat = () => {
+    setActiveChatId(null);
+  };
+
+  const getChatById = (chatId) => {
+    return chats.find(chat => chat.room_id === chatId);
+  };
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery('');
+    clearGlobalSearch();
+    clearStarredSearch();
+  }, [clearGlobalSearch, clearStarredSearch]);
+
+  // Handle chat click
+  const handleChatClick = (itemId) => {
     if (isStarPage) {
-      // Handle starred message click
-      const starredItem = chats.find(item => item.id === chatId);
+      const starredItem = chats.find(item => item.message_id === itemId);
       if (!starredItem) return;
 
       const currentIsMobile = window.innerWidth < 768;
       
       if (currentIsMobile) {
-        // Navigate to the chat page with highlight parameter
-        if (starredItem.chatType === 'group') {
-          navigate(`/group/${starredItem.chatId}?highlight=${starredItem.messageId}`);
-        } else {
-          navigate(`/chats/${starredItem.chatId}?highlight=${starredItem.messageId}`);
-        }
+        navigate(`/chats/${starredItem.room_id}?highlight=${starredItem.message_id}`);
       } else {
-        // Set active chat and highlight message for desktop split view
-        setActiveChat(starredItem.chatId);
-        setHighlightMessageId(starredItem.messageId);
+        setActiveChat(starredItem.room_id);
+        setHighlightMessageId(starredItem.message_id);
       }
     } else {
-      // Handle regular chat click
-      const chat = getChatById(chatId);
+      const chat = chats.find(c => c.room_id === itemId);
       const currentIsMobile = window.innerWidth < 768;
       
       if (currentIsMobile) {
-        if (chat?.type === 'group') {
-          navigate(`/group/${chatId}`);
+        if (chat?.room_type === 'group') {
+          navigate(`/group/${itemId}`);
         } else {
-          navigate(`/chats/${chatId}`);
+          navigate(`/chats/${itemId}`);
         }
       } else {
-        setActiveChat(chatId);
+        setActiveChat(itemId);
       }
     }
   };
 
-  const handleContextMenu = (e, chatId) => {
+  // Handle context menu
+  const handleContextMenu = (e, roomMemberId) => {
     if (isStarPage) return;
     
     e.preventDefault();
@@ -341,30 +413,35 @@ export default function ChatPage() {
     if (clickX + menuWidth + 8 > winW) clickX = winW - menuWidth - 8;
     if (clickY + menuHeight + 8 > winH) clickY = winH - menuHeight - 8;
 
-    setContextMenu({ visible: true, x: clickX, y: clickY, chatId });
+    setContextMenu({ visible: true, x: clickX, y: clickY, chatId: roomMemberId });
   };
 
-  const openConfirm = (chatId) => {
+  // Delete operations
+  const openConfirm = (roomMemberId) => {
     setConfirmOpen(true);
-    setChatToDelete(chatId);
+    setChatToDelete(roomMemberId);
     setContextMenu({ visible: false, x: 0, y: 0, chatId: null });
   };
 
-  const doDelete = () => {
+  const doDelete = async () => {
     if (chatToDelete != null) {
-      // Force clear active chat immediately
       clearActiveChat();
       
-      // Delete the chat
-      deleteChat(chatToDelete);
+      try {
+        const result = await deleteRooms([chatToDelete]);
+        if (result.success) {
+          // Refresh data after successful delete
+          if (isStarPage) {
+            refetchStarred();
+          } else {
+            refetchRooms();
+          }
+        }
+      } catch (error) {
+        console.error('Failed to delete chat:', error);
+      }
       
-      // Force a re-render by updating component state
       setHighlightMessageId(null);
-      
-      // Additional safety: set a timeout to ensure state is cleared
-      setTimeout(() => {
-        clearActiveChat();
-      }, 0);
     }
     closeConfirm();
   };
@@ -374,10 +451,13 @@ export default function ChatPage() {
     setChatToDelete(null);
   };
 
-  useEffect(() => {
-    clearActiveChat();
-  }, [isGroupPage, isStarPage, clearActiveChat]);
+  const getChatToDeleteName = () => {
+    if (!chatToDelete) return '';
+    const chat = chats.find(c => c.room_member_id === chatToDelete);
+    return chat?.name || '';
+  };
 
+  // Handle mobile/desktop transitions
   useEffect(() => {
     const handleResize = () => {
       const currentIsMobile = window.innerWidth < 768;
@@ -404,8 +484,9 @@ export default function ChatPage() {
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [isMobile, setActiveChat, clearActiveChat, location.pathname]);
+  }, [isMobile, location.pathname]);
 
+  // Handle escape key
   useEffect(() => {
     const handleKeydown = (e) => {
       if (e.key === 'Escape' && activeChatId && !isMobile) {
@@ -416,8 +497,9 @@ export default function ChatPage() {
 
     window.addEventListener('keydown', handleKeydown);
     return () => window.removeEventListener('keydown', handleKeydown);
-  }, [activeChatId, isMobile, clearActiveChat, isStarPage]);
+  }, [activeChatId, isMobile, isStarPage]);
 
+  // Handle clicks outside context menu and confirm dialog
   useEffect(() => {
     function onDown(e) {
       if (menuRef.current && !menuRef.current.contains(e.target)) {
@@ -441,29 +523,18 @@ export default function ChatPage() {
     };
   }, [confirmOpen]);
 
+  // Handle URL parameters
   useEffect(() => {
-    if (confirmOpen) {
-      const prev = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = prev;
-      };
-    }
-  }, [confirmOpen]);
-
-  useEffect(() => {
-    // Handle activeChat parameter dari URL
     const urlParams = new URLSearchParams(location.search);
     const activeChat = urlParams.get('activeChat');
     
     if (activeChat && !isMobile) {
       setActiveChat(activeChat);
-      // Remove activeChat parameter from URL
       const newUrl = new URL(window.location);
       newUrl.searchParams.delete('activeChat');
       window.history.replaceState({}, '', newUrl);
     }
-  }, [location.search, isMobile, setActiveChat]);
+  }, [location.search, isMobile]);
 
   // Ensure to clear the state after delete chat
   useEffect(() => {
@@ -520,7 +591,7 @@ export default function ChatPage() {
     const {
       sectionTitle,
       onContextMenu = handleContextMenu,
-      isSelected = (chat) => activeChatId === chat.id,
+      isSelected = (chat) => activeChatId === (chat.room_id || chat.message_id),
       isStarredItem = false,
       highlightQuery = searchQuery,
       showSectionHeader = false
@@ -534,24 +605,35 @@ export default function ChatPage() {
         <div>
           {chats.map(chat => (
             <ChatItem
-              key={chat.id}
-              id={chat.id}
-              avatar={isStarredItem ? null : chat.avatar}
-              name={isStarredItem ? chat.chatName : chat.name}
-              lastMessage={isStarredItem ? chat.message : chat.lastMessage}
-              time={chat.time}
-              unreadCount={isStarredItem ? 0 : chat.unreadCount}
-              isOnline={isStarredItem ? false : chat.isOnline}
-              showCentang={isStarredItem ? false : chat.showCentang}
-              showCentangAbu={isStarredItem ? false : chat.showCentangAbu}
-              lastMessageType={isStarredItem ? null : chat.lastMessageType}
+              key={isStarredItem ? chat.message_id : chat.room_id}
+              // API fields for rooms
+              room_id={chat.room_id}
+              room_member_id={chat.room_member_id}
+              room_type={chat.room_type}
+              name={chat.name}
+              description={chat.description}
+              url_photo={chat.url_photo}
+              last_message={chat.last_message}
+              last_time={chat.last_time}
+              unread_count={chat.unread_count}
+              is_archived={chat.is_archived}
+              is_pinned={chat.is_pinned}
+              // API fields for starred messages
+              message_id={chat.message_id}
+              content={chat.content}
+              sender={chat.sender}
+              created_at={chat.created_at}
+              file_type={chat.file_type}
+              file_path={chat.file_path}
+              reply_to_message={chat.reply_to_message}
+              message_status={chat.message_status}
+              // Component props
               onContextMenu={isStarredItem ? null : onContextMenu}
               onClick={handleChatClick}
               isSelected={!isMobile && (isStarredItem ? false : isSelected(chat))}
               highlightQuery={highlightQuery}
               isStarredItem={isStarredItem}
-              chatType={isStarredItem ? chat.chatType : chat.type}
-              sender={isStarredItem ? chat.sender : null}
+              chatName={isStarredItem ? `Room ${chat.room_id}` : chat.name} // Temporary, should get actual room name
             />
           ))}
         </div>
@@ -593,6 +675,15 @@ export default function ChatPage() {
     </div>
   );
 
+  const getFilteredChats = () => {
+      if (isGroupPage) {
+        return chats.filter(chat => chat.room_type === 'group');
+      }
+      return chats;
+    };
+
+  const displayChats = searchQuery.trim() ? null : getFilteredChats();
+
   const MessageItem = ({ item, highlightQuery, onClick }) => {
     const highlightText = (text, query) => {
       if (!query) return text;
@@ -623,7 +714,7 @@ export default function ChatPage() {
 
     return (
       <div
-        onClick={() => onClick && onClick(item.chatId)}
+        onClick={() => onClick && onClick(item.message_id)}
         className="flex items-start px-4 py-3 cursor-pointer border-b border-gray-100 last:border-b-0 hover:bg-gray-50 transition-colors duration-150"
         role="button"
         tabIndex={0}
@@ -632,19 +723,31 @@ export default function ChatPage() {
           <div className="flex items-start justify-between">
             <div className="min-w-0 flex-1">
               <h3 className="font-medium text-gray-900 truncate text-base md:text-[13px] leading-tight mb-1">
-                {highlightText(item.chatName, highlightQuery)}
+                {/* Gunakan sender_name dari API search result */}
+                {highlightText(item.sender_name || 'Unknown', highlightQuery)}
               </h3>
               <div className="flex items-center gap-1 min-w-0">
                 <span className="font-medium text-gray-600 text-sm md:text-[11px] flex-shrink-0">
-                  {item.sender}:
+                  {item.sender_name}:
                 </span>
                 <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight">
-                  {highlightText(item.message, highlightQuery)}
+                  {/* Gunakan content dari API */}
+                  {highlightText(item.content, highlightQuery)}
                 </p>
               </div>
+              {/* Tampilkan file info jika ada */}
+              {item.file_type && item.file_type !== 'text' && (
+                <div className="mt-1">
+                  <span className="text-xs text-blue-600">
+                    {item.file_type}: {item.file_name}
+                  </span>
+                </div>
+              )}
             </div>
             <div className="shrink-0 ml-3">
-              <span className="text-xs md:text-[10px] text-gray-400">{item.time}</span>
+              <span className="text-xs md:text-[10px] text-gray-400">
+                {formatTime(item.created_at)}
+              </span>
             </div>
           </div>
         </div>
@@ -706,7 +809,7 @@ export default function ChatPage() {
             // Search results view
             <>
               {isStarPage ? (
-                // Starred messages search results
+                // Starred messages search results - menggunakan API structure langsung
                 searchResults?.starredMessages?.length === 0 ? (
                   <div className="p-4 md:p-3 text-base md:text-sm text-gray-500 text-center">
                     No starred messages found
@@ -717,28 +820,41 @@ export default function ChatPage() {
                   })
                 )
               ) : (
-                // Chat and Group search results
+                // Chat and Group search results - menggunakan API structure
                 <>
-                  {/* One-to-One Chats */}
-                  {renderChatItems(searchResults?.oneToOneChats)}
+                  {/* One-to-One Chats - filter dari searchResults.rooms */}
+                  {searchResults?.rooms?.filter(room => room.room_type === 'one_to_one')?.length > 0 && (
+                    renderChatItems(searchResults.rooms.filter(room => room.room_type === 'one_to_one'))
+                  )}
                   
-                  {/* Groups */}
-                  {renderChatItems(searchResults?.groupChats, { 
-                    sectionTitle: "Groups", 
-                    showSectionHeader: true 
-                  })}
+                  {/* Groups - filter dari searchResults.rooms */}
+                  {searchResults?.rooms?.filter(room => room.room_type === 'group')?.length > 0 && (
+                    renderChatItems(searchResults.rooms.filter(room => room.room_type === 'group'), { 
+                      sectionTitle: "Groups", 
+                      showSectionHeader: true 
+                    })
+                  )}
 
-                  {/* Messages Section */}
+                  {/* Messages Section - menggunakan API structure */}
                   {searchResults?.messages?.length > 0 && (
                     <>
                       <SectionHeader title="Messages" />
                       <div>
                         {searchResults.messages.map(message => (
                           <MessageItem
-                            key={message.id}
+                            key={message.message_id}
                             item={message}
                             highlightQuery={searchQuery}
-                            onClick={handleChatClick}
+                            onClick={(id) => {
+                              // Navigate berdasarkan message, cari room_id dari context atau API
+                              const currentIsMobile = window.innerWidth < 768;
+                              if (currentIsMobile) {
+                                navigate(`/chats/${message.room_id || id}?highlight=${message.message_id}`);
+                              } else {
+                                setActiveChat(message.room_id || id);
+                                setHighlightMessageId(message.message_id);
+                              }
+                            }}
                           />
                         ))}
                       </div>
@@ -746,9 +862,7 @@ export default function ChatPage() {
                   )}
 
                   {/* No results message */}
-                  {(!searchResults?.oneToOneChats?.length && 
-                    !searchResults?.groupChats?.length && 
-                    !searchResults?.messages?.length) && (
+                  {(!searchResults?.rooms?.length && !searchResults?.messages?.length) && (
                     <div className="p-4 md:p-3 text-base md:text-sm text-gray-500 text-center">
                       {pageConfig.emptyMessage}
                     </div>
@@ -757,16 +871,13 @@ export default function ChatPage() {
               )}
             </>
           ) : (
-            // Default view (no search)
+            // Default view (no search) - filter berdasarkan room_type
             displayChats?.length === 0 ? (
               <div className="p-4 md:p-3 text-base md:text-sm text-gray-500 text-center">
                 {pageConfig.emptyMessage}
               </div>
             ) : (
-              renderChatItems(
-                isGroupPage ? displayChats?.filter(chat => chat.type === 'group') : displayChats,
-                { isStarredItem: isStarPage }
-              )
+              renderChatItems(displayChats, { isStarredItem: isStarPage })
             )
           )}
         </div>
@@ -842,7 +953,7 @@ export default function ChatPage() {
           <div ref={confirmRef} className="relative z-10 w-full max-w-md bg-white rounded-xl shadow-2xl border border-gray-100 p-6">
             <div className="text-center">
               <h4 className="text-base text-gray-700 mb-4">
-                Delete chat with <span className="font-semibold">&ldquo;{(chats.find(c=>c.id===chatToDelete)?.name) || ''}&rdquo;</span> ?
+                Delete chat with <span className="font-semibold">&ldquo;{getChatToDeleteName()}&rdquo;</span> ?
               </h4>
               <div className="mx-auto w-28 h-28 rounded-lg flex items-center justify-center mb-5 overflow-hidden">
                 <img src={assets.popup_delete} alt="popup delete" className="w-35 h-35 object-contain" />
