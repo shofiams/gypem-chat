@@ -888,7 +888,7 @@ export default function ChatPage() {
         {activeChatId && getChatById(activeChatId) ? (
           (() => {
             const activeChat = getChatById(activeChatId);
-            if (activeChat?.type === 'group') {
+            if (activeChat?.room_type === 'group') {
               return (
                 <GroupChatPeserta 
                   chatId={activeChatId} 

@@ -3,17 +3,16 @@ import { assets } from "../assets/assets";
 import DropdownMenuPeserta from "./DropdownMenuPeserta";
 import { Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
 
-  // ImageViewerModal component
-  const ImageViewerModal = ({ 
-    isOpen, 
-    onClose, 
-    imageUrl, 
-    imageName = 'image.jpg',
-    onPrevious = null,
-    onNext = null,
-    hasMultiple = false 
-  }) => {
-
+// ImageViewerModal component
+const ImageViewerModal = ({ 
+  isOpen, 
+  onClose, 
+  imageUrl, 
+  imageName = 'image.jpg',
+  onPrevious = null,
+  onNext = null,
+  hasMultiple = false 
+}) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -197,55 +196,91 @@ import { Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
 // ChatBubblePeserta component with ImageViewerModal integration
 export default function ChatBubblePeserta({ ...props }) {
   const {
-    type,
-    message,
-    time,
-    image,
-    reply,
-    file,
-    isLastFromSender,
-    isLastFromReceiver,
-    onReply,
-    onDelete,
-    onEdit,
-    isDeleted,
-    isEdited,
-    isSelectionMode,
-    isSelected,
-    onStartSelection,
-    onToggleSelection,
-    isLastBubble,
-    sender,
-    showSenderName = false,
-    getSenderColor,
-    images = [],
-    imageIndex = 0,
-    onImageNavigation = null,
-    searchQuery,
-    highlightSearchTerm,
-    showTime = false,
-    nextMessageTime = null,
-    nextMessageSender = null,
-    // New props for handling consecutive messages from same sender
-    previousMessageSender = null,
-    isFirstFromSender = false, // Indicates if this is the first message in a group from the same sender
+      // Direct API fields
+      message_id,
+      content,
+      sender_name,
+      sender_type,
+      created_at,
+      attachment,
+      reply_to_message,
+      is_deleted_globally,
+      message_status,
+      
+      // UI props
+      isLastFromSender,
+      isLastFromReceiver,
+      onReply,
+      onDelete,
+      onEdit,
+      isSelectionMode,
+      isSelected,
+      onStartSelection,
+      onToggleSelection,
+      isLastBubble,
+      showSenderName = false,
+      getSenderColor,
+      searchQuery,
+      highlightSearchTerm,
+      showTime = false,
+      nextMessageTime = null,
+      nextMessageSender = null,
+      previousMessageSender = null,
+      isFirstFromSender = false,
+      
+      // FIX: Add missing image props with defaults
+      images = [], // Array of image URLs for multiple images
+      imageIndex = 0, // Current image index
+      onImageNavigation = null, // Function to handle image navigation
   } = props;
 
-  const isSender = type === "sender";
+  console.log('Message pin status:', {
+    message_id,
+    messageStatusId: message_status?.message_status_id, // <- langsung akses dari message_status
+    isPinned: props.isPinned,
+    message_status_is_pinned: message_status?.is_pinned
+  });
+
+  const currentUserId = "current_user_id"; // Get from auth context
+  const isSender = sender_type === 'peserta'; // Adjust based on your logic
+  const message = content;
+  const sender = sender_name;
+  const isDeleted = is_deleted_globally;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const isStarred = props.isStarred || false;
-  const isPinned = props.isPinned || false;
+  const isStarred = props.isStarred !== undefined ? props.isStarred : (message_status?.is_starred || false);
+  const isPinned = props.isPinned !== undefined ? props.isPinned : (message_status?.is_pinned || false);
+  const messageStatusId = message_status?.message_status_id;
   const [showCopied, setShowCopied] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState('below');
   const [isMobile, setIsMobile] = useState(false);
   const [showDropdownButton, setShowDropdownButton] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false); // FIX: Add missing state
   
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
   const bubbleRef = useRef(null);
   const longPressTimer = useRef(null);
+
+  console.log('ChatBubble render data:', {
+    message_id,
+    messageStatusId,
+    sender_type,
+    message_status,
+    hasOnDelete: !!onDelete
+  });
+
+  const canDelete = message_id && messageStatusId && sender_type && onDelete;
+  
+  if (!canDelete) {
+    console.warn('ChatBubble: Missing required data for delete:', {
+      message_id: !!message_id,
+      messageStatusId: !!messageStatusId,
+      sender_type: !!sender_type,
+      onDelete: !!onDelete
+    });
+  }
 
   // Mobile detection
   useEffect(() => {
@@ -259,6 +294,31 @@ export default function ChatBubblePeserta({ ...props }) {
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
+
+  const time = React.useMemo(() => {
+    const date = new Date(created_at);
+    return date.toLocaleTimeString('id-ID', { 
+      hour: '2-digit', 
+      minute: '2-digit',
+      hour12: false 
+    }).replace(':', '.');
+  }, [created_at]);
+
+  // FIX: Get image from attachment or images array
+  const image = attachment?.file_type === 'image' ? attachment.file_path : 
+                (images.length > 0 ? images[imageIndex] : null);
+  
+  const file = attachment?.file_type === 'dokumen' ? {
+    name: content, // Document filename is typically in content
+    size: '1MB', // You may want to add file size to your API
+    url: attachment.file_path
+  } : null;
+
+  const reply = reply_to_message ? {
+    sender: reply_to_message.sender_name,
+    message: reply_to_message.content,
+    message_id: reply_to_message.reply_to_message_id
+  } : null;
 
   // Fungsi untuk menentukan apakah harus menampilkan waktu
   const shouldShowTime = () => {
@@ -450,7 +510,12 @@ export default function ChatBubblePeserta({ ...props }) {
       return;
     }
 
-    if (isMobile && !isSelectionMode && !isDeleted) {
+    // Nonaktifkan interaksi untuk deleted message
+    if (isDeleted) {
+      return;
+    }
+
+    if (isMobile && !isSelectionMode) {
       e.preventDefault();
       setShowDropdownButton(prev => !prev);
     }
@@ -466,14 +531,14 @@ export default function ChatBubblePeserta({ ...props }) {
 
   // Handle image navigation in modal
   const handleImagePrevious = () => {
-    if (onImageNavigation && images.length > 1) {
+    if (onImageNavigation && images && images.length > 1) {
       const newIndex = imageIndex > 0 ? imageIndex - 1 : images.length - 1;
       onImageNavigation(newIndex);
     }
   };
 
   const handleImageNext = () => {
-    if (onImageNavigation && images.length > 1) {
+    if (onImageNavigation && images && images.length > 1) {
       const newIndex = imageIndex < images.length - 1 ? imageIndex + 1 : 0;
       onImageNavigation(newIndex);
     }
@@ -495,8 +560,9 @@ export default function ChatBubblePeserta({ ...props }) {
   const handleReply = () => {
     if (onReply) {
       onReply({
-        sender: isSender ? "You" : "Other User",
-        message,
+        message_id: message_id,
+        sender: isSender ? "You" : sender,
+        message: content,
         image,
         file
       });
@@ -506,40 +572,59 @@ export default function ChatBubblePeserta({ ...props }) {
   };
 
   const handlePin = () => {
-    if (props.onPin) {
-      props.onPin({ sender: isSender ? "You" : "Other User", message, image, file });
+    console.log('handlePin called, messageStatusId:', messageStatusId);
+    if (props.onPin && messageStatusId) {
+      props.onPin(messageStatusId);
+    } else {
+      console.error('onPin not available or messageStatusId missing');
     }
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
   };
 
   const handleUnpin = () => {
-    if (props.onUnpin) {
-      props.onUnpin();
+    console.log('handleUnpin called with:', { message_id, messageStatusId, isPinned });
+    
+    if (props.onUnpin && message_id && messageStatusId) {
+      props.onUnpin(message_id, messageStatusId);
+    } else {
+      console.error('onUnpin handler missing or IDs incomplete:', {
+        hasOnUnpin: !!props.onUnpin,
+        message_id,
+        messageStatusId
+      });
     }
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
   };
 
   const handleStar = () => {
-    if (props.onStar) {
-      props.onStar();
+    console.log('handleStar called:', { message_id, messageStatusId, isStarred });
+    if (props.onStar && message_id && messageStatusId) {
+      // Gunakan satu handler untuk star dan unstar
+      props.onStar(message_id, messageStatusId, isStarred); // kirim status saat ini
+    } else {
+      console.error('onStar not available or IDs missing');
     }
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
   };
   
   const handleUnstar = () => {
-    if (props.onUnstar) {
-      props.onUnstar();
+    console.log('handleUnstar called:', { message_id, messageStatusId, isStarred });
+    if (props.onUnstar && message_id && messageStatusId) {
+      // Gunakan satu handler untuk star dan unstar
+      props.onUnstar(message_id, messageStatusId, isStarred); // kirim status saat ini
+    } else {
+      console.error('onUnstar not available or IDs missing');
     }
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
   };
-
+  
   const handleCopy = () => {
-    if (message) {
-      navigator.clipboard.writeText(message);
+    if (content) {
+      navigator.clipboard.writeText(content);
       setShowCopied(true);
       setTimeout(() => setShowCopied(false), 5000);
     }
@@ -549,7 +634,7 @@ export default function ChatBubblePeserta({ ...props }) {
 
   const handleEdit = () => {
     if (onEdit) {
-      onEdit();
+      onEdit(message_id);
     }
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
@@ -557,16 +642,27 @@ export default function ChatBubblePeserta({ ...props }) {
   
   const handleSelect = () => {
     if (onStartSelection) {
-      onStartSelection();
+      onStartSelection(message_id);
     }
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
   };
   
   const handleDelete = () => {
+    console.log('ChatBubble handleDelete called:', {
+      message_id,
+      messageStatusId,
+      sender_type,
+      onDelete: !!onDelete
+    });
+    
     if (onDelete) {
-      onDelete();
+      // Pastikan parameter yang dikirim sesuai dengan yang dibutuhkan parent
+      onDelete(message_id, messageStatusId, sender_type);
+    } else {
+      console.error('onDelete handler not provided');
     }
+    
     setDropdownOpen(false);
     if (isMobile) setShowDropdownButton(false);
   };
@@ -579,7 +675,7 @@ export default function ChatBubblePeserta({ ...props }) {
     
     return (
       <div className="flex items-center gap-1 flex-shrink-0">
-        {isEdited && isSender && (
+        {props.isEdited && isSender && (
           <span className="text-[10px] opacity-70 mr-1">diedit</span>
         )}
         
@@ -635,10 +731,26 @@ export default function ChatBubblePeserta({ ...props }) {
 
   // Render message text dengan search highlighting, line breaks, dan read more
   const renderMessageText = () => {
-    if (!message) return null;
+    if (isDeleted) {
+      return (
+        <div className={`text-sm italic flex items-center gap-2 ${
+          isSender ? "text-white opacity-80" : "text-gray-500"
+        }`}>
+          <img src={assets.Tarik} alt="deleted" className="w-4 h-4 flex-shrink-0" />
+          <span>
+            {isSender ? "You deleted this message" : "This message was deleted"}
+          </span>
+        </div>
+      );
+    }
+
+    // Setelah itu baru cek apakah ada konten
+    if (!message) {
+      return null;
+    }
     
+    // Jika tidak dihapus dan ada konten teks, jalankan logika normal.
     if (searchQuery && highlightSearchTerm) {
-      // Untuk search highlighting
       const needsReadMore = shouldShowReadMore(message);
       const displayText = needsReadMore && !isExpanded 
         ? truncateToLines(message, MAX_LINES) 
@@ -658,13 +770,8 @@ export default function ChatBubblePeserta({ ...props }) {
           {needsReadMore && !isExpanded && (
             <div className="mt-2">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExpanded(true);
-                }}
-                className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${
-                  isSender ? 'text-white' : 'text-[#4C0D68]'
-                }`}
+                onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+                className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${ isSender ? 'text-white' : 'text-[#4C0D68]' }`}
               >
                 Read more
               </button>
@@ -673,13 +780,8 @@ export default function ChatBubblePeserta({ ...props }) {
           {needsReadMore && isExpanded && (
             <div className="mt-2">
               <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsExpanded(false);
-                }}
-                className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${
-                  isSender ? 'text-white' : 'text-[#4C0D68]'
-                }`}
+                onClick={(e) => { e.stopPropagation(); setIsExpanded(false); }}
+                className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${ isSender ? 'text-white' : 'text-[#4C0D68]' }`}
               >
                 Show less
               </button>
@@ -691,8 +793,6 @@ export default function ChatBubblePeserta({ ...props }) {
     
     return formatMessageWithReadMore(message);
   };
-
-  const [isExpanded, setIsExpanded] = useState(false);
   const MAX_LINES = 15;
 
   // Fungsi untuk menghitung jumlah baris dalam teks
@@ -813,7 +913,7 @@ export default function ChatBubblePeserta({ ...props }) {
 
   // Get current image URL
   const getCurrentImageUrl = () => {
-    if (images.length > 0) {
+    if (images && images.length > 0 && imageIndex < images.length) {
       return images[imageIndex];
     }
     return image;
@@ -911,12 +1011,12 @@ export default function ChatBubblePeserta({ ...props }) {
         )}
 
         <div className={`${isSender ? "items-end ml-auto" : "items-start"} flex flex-col relative z-10`}>
-          <div className="flex items-start">
-            <div
-              className={`${getBubbleClasses()} cursor-pointer ${
-                isSelectionMode ? 'hover:opacity-80' : ''
-              }`}
-              onClick={handleBubbleClick}
+        <div className="flex items-start">
+          <div
+            className={`${getBubbleClasses()} cursor-pointer ${
+              isSelectionMode ? 'hover:opacity-80' : ''
+            }`}
+            onClick={handleBubbleClick}
             >
               {/* Bubble Tail */}
               <BubbleTail />
@@ -925,7 +1025,7 @@ export default function ChatBubblePeserta({ ...props }) {
               {shouldShowSenderName() && (
                 <div 
                   className="font-semibold text-[14px]"
-                  style={{ color: getSenderNameColor() }}
+                  style={{ color: getSenderColor ? getSenderColor(sender) : "#4C0D68" }}
                 >
                   {sender}
                 </div>
@@ -995,19 +1095,16 @@ export default function ChatBubblePeserta({ ...props }) {
                 </div>
               )}
 
-              {message && (
-                <div className={`text-sm ${isDeleted ? "italic" : ""} ${
-                  isSender ? "text-white" : "text-black"
-                }`}>
-                  <div className="flex items-end justify-between gap-2">
-                    <div className="flex items-start gap-1 flex-1 min-w-0">
-                      {isDeleted && (
-                        <img src={assets.Tarik} alt="deleted" className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                      )}
-                      <div className="flex-1 break-all leading-relaxed">
-                        {renderMessageText()}
-                      </div>
+              {(message || isDeleted) && (
+              <div className={`text-sm ${
+                isSender ? "text-white" : "text-black"
+              }`}>
+                <div className="flex items-end justify-between gap-2">
+                  <div className="flex items-start gap-1 flex-1 min-w-0">
+                    <div className="flex-1 break-all leading-relaxed">
+                      {renderMessageText()}
                     </div>
+                  </div>
 
                     {/* Status icons for message */}
                     {!isDeleted && renderStatusIcons()}
@@ -1096,7 +1193,8 @@ export default function ChatBubblePeserta({ ...props }) {
               onCopy={handleCopy}
               onEdit={handleEdit}
               onSelect={handleSelect}
-              onDelete={handleDelete}
+              // onDelete={handleDelete}
+              onDelete={canDelete ? handleDelete : null}
               isSender={isSender}
               hasMessage={!!message}
               groupChatMode={props.groupChatMode}
@@ -1111,9 +1209,9 @@ export default function ChatBubblePeserta({ ...props }) {
         onClose={() => setIsImageModalOpen(false)}
         imageUrl={getCurrentImageUrl()}
         imageName={getImageName()}
-        hasMultiple={images.length > 1}
-        onPrevious={images.length > 1 ? handleImagePrevious : null}
-        onNext={images.length > 1 ? handleImageNext : null}
+        hasMultiple={images && images.length > 1}
+        onPrevious={images && images.length > 1 ? handleImagePrevious : null}
+        onNext={images && images.length > 1 ? handleImageNext : null}
       />
 
       {/* Toast notification */}

@@ -14,35 +14,41 @@ const DropdownMenuPeserta = ({
   onDelete,
   isStarred,
   isPinned,
-  isSender, 
+  isSender,
   hasMessage,
   groupChatMode = false,
 }) => {
   if (!open) return null;
 
-  // Build menu items conditionally
-  const menuItems = groupChatMode ? [
-    // Group chat mode: only show star, select, and delete
-    isStarred
-      ? { label: "unstar", icon: assets.Unstar, action: onUnstar }
-      : { label: "star", icon: assets.Star, action: onStar },
-    { label: "select", icon: assets.Select, action: onSelect },
-    { label: "delete", icon: assets.Trash, action: onDelete },
-  ] : [
-    // Regular chat mode: show all options
-    { label: "reply", icon: assets.Reply, action: onReply },
-    isStarred
-      ? { label: "unstar", icon: assets.Unstar, action: onUnstar }
-      : { label: "star", icon: assets.Star, action: onStar },
-    isPinned
-      ? { label: "unpin", icon: assets.Unpin, action: onUnpin }
-      : { label: "pin", icon: assets.Pin, action: onPin },
-    { label: "copy", icon: assets.Copy, action: onCopy },
-    // Show edit only for sender messages with text
-    ...(isSender && hasMessage ? [{ label: "edit", icon: assets.Edit, action: onEdit }] : []),
-    { label: "select", icon: assets.Select, action: onSelect },
-    { label: "delete", icon: assets.Trash, action: onDelete },
-  ];
+  // 1. Definisikan semua kemungkinan item menu
+  const allMenuItems = groupChatMode
+    ? [
+        // Mode grup: hanya tampilkan star, select, dan delete
+        isStarred
+          ? { label: "unstar", icon: assets.Unstar, action: onUnstar }
+          : { label: "star", icon: assets.Star, action: onStar },
+        { label: "select", icon: assets.Select, action: onSelect },
+        { label: "delete", icon: assets.Trash, action: onDelete },
+      ]
+    : [
+        // Mode chat biasa: tampilkan semua opsi
+        { label: "reply", icon: assets.Reply, action: onReply },
+        isStarred
+          ? { label: "unstar", icon: assets.Unstar, action: onUnstar }
+          : { label: "star", icon: assets.Star, action: onStar },
+        isPinned
+          ? { label: "unpin", icon: assets.Unpin, action: onUnpin }
+          : { label: "pin", icon: assets.Pin, action: onPin },
+        { label: "copy", icon: assets.Copy, action: onCopy },
+        ...(isSender && hasMessage
+          ? [{ label: "edit", icon: assets.Edit, action: onEdit }]
+          : []),
+        { label: "select", icon: assets.Select, action: onSelect },
+        { label: "delete", icon: assets.Trash, action: onDelete },
+      ];
+
+  // 2. Filter item menu yang aksinya tidak valid (null atau undefined)
+  const visibleMenuItems = allMenuItems.filter(item => typeof item.action === 'function');
 
   return (
     <div
@@ -52,10 +58,11 @@ const DropdownMenuPeserta = ({
         backgroundColor: "#F3F3F3",
         border: "1px solid #4C0D68",
         color: "#000",
-        zIndex: 9999
+        zIndex: 9999,
       }}
     >
-      {menuItems.map((item, index) => (
+      {/* 3. Tampilkan hanya item menu yang visible */}
+      {visibleMenuItems.map((item, index) => (
         <React.Fragment key={index}>
           <button
             onClick={item.action}
@@ -68,7 +75,7 @@ const DropdownMenuPeserta = ({
             />
             <span className="capitalize">{item.label}</span>
           </button>
-          {index < menuItems.length - 1 && (
+          {index < visibleMenuItems.length - 1 && (
             <div className="border-t border-gray-200"></div>
           )}
         </React.Fragment>
