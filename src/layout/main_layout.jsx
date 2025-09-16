@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import Logo from '../assets/logo.png';
 import { assets } from '../assets/assets';
@@ -11,6 +11,9 @@ import { useChatContext } from '../api/use_chat_context';
 import NewMessagePopup from '../components/new_message'; 
 import ProfilePopup from '../components/profile_popup';
 import { ServiceTester } from '../components/ServiceTester';
+// TAMBAHKAN IMPORT INI untuk hooks yang diperlukan
+import { useRooms } from '../hooks/useRooms';
+import { useStarredMessages } from '../hooks/useStarredMessages';
 
 // Desktop Sidebar Item Component
 const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
@@ -21,7 +24,7 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
       <button
         onClick={onClick}
         className={`
-          relative w-full flex px-3
+          relative w-full flex items-center px-3
           py-2.5
           hover:bg-gray-100 rounded-lg
           transition-all duration-300 ease-out
@@ -80,15 +83,15 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
           )}
         </div>
 
-        {/* Label */}
-        <div className="overflow-hidden flex-1 ml-3">
+        {/* Label - DIPERBAIKI: alignment dan positioning */}
+        <div className="overflow-hidden flex-1">
           <span 
             className={`
               block text-[14px] text-[#333] whitespace-nowrap
               transition-all duration-300 ease-out text-left
               ${isOpen 
-                ? 'opacity-100 translate-x-0' 
-                : 'opacity-0 -translate-x-4'
+                ? 'opacity-100 translate-x-0 ml-3' 
+                : 'opacity-0 -translate-x-4 ml-0'
               }
             `}
           >
@@ -100,8 +103,6 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
         {badge != null && isOpen && (
           <span
             className={`
-              absolute top-1/2 -translate-y-1/2
-              right-4
               w-4 h-4
               bg-[#FFB400]
               text-white text-[10px]
@@ -109,7 +110,8 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
               rounded-full
               flex items-center justify-center
               transition-all duration-300 ease-out
-              ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-0'}
+              flex-shrink-0
+              ${isOpen ? 'opacity-100 scale-100' : 'opacity-0 scale-0'              }
             `}
           >
             {badge}
@@ -120,6 +122,7 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
   );
 };
 
+
 // Desktop Sidebar Component
 const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile, isNewMessageOpen, isProfilePopupOpen, sidebarRef }) => {
   const menuItems = [
@@ -128,7 +131,7 @@ const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProf
     { icon: <FiEdit size={20} />, label: "New Message", route: "/new-message", isPopup: true },
   ];
 
-  const extraItems = [
+  const extraItems = [ 
     { 
       icon: <FaRegStar size={20} />, 
       label: "Starred Messages", 
@@ -420,6 +423,10 @@ const MainLayout = () => {
   const isChatRoute = location.pathname.startsWith('/chats/') && location.pathname !== '/chats' || location.pathname.startsWith('/group/') && location.pathname !== '/group';
   const sidebarRef = useRef(null);
 
+  // TAMBAHKAN HOOKS INI untuk refresh data
+  const { refetch: refetchRooms } = useRooms();
+  const { refetch: refetchStarred } = useStarredMessages({ manual: true });
+
   // Auto-redirect to /chats if on root path
   useEffect(() => {
     if (location.pathname === '/' || location.pathname === '') {
@@ -479,6 +486,38 @@ const MainLayout = () => {
   const toggleSidebar = () => {
     setIsSidebarOpen(prev => !prev);
   };
+
+  // PERBAIKAN: Handler untuk refresh setelah chat baru dibuat
+  const handleChatCreated = useCallback(async () => {
+    console.log("handleChatCreated called - starting refresh process");
+    
+    try {
+      // Refresh data rooms dari API
+      console.log("Refreshing rooms data...");
+      await refetchRooms();
+      
+      // Tunggu sebentar untuk memastikan data ter-update
+      await new Promise(resolve => setTimeout(resolve, 150));
+      
+      // Jika di starred page, juga refresh starred messages
+      const isStarPage = location.pathname === '/starred';
+      if (isStarPage) {
+        console.log("Also refreshing starred messages...");
+        await refetchStarred();
+      }
+      
+      console.log("✅ Chat list refreshed successfully after new chat created");
+      
+      // Pastikan kita berada di halaman chats untuk melihat chat baru
+      if (location.pathname !== '/chats' && location.pathname !== '/group') {
+        console.log("Navigating to chats page to show new chat");
+        navigate('/chats');
+      }
+      
+    } catch (error) {
+      console.error("❌ Error refreshing chat list:", error);
+    }
+  }, [refetchRooms, refetchStarred, location.pathname, navigate]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -588,10 +627,11 @@ const MainLayout = () => {
         />
       )}
 
-      {/* New Message Popup */}
+      {/* New Message Popup   */}
       <NewMessagePopup 
         isOpen={isNewMessageOpen} 
         onClose={() => setIsNewMessageOpen(false)} 
+        onChatCreated={handleChatCreated}
       />
 
       {/* Profile Popup */}
