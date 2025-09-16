@@ -76,7 +76,13 @@ const generateMemberColorWithColor2k = (memberName) => {
   return color;
 };
 
-const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId, highlightMessageId = null, onMessageHighlight = null }) => {
+const GroupChatPeserta = ({ 
+  isEmbedded = false, 
+  onClose, 
+  chatId, 
+  highlightMessageId = null, 
+  onMessageHighlight = null 
+}) => {
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   
   const getSenderColor = (sender) => {
@@ -85,7 +91,7 @@ const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId, highlightMessag
 
   const readOnlyFooter = (
     <div
-      className="text-center text-white text-sm py-2 font-medium"
+      className="text-center text-white text-sm py-3 font-medium border-t"
       style={{ backgroundColor: "#4C0D68" }}
     >
       Only admins can send messages.
@@ -108,10 +114,10 @@ const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId, highlightMessag
         onClose={onClose}
         chatId={chatId}
         isGroupChat={true}
-        canSendMessages={false}
+        canSendMessages={false} // PENTING: ini yang menonaktifkan input
         showSenderNames={true}
         getSenderColor={getSenderColor}
-        customFooter={readOnlyFooter}
+        customFooter={readOnlyFooter} // Footer yang menggantikan input
         customChatBubbleProps={customChatBubbleProps}
         onGroupHeaderClick={() => setIsPopupOpen(true)}
         highlightMessageId={highlightMessageId}
