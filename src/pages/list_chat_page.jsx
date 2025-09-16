@@ -168,13 +168,21 @@ const ChatItem = ({
         `}
       >
         <div className="relative flex-shrink-0">
-          <img
-            src={getPhotoUrl(url_photo)}
-            alt={name}
-            className="w-12 h-12 md:w-10 md:h-10 rounded-full object-cover"
-            onLoad={() => console.log("ini Image URL:", getPhotoUrl(url_photo))}
-          />
-        </div>
+      <img
+        src={getPhotoUrl(url_photo)}
+        alt={name}
+        className="w-12 h-12 md:w-10 md:h-10 rounded-full object-cover"
+        crossOrigin="anonymous" 
+        onLoad={() => console.log("✅ Image loaded:", getPhotoUrl(url_photo))}
+        onError={(e) => {
+          console.error("❌ Image error:", getPhotoUrl(url_photo));
+          console.error("Error details:", e);
+          if (e.target.src !== assets.user) {
+            e.target.src = assets.user;
+          }
+        }}
+      />
+    </div>
 
         <div className="flex-1 ml-4 md:ml-3 min-w-0">
           <div className="flex items-center justify-between">
@@ -220,6 +228,7 @@ export default function ChatPage() {
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [highlightMessageId, setHighlightMessageId] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false); // Tambahkan state loading
 
   // Determine page type based on location
   const isGroupPage = location.pathname.startsWith('/group');
@@ -425,6 +434,8 @@ export default function ChatPage() {
 
   const doDelete = async () => {
     if (chatToDelete != null) {
+      setIsDeleting(true); // Set loading state ke true
+      
       clearActiveChat();
       
       try {
@@ -439,6 +450,8 @@ export default function ChatPage() {
         }
       } catch (error) {
         console.error('Failed to delete chat:', error);
+      } finally {
+        setIsDeleting(false); // Set loading state ke false setelah selesai
       }
       
       setHighlightMessageId(null);
@@ -548,6 +561,44 @@ export default function ChatPage() {
       }
     }
   }, [activeChatId, chats, getChatById, clearActiveChat, isMobile]);
+
+  useEffect(() => {
+    // Listen untuk perubahan URL yang mengindikasikan chat baru dibuat
+    const urlParams = new URLSearchParams(location.search);
+    const refreshChat = urlParams.get('refreshChat');
+    
+    if (refreshChat === 'true') {
+      // Refresh data
+      if (isStarPage) {
+        refetchStarred();
+      } else {
+        refetchRooms();
+      }
+      
+      // Clean up URL parameter
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.delete('refreshChat');
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [location.search, isStarPage, refetchRooms, refetchStarred]);
+
+  useEffect(() => {
+    const handleChatListRefresh = () => {
+      console.log("Received chat list refresh event");
+      if (isStarPage) {
+        refetchStarred();
+      } else {
+        refetchRooms();
+      }
+    };
+
+    // Listen untuk custom event
+    window.addEventListener('chatListRefresh', handleChatListRefresh);
+    
+    return () => {
+      window.removeEventListener('chatListRefresh', handleChatListRefresh);
+    };
+  }, [isStarPage, refetchRooms, refetchStarred]);
 
   // Enhanced scrollbar styling
   useEffect(() => {
@@ -961,13 +1012,22 @@ export default function ChatPage() {
               <div className="flex items-center justify-center gap-3 mt-1">
                 <button
                   onClick={doDelete}
-                  className="px-10 py-2 text-sm rounded-md bg-amber-400 text-white font-medium shadow-sm hover:bg-amber-500 hover:scale-105 active:scale-95 active:bg-amber-600 transition-transform duration-150"
+                  disabled={isDeleting}
+                  className="px-10 py-2 text-sm rounded-md bg-amber-400 text-white font-medium shadow-sm hover:bg-amber-500 hover:scale-105 active:scale-95 active:bg-amber-600 transition-transform duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-amber-400 flex items-center justify-center gap-2"
                 >
-                  Delete
+                  {isDeleting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
                 </button>
                 <button
                   onClick={closeConfirm}
-                  className="px-10 py-2 text-sm rounded-md border border-gray-300 text-gray-700 bg-white font-medium shadow-sm hover:bg-gray-100 hover:scale-105 active:scale-95 active:bg-gray-200 transition-transform duration-150"
+                  disabled={isDeleting}
+                  className="px-10 py-2 text-sm rounded-md border border-gray-300 text-gray-700 bg-white font-medium shadow-sm hover:bg-gray-100 hover:scale-105 active:scale-95 active:bg-gray-200 transition-transform duration-150 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:bg-gray-100"
                 >
                   Cancel
                 </button>
