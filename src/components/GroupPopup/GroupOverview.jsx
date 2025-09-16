@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 
 export default function GroupOverview({
   groupLogo,
+  groupName,
   seeMore,
   setSeeMore,
   descriptionText,
@@ -61,25 +62,25 @@ export default function GroupOverview({
           alt="Group Logo"
           className="w-28 h-28 rounded-full shadow-md object-cover"
         />
-        <h2 className="mt-4 text-lg font-semibold">ClassAll</h2>
+        <h2 className="mt-4 text-lg font-semibold">{groupName}</h2>
       </div>
 
       {/* Deskripsi */}
       <div className="mt-6">
         <h3 className="font-semibold text-gray-800 mb-2">Description</h3>
         <div className="bg-gray-50 px-5 py-3 rounded-2xl shadow-sm">
-          <p className="text-sm text-gray-700 text-justify">
-            {seeMore ? descriptionText : descriptionText.slice(0, 150) + "..."}
-          </p>
-          {!seeMore && (
-            <button
-              onClick={() => setSeeMore(true)}
-              className="text-yellow-500 mt-2 text-sm hover:underline"
-            >
-              Show More
-            </button>
-          )}
-        </div>
+  <p className="text-sm text-gray-700 text-justify">
+    {seeMore ? descriptionText : (descriptionText.length > 150 ? descriptionText.slice(0, 150) + "..." : descriptionText)}
+  </p>
+  {!seeMore && descriptionText.length > 150 && (
+    <button
+      onClick={() => setSeeMore(true)}
+      className="text-yellow-500 mt-2 text-sm hover:underline"
+    >
+      Show More
+    </button>
+  )}
+</div>
       </div>
 
       {/* Tombol utama Exit/Delete */}

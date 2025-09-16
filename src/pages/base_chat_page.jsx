@@ -3,6 +3,7 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useChatContext } from "../api/use_chat_context";
 import ChatBubblePeserta from "../components/ChatBubblePeserta";
 import FileUploadPopup from "../components/FileUploadPopup";
+import { useChatHeader } from "../hooks/useChatHeader";
 import { assets } from "../assets/assets";
 import groupPhoto from "../assets/admin-profile.png";
 import chatBg from "../assets/chat-bg.png";

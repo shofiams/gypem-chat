@@ -109,6 +109,28 @@ export const useRoomOperations = () => {
     }
   }, []);
 
+  const leave = useCallback(async (roomMemberId) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await roomService.leaveRoom(roomMemberId);
+
+      if (result.success) {
+        return { success: true, message: result.message };
+      } else {
+        setError(result.message);
+        return { success: false, error: result.message };
+      }
+    } catch (err) {
+      const errorMsg = err.message || "Failed to leave room";
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   const deleteRooms = useCallback(async (roomMemberIds) => {
     setLoading(true);
     setError(null);
@@ -137,6 +159,7 @@ export const useRoomOperations = () => {
 
   return {
     createPrivateRoom,
+    leave,
     deleteRooms,
     loading,
     error,
