@@ -924,7 +924,7 @@ export default function ChatBubblePeserta({ ...props }) {
               {/* Show sender name hanya jika shouldShowSenderName() mengembalikan true */}
               {shouldShowSenderName() && (
                 <div 
-                  className="font-semibold text-[13px] mb-1"
+                  className="font-semibold text-[14px]"
                   style={{ color: getSenderNameColor() }}
                 >
                   {sender}
