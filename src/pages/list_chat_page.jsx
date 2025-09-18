@@ -10,6 +10,7 @@ import { formatTime } from '../api/roomService';
 import { useRooms, useRoomOperations } from '../hooks/useRooms';
 import { useStarredMessages, useStarredMessagesSearch } from '../hooks/useStarredMessages';
 import { useGlobalSearch } from '../hooks/useSearch';
+import { useAdmins } from '../hooks/useAdmins';
 
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -229,6 +230,7 @@ export default function ChatPage() {
   const [highlightMessageId, setHighlightMessageId] = useState(null);
   const [activeChatId, setActiveChatId] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false); // Tambahkan state loading
+  const { refetch: refetchAdmins } = useAdmins({ manual: true });
 
   // Determine page type based on location
   const isGroupPage = location.pathname.startsWith('/group');
@@ -447,6 +449,8 @@ export default function ChatPage() {
           } else {
             refetchRooms();
           }
+
+          refetchAdmins();
         }
       } catch (error) {
         console.error('Failed to delete chat:', error);

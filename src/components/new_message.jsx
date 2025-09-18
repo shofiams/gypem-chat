@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FiArrowLeft } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import { useChatContext } from "../api/use_chat_context";
 import profileList from "../assets/profile_list.svg";
 import { useAdmins } from "../hooks/useAdmins";
 import { useRoomOperations } from "../hooks/useRooms"; 
@@ -10,12 +9,9 @@ import { useRooms } from "../hooks/useRooms";
 const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   const popupRef = useRef(null);
   const navigate = useNavigate();
-  const { getAllChats, createNewChat, setActiveChat } = useChatContext();
   const { data: admins, loading, error } = useAdmins();
   const { createPrivateRoom, loading: creatingRoom } = useRoomOperations();
-  
-  // Tambahkan refetch dari useRooms hook
-  const { refetch: refetchRooms } = useRooms(); 
+  const { rooms, refetch: refetchRooms } = useRooms(); 
 
   const [processingContact, setProcessingContact] = useState(null);
 
@@ -42,43 +38,42 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
     try {
       const isMobile = window.innerWidth < 768;
       
-      // Pertama, cek apakah room sudah ada dengan merefresh data rooms
+      // Refresh rooms data untuk cek existing room
       await refetchRooms();
-      const allChats = getAllChats();
       
-      // Cek existing chat berdasarkan adminId
-      const existingChat = allChats.find(chat => 
-        chat.adminId === contact.id && 
-        chat.type !== 'group'
+      // Cek existing room berdasarkan adminId
+      const existingRoom = rooms.find(room => 
+        room.adminId === contact.id && 
+        room.type !== 'group'
       );
 
-      if (existingChat) {
-        // Navigate to existing chat
+      if (existingRoom) {
+        // Navigate to existing room
         if (isMobile) {
-          navigate(`/chats/${existingChat.id}`);
+          navigate(`/chats/${existingRoom.room_id || existingRoom.id}`);
         } else {
           if (window.location.pathname !== '/chats') {
             navigate('/chats');
           }
+          // Untuk desktop, bisa dispatch event untuk set active chat
           setTimeout(() => {
-            setActiveChat(existingChat.id);
-          }, 10);
+            window.dispatchEvent(new CustomEvent('setActiveChat', { 
+              detail: { chatId: existingRoom.room_id || existingRoom.id } 
+            }));
+          }, 100);
         }
-        // Refetch rooms setelah navigasi ke existing chat
-        await refetchRooms();
         onClose();
         return;
       }
 
-      // Buat private room melalui API
+      // Buat private room baru melalui API
       console.log("Creating private room for admin:", contact.id);
       const result = await createPrivateRoom(contact.id);
       
       if (result.success) {
-        // Setelah berhasil buat room, refresh data rooms
         console.log("Private room created successfully:", result.data);
         
-        // PERBAIKAN: Trigger refresh di parent component dulu
+        // Trigger refresh di parent component
         if (onChatCreated) {
           await onChatCreated();
         }
@@ -86,54 +81,46 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
         // Dispatch custom event untuk refresh komponen lain
         window.dispatchEvent(new CustomEvent('chatListRefresh'));
         
-        // Tunggu sebentar untuk memastikan parent component sudah refresh
-        await new Promise(resolve => setTimeout(resolve, 200));
+        // Tunggu sebentar untuk memastikan data ter-update
+        await new Promise(resolve => setTimeout(resolve, 300));
         
         // Refresh local rooms data
         await refetchRooms();
 
-        // Buat local chat dengan data dari API response
-        const newChatData = {
-          name: contact.name,
-          avatar: contact.profilePhoto ? `/path/to/images/${contact.profilePhoto}` : profileList,
-          lastMessage: "",
-          time: new Date().toLocaleTimeString('id-ID', { 
-            hour: '2-digit', 
-            minute: '2-digit',
-            hour12: false 
-          }).replace(':', '.'),
-          unreadCount: 0,
-          isOnline: false,
-          showCentang: false,
-          showCentangAbu: false,
-          type: 'one-to-one',
-          adminId: contact.id,
-          email: contact.email,
-          bio: contact.bio,
-          roomId: result.data?.room_id,
-          roomMemberId: result.data?.room_member_id
-        };
-
-        const newChatId = createNewChat(newChatData);
+        // Navigate ke room yang baru dibuat
+        const roomId = result.data?.room_id || result.roomId;
         
-        // Tunggu sebentar untuk memastikan state ter-update
-        await new Promise(resolve => setTimeout(resolve, 150));
-        
-        if (newChatId || result.data?.room_id) {
-          // Gunakan room_id dari API response sebagai fallback
-          const chatIdToUse = newChatId || result.data?.room_id;
-          
+        if (roomId) {
           if (isMobile) {
-            navigate(`/chats/${chatIdToUse}`);
+            navigate(`/chats/${roomId}`);
           } else {
-            // Pastikan kita di halaman chats untuk desktop split view
             if (window.location.pathname !== '/chats') {
               navigate('/chats');
             }
-            // Delay yang lebih lama untuk desktop untuk memastikan navigation selesai
             setTimeout(() => {
-              setActiveChat(chatIdToUse);
+              window.dispatchEvent(new CustomEvent('setActiveChat', { 
+                detail: { chatId: roomId } 
+              }));
             }, 200);
+          }
+        } else {
+          // Fallback: refresh rooms dan cari room yang baru dibuat
+          await refetchRooms();
+          const newRoom = rooms.find(room => room.adminId === contact.id);
+          if (newRoom) {
+            const newRoomId = newRoom.room_id || newRoom.id;
+            if (isMobile) {
+              navigate(`/chats/${newRoomId}`);
+            } else {
+              if (window.location.pathname !== '/chats') {
+                navigate('/chats');
+              }
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('setActiveChat', { 
+                  detail: { chatId: newRoomId } 
+                }));
+              }, 200);
+            }
           }
         }
         
