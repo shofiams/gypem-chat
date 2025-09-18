@@ -1,48 +1,67 @@
 import { useMemo } from 'react';
-import { useRoomDetails } from './useRooms';
+import { useRoomDetails, useRooms } from './useRooms';
 
 export const useChatHeader = (chatId, isGroupChat) => {
-  const { roomDetails } = useRoomDetails(isGroupChat ? chatId : null);
-  
+  // =================================================================
+  // PERBAIKAN: Panggil semua hooks di level atas tanpa kondisi.
+  // =================================================================
+  const { rooms, loading: roomsLoading } = useRooms();
+  const { roomDetails, loading: roomDetailsLoading, error } = useRoomDetails(chatId);
+
   const headerData = useMemo(() => {
-    if (isGroupChat && roomDetails) {
-      return {
-        name: roomDetails.room?.description?.name || 'Group Chat',
-        avatar: roomDetails.room?.description?.url_photo,
-        subtitle: roomDetails.members?.length > 3 
-          ? `${roomDetails.members.slice(0, 3).map(m => m.nama).join(', ')}...`
-          : roomDetails.members?.map(m => m.nama).join(', ') || '',
-        isOnline: false,
-        isGroup: true,
-        memberCount: roomDetails.members?.length || 0
-      };
-    } else {
-      // For one-to-one chat, we still need room details from API
-      // because the API structure treats all chats as "rooms"
-      if (roomDetails && roomDetails.room?.room_type === 'one_to_one') {
-        const otherMember = roomDetails.members?.find(member => 
-          member.member_type !== 'admin' // assuming current user is admin, adjust logic as needed
-        );
-        
+    const API_BASE_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
+
+    // === LOGIKA UNTUK CHAT PERSONAL (ONE-TO-ONE) ===
+    // Gunakan data dari `useRooms`
+    if (!isGroupChat) {
+      if (roomsLoading) return { name: 'Loading...', subtitle: '', isGroup: false };
+
+      const chatFromList = rooms.find(room => room.room_id == chatId);
+
+      if (chatFromList) {
         return {
-          name: otherMember?.nama || roomDetails.room?.description?.name || 'Chat',
-          avatar: roomDetails.room?.description?.url_photo,
-          subtitle: 'Online', // TODO: implement online status from API
-          isOnline: true, // TODO: get from API
-          isGroup: false
+          name: chatFromList.name,
+          avatar: chatFromList.url_photo ? `${API_BASE_URL}/uploads/${chatFromList.url_photo}` : null,
+          subtitle: 'Offline',
+          isOnline: false,
+          isGroup: false,
         };
       }
-      
-      // Fallback if no data available yet
-      return {
-        name: 'Chat',
-        avatar: null,
-        subtitle: 'Loading...',
-        isOnline: false,
-        isGroup: false
-      };
     }
-  }, [isGroupChat, roomDetails, chatId]);
+
+    // === LOGIKA UNTUK GROUP CHAT ===
+    // Gunakan data dari `useRoomDetails`
+    if (isGroupChat) {
+      if (roomDetailsLoading) return { name: 'Loading...', subtitle: '', isGroup: true };
+      if (error) return { name: 'Error', subtitle: 'Gagal memuat detail', isGroup: true };
+
+      if (roomDetails) {
+        const { room, members } = roomDetails;
+        
+        const memberNames = members?.map(member => member.nama || `Peserta #${member.member_id}`) || [];
+
+        return {
+          name: room?.description?.name || 'Group Chat',
+          avatar: room?.description?.url_photo ? `${API_BASE_URL}/uploads/${room.description.url_photo}` : null,
+          subtitle: memberNames.length > 0
+            ? memberNames.slice(0, 3).join(', ') + (memberNames.length > 3 ? '...' : '')
+            : '',
+          isOnline: false,
+          isGroup: true,
+          memberCount: members?.length || 0,
+        };
+      }
+    }
+
+    // Fallback jika data belum ada
+    return {
+      name: 'Chat',
+      avatar: null,
+      subtitle: '',
+      isOnline: false,
+      isGroup: isGroupChat
+    };
+  }, [chatId, isGroupChat, roomDetails, roomDetailsLoading, error, rooms, roomsLoading]);
 
   return headerData;
 };

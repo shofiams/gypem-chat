@@ -153,69 +153,10 @@ export const messageService = {
     }
   },
 
-  // Process messages to extract media, files, and links
-  processMessagesForMedia: (messages) => {
-    const mediaList = [];
-    const files = [];
-    const links = [];
-    const baseUrl = import.meta.env.VITE_API_BASE_URL?.replace('/api', '');
-
-    messages.forEach(message => {
-      // Process attachments
-      if (message.attachment) {
-        const { file_type, file_path } = message.attachment;
-        const fullUrl = `${baseUrl}/uploads${file_path}`;
-        
-        if (file_type === 'gambar' || file_type === 'image') {
-          mediaList.push({
-            type: 'image',
-            url: fullUrl,
-            messageId: message.message_id,
-            sender: message.sender_name
-          });
-        } else if (file_type === 'video') {
-          mediaList.push({
-            type: 'video',
-            url: fullUrl,
-            messageId: message.message_id,
-            sender: message.sender_name
-          });
-        } else if (file_type === 'dokumen' || file_type === 'document') {
-          files.push({
-            name: message.content || 'Document',
-            type: getFileType(file_path),
-            url: fullUrl,
-            messageId: message.message_id,
-            sender: message.sender_name
-          });
-        }
-      }
-
-      // Process links from message content
-      if (message.content) {
-        const urlRegex = /(https?:\/\/[^\s]+)/g;
-        const messageLinks = message.content.match(urlRegex) || [];
-        messageLinks.forEach(link => {
-          links.push({
-            url: link,
-            messageId: message.message_id,
-            sender: message.sender_name
-          });
-        });
-      }
-    });
-
-    return { 
-      mediaList, 
-      files, 
-      links: removeDuplicateLinks(links) 
-    };
-  },
-
   // Get messages by room and type
   fetchMessagesByRoomAndType: async (roomId, messageType) => {
     try {
-      const res = await axiosInstance.get(`/rooms/${roomId}/messages?type=${messageType}`);
+      const res = await axiosInstance.get(`/rooms/${roomId}/messages/${messageType}`);
       
       return {
         success: true,
@@ -276,6 +217,7 @@ export const messageService = {
       };
     }
   },
+
   // Delete messages globally
   deleteMessagesGlobally: async (messageIds) => {
     try {

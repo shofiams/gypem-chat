@@ -5,6 +5,7 @@ export const useRooms = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  console.log(rooms + 'rooms')
 
   const fetchRooms = useCallback(async () => {
     setLoading(true);

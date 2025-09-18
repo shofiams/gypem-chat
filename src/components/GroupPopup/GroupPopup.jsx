@@ -35,10 +35,28 @@ export default function GroupPopup({ onClose, roomId }) {
 
   // Use hooks for data fetching
   const { roomDetails, loading: roomLoading, error: roomError } = useRoomDetails(roomId);
-  const { mediaList, files, links, loading: mediaLoading, error: mediaError } = useRoomMedia(roomId);
+  
+  const { 
+    mediaList, 
+    files, 
+    links, 
+    loading: mediaLoading, 
+    error: mediaError,
+    refetch: refetchMedia 
+  } = useRoomMedia(roomId);
 
   const loading = roomLoading || mediaLoading;
   const error = roomError || mediaError;
+
+  // Debug logging untuk memastikan data terambil
+  useEffect(() => {
+    if (roomId) {
+      console.log('GroupPopup - Room ID:', roomId);
+      console.log('Media Data:', { mediaList, files, links });
+      console.log('Loading:', { roomLoading, mediaLoading });
+      console.log('Errors:', { roomError, mediaError });
+    }
+  }, [roomId, mediaList, files, links, roomLoading, mediaLoading, roomError, mediaError]);
 
   // Detect screen resize
   useEffect(() => {
@@ -82,29 +100,24 @@ export default function GroupPopup({ onClose, roomId }) {
     if (!roomDetails?.members) return [];
     
     return roomDetails.members.map(member => ({
-      name: member.nama || 'Unknown',
+      name: member.nama,
       isAdmin: member.member_type === 'admin',
       photo: null // API doesn't provide member photos yet
     }));
   }, [roomDetails]);
 
-  // Get room info from API - FIXED: Always return an object with default values
   const roomInfo = useMemo(() => {
-    const defaultInfo = {
-      logo: logo,
-      name: 'Group',
-      description: 'No description available'
-    };
-
-    if (!roomDetails?.room?.description) {
-      return defaultInfo;
-    }
+    const API_BASE_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
     
-    const { description } = roomDetails.room;
+    const photoPath = roomDetails?.room?.description?.url_photo;
+    
+    const fullLogoUrl = photoPath 
+      ? `${API_BASE_URL}/uploads/${photoPath}`
+      : logo;
     return {
-      logo: description.url_photo || logo,
-      name: description.name || 'Group',
-      description: description.description || 'No description available'
+      logo: fullLogoUrl,
+      name: roomDetails?.room?.description?.name || 'Group',
+      description: roomDetails?.room?.description?.description || 'No description available'
     };
   }, [roomDetails]);
 
@@ -116,6 +129,13 @@ export default function GroupPopup({ onClose, roomId }) {
       setExitLoading(false);
       setExitText("Delete Group");
     }, 1500);
+  };
+
+  // ✅ PERUBAHAN: Tambahkan handler untuk refresh data
+  const handleRefreshData = () => {
+    if (refetchMedia) {
+      refetchMedia();
+    }
   };
 
   if (loading) {
@@ -137,12 +157,20 @@ export default function GroupPopup({ onClose, roomId }) {
         <div className="bg-white p-6 rounded-lg max-w-sm mx-4">
           <h3 className="text-lg font-semibold mb-2 text-red-600">Error</h3>
           <p className="text-gray-700 mb-4">{error}</p>
-          <button 
-            onClick={onClose} 
-            className="w-full px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded transition"
-          >
-            Close
-          </button>
+          <div className="flex space-x-2">
+            <button 
+              onClick={handleRefreshData}
+              className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition"
+            >
+              Retry
+            </button>
+            <button 
+              onClick={onClose} 
+              className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded transition"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -150,10 +178,26 @@ export default function GroupPopup({ onClose, roomId }) {
 
   const tabs = [
     { id: "overview", label: "Overview", icon: Grid },
-    { id: "members", label: "Members", icon: Users },
-    { id: "media", label: "Media", icon: ImageIcon },
-    { id: "files", label: "Files", icon: FileText },
-    { id: "links", label: "Links", icon: LinkIcon },
+    { 
+      id: "members", 
+      label: `Members`, 
+      icon: Users 
+    },
+    { 
+      id: "media", 
+      label: `Photos`, 
+      icon: ImageIcon 
+    },
+    { 
+      id: "files", 
+      label: `Files`, 
+      icon: FileText 
+    },
+    { 
+      id: "links", 
+      label: `Links`, 
+      icon: LinkIcon 
+    },
   ];
 
   const openLightbox = (index) => {
@@ -187,7 +231,15 @@ export default function GroupPopup({ onClose, roomId }) {
             <button onClick={onClose} className="mr-3">
               <ArrowLeft size={24} strokeWidth={2} />
             </button>
-            <h2 className="font-semibold text-lg">Group Detail</h2>
+            <h2 className="font-semibold text-lg truncate">{roomInfo.name}</h2>
+            {/* ✅ PERUBAHAN: Tambahkan tombol refresh untuk debugging */}
+            <button 
+              onClick={handleRefreshData}
+              className="ml-auto p-2 hover:bg-gray-100 rounded"
+              title="Refresh data"
+            >
+              🔄
+            </button>
           </div>
         )}
 
@@ -258,9 +310,22 @@ export default function GroupPopup({ onClose, roomId }) {
                 groupLogo={roomInfo.logo}
               />
             )}
-            {activeTab === "links" && <GroupLinks links={links} />}
-            {activeTab === "media" && <GroupMedia mediaList={mediaList} openLightbox={openLightbox} />}
-            {activeTab === "files" && <GroupFiles files={files} />}
+            {activeTab === "links" && (
+              <GroupLinks 
+                links={links || []} 
+              />
+            )}
+            {activeTab === "media" && (
+              <GroupMedia 
+                mediaList={mediaList || []} 
+                openLightbox={openLightbox} 
+              />
+            )}
+            {activeTab === "files" && (
+              <GroupFiles 
+                files={files || []} 
+              />
+            )}
           </div>
         </div>
       </div>

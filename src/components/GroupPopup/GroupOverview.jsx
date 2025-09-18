@@ -60,6 +60,7 @@ export default function GroupOverview({
         <img
           src={groupLogo}
           alt="Group Logo"
+          crossOrigin="anonymous"
           className="w-28 h-28 rounded-full shadow-md object-cover"
         />
         <h2 className="mt-4 text-lg font-semibold">{groupName}</h2>

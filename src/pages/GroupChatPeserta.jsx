@@ -127,6 +127,7 @@ const GroupChatPeserta = ({
       {isPopupOpen && (
         <GroupPopup
           onClose={() => setIsPopupOpen(false)}
+          roomId={chatId}
         />
       )}
     </>
