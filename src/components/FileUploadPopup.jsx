@@ -8,8 +8,12 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
   const imageInputRef = useRef(null);
   const documentInputRef = useRef(null);
   const containerRef = useRef(null);
+  const captionInputRef = useRef(null);
 
-  // Auto focus dan global event listener untuk Enter
+  // Detect mobile keyboard
+  const [isMobileKeyboard, setIsMobileKeyboard] = useState(false);
+
+  // Auto focus dan Enter key handler yang lebih spesifik
   useEffect(() => {
     if (isOpen && selectedFile) {
       // Auto focus pada container
@@ -17,28 +21,30 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
         containerRef.current.focus();
       }
 
-      // Global event listener untuk Enter key
-      const handleGlobalKeyDown = (e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          e.stopPropagation();
-          // Langsung kirim file dengan caption (bisa kosong)
-          onSend({
-            file: selectedFile,
-            type: fileType,
-            caption: caption.trim()
-          });
-          handleClose();
+      // Fokus pada input caption setelah delay singkat
+      const timer = setTimeout(() => {
+        if (captionInputRef.current) {
+          captionInputRef.current.focus();
+          autoResize(captionInputRef.current);
         }
-      };
+      }, 100);
 
-      document.addEventListener('keydown', handleGlobalKeyDown, true);
-      
-      return () => {
-        document.removeEventListener('keydown', handleGlobalKeyDown, true);
-      };
+      return () => clearTimeout(timer);
     }
-  }, [isOpen, selectedFile, fileType, caption, onSend]);
+  }, [isOpen, selectedFile]);
+
+  // Detect mobile device
+  useEffect(() => {
+    const checkMobile = () => {
+      const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      setIsMobileKeyboard(isMobile || isTouchDevice);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   if (!isOpen) return null;
 
@@ -79,6 +85,52 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
     }
   };
 
+  // Auto-resize textarea function
+  const autoResize = (textarea) => {
+    if (!textarea) return;
+    
+    // Reset height untuk mendapatkan scrollHeight yang akurat
+    textarea.style.height = 'auto';
+    const scrollHeight = textarea.scrollHeight;
+    const maxHeight = 96; // Tinggi maksimal dalam piksel (sekitar 4 baris)
+    const minHeight = 24;  // Tinggi minimal dalam piksel
+    
+    // Set height berdasarkan content, tapi tidak kurang dari minHeight
+    const newHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
+    textarea.style.height = newHeight + 'px';
+    textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
+  };
+
+  // Scroll to cursor function
+  const scrollToCursor = (textarea) => {
+    if (!textarea) return;
+    
+    // Hanya scroll jika textarea memiliki scroll (tinggi konten > tinggi visible)
+    if (textarea.scrollHeight > textarea.clientHeight) {
+      const lineHeight = 24; // Sesuaikan dengan line-height CSS
+      const cursorPosition = textarea.selectionStart;
+      const textBeforeCursor = textarea.value.substring(0, cursorPosition);
+      const lines = textBeforeCursor.split('\n').length;
+      const cursorY = lines * lineHeight;
+      
+      // Scroll agar kursor tetap terlihat
+      const scrollTop = Math.max(0, cursorY - textarea.clientHeight + lineHeight);
+      textarea.scrollTop = scrollTop;
+    }
+  };
+
+  // Handle input change with auto-resize
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    setCaption(value);
+    
+    // Auto-resize textarea
+    setTimeout(() => {
+      autoResize(e.target);
+    }, 0);
+  };
+
+  // Fungsi send yang diperbaiki
   const handleSend = () => {
     if (selectedFile) {
       onSend({
@@ -95,6 +147,41 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
     setFileType(null);
     setCaption("");
     onClose();
+  };
+
+  // Handle Enter key untuk caption - sama seperti di BaseChatPage
+  const handleCaptionKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.altKey && !e.shiftKey) {
+      // Kirim dengan Enter (desktop) atau selalu di mobile
+      e.preventDefault();
+      handleSend();
+    } else if (e.key === 'Enter' && (e.altKey || e.shiftKey)) {
+      // Tambah baris baru dengan Alt+Enter atau Shift+Enter (desktop saja)
+      if (!isMobileKeyboard) {
+        e.preventDefault();
+        const textarea = e.target;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const newValue = caption.substring(0, start) + '\n' + caption.substring(end);
+        setCaption(newValue);
+        
+        // Set posisi kursor setelah baris baru dan resize
+        setTimeout(() => {
+          textarea.selectionStart = textarea.selectionEnd = start + 1;
+          textarea.focus();
+          autoResize(textarea);
+          // Scroll ke posisi kursor jika textarea memiliki scroll
+          scrollToCursor(textarea);
+        }, 0);
+      }
+    }
+  };
+
+  // Handle Escape key untuk menutup popup
+  const handleContainerKeyDown = (e) => {
+    if (e.key === 'Escape') {
+      handleClose();
+    }
   };
 
   if (!selectedFile) {
@@ -148,7 +235,7 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
           <input
             ref={documentInputRef}
             type="file"
-            accept=".pdf,.doc"
+            accept=".pdf,.doc,.docx"
             onChange={handleDocumentChange}
             className="hidden"
           />
@@ -163,6 +250,7 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
       ref={containerRef}
       className="fixed inset-0 bg-white z-50 flex flex-col max-h-screen outline-none"
       tabIndex="0"
+      onKeyDown={handleContainerKeyDown}
     >
       {/* Header - FIXED HEIGHT */}
       <div className="flex-shrink-0 flex items-center justify-end p-4 border-b border-gray-200 bg-white">
@@ -207,18 +295,32 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
       {/* Caption Input - FIXED HEIGHT, ALWAYS VISIBLE */}
       <div className="flex-shrink-0 p-4 border-t border-gray-200 bg-white">
         <div className="flex items-center gap-3 bg-gray-50 rounded-full p-2">          
-          <input
-            type="text"
+          <textarea
+            ref={captionInputRef}
             placeholder="Caption"
             value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            className="flex-1 text-sm outline-none bg-transparent py-2 px-2 text-gray-700 placeholder-gray-400"
+            onChange={handleInputChange}
+            onKeyDown={handleCaptionKeyDown}
+            rows="1"
+            className="flex-1 text-sm outline-none bg-transparent py-2 px-2 text-gray-700 placeholder-gray-400 resize-none overflow-hidden leading-6"
+            style={{ 
+              minHeight: '24px', 
+              maxHeight: '96px',
+              scrollbarWidth: 'thin',
+              scrollbarColor: 'rgba(156, 163, 175, 0.3) transparent'
+            }}
           />
           <button
             onClick={handleSend}
             className="p-0 hover:bg-opacity-80 rounded-full transition-all"
+            disabled={!selectedFile}
+            title="Kirim file"
           >
-            <img src={assets.Send} alt="send" className="w-8 h-8" />
+            <img 
+              src={assets.Send} 
+              alt="send" 
+              className={`w-8 h-8 ${!selectedFile ? 'opacity-50' : 'opacity-100'}`} 
+            />
           </button>
         </div>
       </div>

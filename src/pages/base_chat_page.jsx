@@ -518,24 +518,26 @@ const BaseChatPage = ({
   };
 
   const handleSend = async () => {
+    // 1. Pastikan ada pesan teks untuk dikirim
     if (!message.trim()) return;
-    
+
+    // 2. Siapkan data untuk pesan TEKS (bukan file)
     const messageData = {
-      content: message.trim(),
+      content: message.trim(), // Ambil teks dari input
       reply_to_message_id: replyingMessage ? replyingMessage.message_id : null,
     };
     
+    // 3. Panggil fungsi untuk mengirim pesan
     const result = await sendMessage(actualChatId, messageData);
     
+    // 4. Jika berhasil, bersihkan input dan perbarui chat
     if (result.success) {
       setMessage("");
       setReplyingMessage(null);
       setShowEmojiPicker(false);
-      
-      // Refetch messages to get updated list
       refetchMessages();
 
-      // Reset tinggi textarea
+      // Reset tinggi textarea dan scroll ke bawah
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.style.height = 'auto';
@@ -549,9 +551,10 @@ const BaseChatPage = ({
       setTimeout(() => {
         scrollToBottom();
       }, 50);
+
     } else {
-      // Handle error - show toast or notification
-  console.error("Failed to send message:", result.error);
+      console.error("Failed to send message:", result.error);
+      alert("Gagal mengirim pesan: " + (result.message || "Silakan coba lagi."));
     }
   };
 
@@ -1184,6 +1187,7 @@ const BaseChatPage = ({
           <div className="z-10">
             <ChatBubblePeserta
               {...msg}
+              attachment={msg.attachment}
               isLastFromSender={isLastFromSender}
               isLastFromReceiver={isLastFromReceiver}
               onCopy={() => {}}
@@ -1676,34 +1680,33 @@ const BaseChatPage = ({
         isOpen={showFileUpload}
         onClose={() => setShowFileUpload(false)}
         onSend={async (fileData) => {
-          const formData = new FormData();
-          
-          // Add content (caption or filename)
-          if (fileData.caption) {
-            formData.append('content', fileData.caption);
-          } else if (fileData.type === 'file') {
-            formData.append('content', fileData.file.name);
-          } else {
-            formData.append('content', 'Image');
-          }
-          
-          // Add file
-          formData.append('file', fileData.file.file);
-          
-          // Add reply if exists
-          if (replyingMessage) {
-            formData.append('reply_to_message_id', replyingMessage.message_id);
-          }
+          // 1. Siapkan objek data pesan.
+          const messageData = {
+            file: fileData.file.file, // File asli untuk diunggah.
+            
+            // 2. Logika 'content' yang sudah diperbaiki:
+            // - Untuk dokumen, 'content' SELALU nama file.
+            // - Untuk gambar, 'content' adalah caption jika ada, jika tidak, string kosong.
+            content: fileData.type === 'document' 
+                        ? fileData.file.name 
+                        : (fileData.caption.trim() || ''),
 
-          // Send via API
-          const result = await sendMessage(actualChatId, formData);
+            // 3. Tambahkan caption sebagai field terpisah jika API Anda mendukungnya nanti.
+            // caption: fileData.caption.trim(), // (Opsional, untuk pengembangan di masa depan)
+
+            reply_to_message_id: replyingMessage ? replyingMessage.message_id : null
+          };
+
+          // 4. Kirim data ke service.
+          const result = await sendMessage(actualChatId, messageData);
           
           if (result.success) {
             setReplyingMessage(null);
             refetchMessages();
-            scrollToBottom();
+            setTimeout(scrollToBottom, 100);
           } else {
             console.error("Failed to upload file:", result.error);
+            alert("Gagal mengirim file: " + (result.message || "Silakan coba lagi."));
           }
         }}
         fileButtonRef={fileButtonRef}

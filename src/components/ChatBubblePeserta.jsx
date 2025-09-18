@@ -174,8 +174,9 @@ const ImageViewerModal = ({
           <img
             src={imageUrl}
             alt="Full size view"
+            crossOrigin="anonymous"
             className={`max-w-full max-h-[85vh] object-contain cursor-pointer transition-opacity duration-200 ${
-              isLoading ? 'opacity-0 absolute' : 'opacity-100'
+              isLoading || error ? 'hidden' : 'opacity-100'
             }`}
             onLoad={handleImageLoad}
             onError={handleImageError}
@@ -257,6 +258,8 @@ export default function ChatBubblePeserta({ ...props }) {
   const [showDropdownButton, setShowDropdownButton] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false); // FIX: Add missing state
+  const [imageLoadError, setImageLoadError] = useState(false);
+  const [imageLoading, setImageLoading] = useState(true);
   
   const dropdownRef = useRef(null);
   const buttonRef = useRef(null);
@@ -305,13 +308,13 @@ export default function ChatBubblePeserta({ ...props }) {
   }, [created_at]);
 
   // FIX: Get image from attachment or images array
-  const image = attachment?.file_type === 'image' ? attachment.file_path : 
-                (images.length > 0 ? images[imageIndex] : null);
+  const image = attachment?.file_type === 'image' ? attachment.url : null;
   
+  // SETELAH DIPERBAIKI
   const file = attachment?.file_type === 'dokumen' ? {
-    name: content, // Document filename is typically in content
-    size: '1MB', // You may want to add file size to your API
-    url: attachment.file_path
+    name: attachment.file_path, 
+    size: '1MB', 
+    url: attachment.url
   } : null;
 
   const reply = reply_to_message ? {
@@ -380,7 +383,7 @@ export default function ChatBubblePeserta({ ...props }) {
 
   // Fungsi untuk mendapatkan class bubble dengan ekor
   const getBubbleClasses = () => {
-    const baseClasses = "relative max-w-xs p-2 transition-all break-all";
+    const baseClasses = "relative max-w-xs p-2 transition-all break-words";
     const hasTail = shouldHaveTail();
     
     if (isSender) {
@@ -527,6 +530,18 @@ export default function ChatBubblePeserta({ ...props }) {
     if (!isSelectionMode && !isDeleted) {
       setIsImageModalOpen(true);
     }
+  };
+
+  const handleImageError = (e) => {
+    console.error('Image failed to load:', e.target.src);
+    setImageLoadError(true);
+    setImageLoading(false);
+  };
+
+  const handleImageLoad = () => {
+    console.log('Image loaded successfully:', image);
+    setImageLoadError(false);
+    setImageLoading(false);
   };
 
   // Handle image navigation in modal
@@ -845,10 +860,82 @@ export default function ChatBubblePeserta({ ...props }) {
     
     // Split the text by line breaks
     const lines = displayText.split('\n');
+
+    const linkifyText = (text) => {
+    if (!text) return text;
+
+    const urlRegex = /((?:https?:\/\/|www\.)[^\s]+|([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}[^\s]*)/gi;
+    // Daftar ekstensi file umum untuk diabaikan
+    const fileExtensionBlacklist = ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'rar', 'mp3', 'mp4', 'avi'];
+    
+    const parts = [];
+    let lastIndex = 0;
+    let match;
+
+    while ((match = urlRegex.exec(text)) !== null) {
+      const url = match[0];
+      const isBareDomain = !url.startsWith('http') && !url.startsWith('www');
+      const charBefore = text[match.index - 1];
+
+      // --- PERUBAHAN UTAMA ADA DI SINI ---
+      if (isBareDomain) {
+        // Cek 1: Jika ini adalah ekstensi file dari daftar hitam, lewati.
+        const extension = url.split('.').pop().toLowerCase().replace(/[^a-z0-9]/gi, ''); // Ambil ekstensi dan bersihkan dari tanda baca
+        if (fileExtensionBlacklist.includes(extension)) {
+          continue;
+        }
+
+        // Cek 2: Lewati jika ini bagian dari kata lain (misal: nama file dengan underscore)
+        if (charBefore && /\S/.test(charBefore)) {
+          continue;
+        }
+      }
+      
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index));
+      }
+
+      let cleanUrl = url;
+      let trailingChars = '';
+      const punctuation = '.,;!?';
+      while (punctuation.includes(cleanUrl.slice(-1))) {
+        trailingChars = cleanUrl.slice(-1) + trailingChars;
+        cleanUrl = cleanUrl.slice(0, -1);
+      }
+
+      const href = cleanUrl.startsWith('http') ? cleanUrl : `https://${cleanUrl}`;
+      
+      parts.push(
+        <a
+          key={match.index}
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:underline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {cleanUrl}
+        </a>
+      );
+
+      if (trailingChars) {
+        parts.push(trailingChars);
+      }
+
+      lastIndex = urlRegex.lastIndex;
+    }
+
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex));
+    }
+
+    return parts.length > 0 ? parts : [text];
+  };
     
     const formattedText = lines.map((line, index) => (
       <React.Fragment key={index}>
-        {line}
+        {/* Gunakan fungsi linkifyText di sini */}
+        {linkifyText(line)}
         {index < lines.length - 1 && <br />}
       </React.Fragment>
     ));
@@ -945,10 +1032,10 @@ export default function ChatBubblePeserta({ ...props }) {
     if (!isSender) {
       return (
         <div className="mb-1 p-1 border-l-4 border-[#4C0D68] bg-gray-50 text-xs text-gray-500 rounded break-all">
-        <div className="font-semibold text-[#4C0D68] break-all">
+        <div className="font-semibold text-[#4C0D68] break-words">
             {reply.sender}
           </div>
-          <div className="break-all">
+          <div className="break-words">
             {formatReplyMessage(reply.message)}
           </div>
         </div>
@@ -1035,18 +1122,65 @@ export default function ChatBubblePeserta({ ...props }) {
               {renderReply()}
 
               {image && (
-                <div className="mb-1">
-                  <img
-                    src={getCurrentImageUrl()}
-                    alt="chat-img"
-                    className="max-w-full rounded-md cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={handleImageClick}
-                    style={{ maxWidth: '200px' }}
-                  />
-                  {/* Status icons for image with caption */}
-                  {!message && !isDeleted && (
-                    <div className="flex justify-end mt-1">
-                      {renderStatusIcons()}
+                // Kontainer utama untuk bubble gambar + caption
+                <div className={`w-64 ${isSender ? '' : ''}`}>
+                  {/* Bagian Gambar */}
+                  <div 
+                    className={`relative overflow-hidden aspect-square ${
+                      message && !isDeleted ? 'rounded-t-lg' : 'rounded-lg' // Sudut membulat penuh jika tanpa caption
+                    }`}
+                  >
+                    {imageLoading && !imageLoadError && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
+                      </div>
+                    )}
+
+                    {imageLoadError ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100 border border-gray-300">
+                        {/* Error SVG and text */}
+                        <svg className="w-10 h-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <span className="text-xs text-gray-500">Image unavailable</span>
+                        <button onClick={() => { setImageLoadError(false); setImageLoading(true); }} className="text-xs text-blue-500 hover:underline mt-1">
+                          Retry
+                        </button>
+                      </div>
+                    ) : (
+                      <img
+                        src={image}
+                        alt="chat-img"
+                        crossOrigin="anonymous"
+                        className="w-full h-full object-cover cursor-pointer"
+                        onClick={handleImageClick}
+                        onLoad={handleImageLoad}
+                        onError={handleImageError}
+                      />
+                    )}
+
+                    {/* Ikon status HANYA jika tidak ada caption */}
+                    {!message && !isDeleted && (
+                       <div className="absolute bottom-1 right-1 flex items-center gap-1 p-1 rounded bg-black/50">
+                          {renderStatusIcons()}
+                       </div>
+                    )}
+                  </div>
+
+                  {/* Bagian Caption (hanya muncul jika ada pesan) */}
+                  {message && !isDeleted && (
+                    <div 
+                      className={`p-1 rounded-b-lg ${
+                        isSender ? "bg-[#4C0D68] text-white" : "bg-white text-black"
+                      }`}
+                    >
+                      <div className="flex items-end justify-between gap-2">
+                        <div className="flex-1 break-all leading-relaxed text-sm">
+                          {renderMessageText()}
+                        </div>
+                        {/* Ikon status berada di sini bersama caption */}
+                        {renderStatusIcons()}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1095,16 +1229,14 @@ export default function ChatBubblePeserta({ ...props }) {
                 </div>
               )}
 
-              {(message || isDeleted) && (
+              {!image && (message || isDeleted) && (
               <div className={`text-sm ${
                 isSender ? "text-white" : "text-black"
               }`}>
                 <div className="flex items-end justify-between gap-2">
-                  <div className="flex items-start gap-1 flex-1 min-w-0">
-                    <div className="flex-1 break-all leading-relaxed">
-                      {renderMessageText()}
-                    </div>
-                  </div>
+                  <div className="min-w-0 flex-1 break-words leading-relaxed">
+                  {renderMessageText()}
+                </div>
 
                     {/* Status icons for message */}
                     {!isDeleted && renderStatusIcons()}
