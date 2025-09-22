@@ -3,15 +3,15 @@ import { FiArrowLeft } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import profileList from "../assets/profile_list.svg";
 import { useAdmins } from "../hooks/useAdmins";
-import { useRoomOperations } from "../hooks/useRooms"; 
-import { useRooms } from "../hooks/useRooms"; 
+import { useRoomOperations } from "../hooks/useRooms";
+import { useRooms } from "../hooks/useRooms";
 
 const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   const popupRef = useRef(null);
   const navigate = useNavigate();
   const { data: admins, loading, error } = useAdmins();
   const { createPrivateRoom, loading: creatingRoom } = useRoomOperations();
-  const { rooms, refetch: refetchRooms } = useRooms(); 
+  const { rooms, refetch: refetchRooms } = useRooms();
 
   const [processingContact, setProcessingContact] = useState(null);
 
@@ -32,106 +32,98 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   const handleContactClick = async (contact) => {
     // Prevent multiple clicks
     if (processingContact === contact.id || creatingRoom) return;
-    
+
     setProcessingContact(contact.id);
-    
+
     try {
       const isMobile = window.innerWidth < 768;
-      
+
       // Refresh rooms data untuk cek existing room
       await refetchRooms();
-      
+
       // Cek existing room berdasarkan adminId
-      const existingRoom = rooms.find(room => 
-        room.adminId === contact.id && 
-        room.type !== 'group'
+      const existingRoom = rooms.find(
+        (room) => room.adminId === contact.id && room.type !== "group"
       );
 
       if (existingRoom) {
-        // Navigate to existing room
+        // Langsung redirect ke room yang sudah ada TANPA NOTIFIKASI
         if (isMobile) {
           navigate(`/chats/${existingRoom.room_id || existingRoom.id}`);
         } else {
-          if (window.location.pathname !== '/chats') {
-            navigate('/chats');
+          if (window.location.pathname !== "/chats") {
+            navigate("/chats");
           }
-          // Untuk desktop, bisa dispatch event untuk set active chat
+          // Untuk desktop, dispatch event untuk set active chat
           setTimeout(() => {
-            window.dispatchEvent(new CustomEvent('setActiveChat', { 
-              detail: { chatId: existingRoom.room_id || existingRoom.id } 
-            }));
+            window.dispatchEvent(
+              new CustomEvent("setActiveChat", {
+                detail: { chatId: existingRoom.room_id || existingRoom.id },
+              })
+            );
           }, 100);
         }
-        onClose();
-        return;
+        onClose(); // Tutup popup
+        return; // Keluar dari fungsi
       }
 
-      // Buat private room baru melalui API
-      console.log("Creating private room for admin:", contact.id);
+      // Buat private room baru melalui API (hanya jika room belum ada)
       const result = await createPrivateRoom(contact.id);
-      
+
       if (result.success) {
-        console.log("Private room created successfully:", result.data);
-        
-        // Trigger refresh di parent component
         if (onChatCreated) {
           await onChatCreated();
         }
-        
-        // Dispatch custom event untuk refresh komponen lain
-        window.dispatchEvent(new CustomEvent('chatListRefresh'));
-        
-        // Tunggu sebentar untuk memastikan data ter-update
-        await new Promise(resolve => setTimeout(resolve, 300));
-        
-        // Refresh local rooms data
+
+        window.dispatchEvent(new CustomEvent("chatListRefresh"));
+
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
         await refetchRooms();
 
-        // Navigate ke room yang baru dibuat
         const roomId = result.data?.room_id || result.roomId;
-        
+
         if (roomId) {
           if (isMobile) {
             navigate(`/chats/${roomId}`);
           } else {
-            if (window.location.pathname !== '/chats') {
-              navigate('/chats');
+            if (window.location.pathname !== "/chats") {
+              navigate("/chats");
             }
             setTimeout(() => {
-              window.dispatchEvent(new CustomEvent('setActiveChat', { 
-                detail: { chatId: roomId } 
-              }));
+              window.dispatchEvent(
+                new CustomEvent("setActiveChat", {
+                  detail: { chatId: roomId },
+                })
+              );
             }, 200);
           }
         } else {
-          // Fallback: refresh rooms dan cari room yang baru dibuat
           await refetchRooms();
-          const newRoom = rooms.find(room => room.adminId === contact.id);
+          const newRoom = rooms.find((room) => room.adminId === contact.id);
           if (newRoom) {
             const newRoomId = newRoom.room_id || newRoom.id;
             if (isMobile) {
               navigate(`/chats/${newRoomId}`);
             } else {
-              if (window.location.pathname !== '/chats') {
-                navigate('/chats');
+              if (window.location.pathname !== "/chats") {
+                navigate("/chats");
               }
               setTimeout(() => {
-                window.dispatchEvent(new CustomEvent('setActiveChat', { 
-                  detail: { chatId: newRoomId } 
-                }));
+                window.dispatchEvent(
+                  new CustomEvent("setActiveChat", {
+                    detail: { chatId: newRoomId },
+                  })
+                );
               }, 200);
             }
           }
         }
-        
       } else {
         console.error("Failed to create private room:", result.error);
-        alert(`Failed to create chat: ${result.error}`);
       }
-      
     } catch (error) {
       console.error("Error creating private room:", error);
-      alert("An error occurred while creating the chat. Please try again.");
     } finally {
       setProcessingContact(null);
       onClose();
@@ -140,12 +132,12 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
 
   if (!isOpen) return null;
 
-  const contacts = admins.map(admin => ({
+  const contacts = admins.map((admin) => ({
     id: admin.admin_id,
     name: admin.nama_admin,
     email: admin.email,
     bio: admin.bio,
-    profilePhoto: admin.url_profile_photo
+    profilePhoto: admin.url_profile_photo,
   }));
 
   return (
@@ -162,7 +154,6 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
         max-md:w-full max-md:h-full max-md:rounded-none
       `}
     >
-
       {/* Header Desktop */}
       <div className="px-4 py-3 border-b border-gray-200 hidden md:block">
         <h2 className="text-sm font-semibold text-gray-800">New Message</h2>
@@ -207,13 +198,17 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
               key={contact.id}
               onClick={() => handleContactClick(contact)}
               className={`flex items-center gap-4 px-5 py-3 cursor-pointer transition-colors duration-200 md:gap-3 md:px-4 md:py-2 md:transition-none md:duration-0 ${
-                processingContact === contact.id 
-                  ? 'bg-gray-100 opacity-70 cursor-not-allowed' 
-                  : 'hover:bg-gray-50 md:hover:bg-gray-100'
+                processingContact === contact.id
+                  ? "bg-gray-100 opacity-70 cursor-not-allowed"
+                  : "hover:bg-gray-50 md:hover:bg-gray-100"
               }`}
             >
               <img
-                src={contact.profilePhoto ? `/path/to/images/${contact.profilePhoto}` : profileList}
+                src={
+                  contact.profilePhoto
+                    ? `/path/to/images/${contact.profilePhoto}`
+                    : profileList
+                }
                 alt="avatar"
                 className="w-13 h-13 rounded-full object-cover md:w-8 md:h-8 md:object-none"
                 onError={(e) => {

@@ -516,6 +516,7 @@ export default function ChatPage() {
     return () => window.removeEventListener('keydown', handleKeydown);
   }, [activeChatId, isMobile, isStarPage]);
 
+  
   // Handle clicks outside context menu and confirm dialog
   useEffect(() => {
     function onDown(e) {
