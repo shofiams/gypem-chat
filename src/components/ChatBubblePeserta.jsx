@@ -204,6 +204,7 @@ export default function ChatBubblePeserta({ ...props }) {
       sender_name,
       sender_type,
       created_at,
+      updated_at,
       attachment,
       reply_to_message,
       is_deleted_globally,
@@ -733,9 +734,11 @@ export default function ChatBubblePeserta({ ...props }) {
   const renderStatusIcons = () => {
     if (isDeleted) return null;
     
+    const wasMessageEdited = updated_at && new Date(updated_at) > new Date(created_at);
+
     return (
       <div className="flex items-center gap-1 flex-shrink-0">
-        {isEdited && (
+        {wasMessageEdited && (
           <span className="text-[10px] opacity-70 mr-1">diedit</span>
         )}
         

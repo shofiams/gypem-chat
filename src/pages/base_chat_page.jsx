@@ -697,10 +697,12 @@ const BaseChatPage = ({
         currentMessages.map(msgGroup =>
           msgGroup.map(msg => {
             if (msg.message_id === editingMessage) {
+              // Objek yang dikembalikan harus cocok dengan apa yang dicek oleh bubble
               return {
                 ...msg,
                 content: editText.trim(),
-                is_edited: true // <- TAMBAHAN INI
+                // TAMBAHKAN BARIS INI untuk memperbarui timestamp secara lokal
+                updated_at: new Date().toISOString(), 
               };
             }
             return msg;
