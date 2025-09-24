@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { assets } from "../assets/assets";
 import DropdownMenuPeserta from "./DropdownMenuPeserta";
 import { Download, X, ChevronLeft, ChevronRight } from 'lucide-react';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_FILE;
 
 // ImageViewerModal component
 const ImageViewerModal = ({ 
@@ -229,6 +230,8 @@ export default function ChatBubblePeserta({ ...props }) {
       previousMessageSender = null,
       isFirstFromSender = false,
       
+      isEdited = false,
+
       // FIX: Add missing image props with defaults
       images = [], // Array of image URLs for multiple images
       imageIndex = 0, // Current image index
@@ -307,14 +310,19 @@ export default function ChatBubblePeserta({ ...props }) {
     }).replace(':', '.');
   }, [created_at]);
 
-  // FIX: Get image from attachment or images array
-  const image = attachment?.file_type === 'image' ? attachment.url : null;
-  
-  // SETELAH DIPERBAIKI
-  const file = attachment?.file_type === 'dokumen' ? {
-    name: attachment.file_path, 
-    size: '1MB', 
-    url: attachment.url
+  const getFullUrl = (urlPath) => {
+    if (!urlPath || urlPath.startsWith("http")) return urlPath;
+    return `${API_BASE_URL}/uploads/${urlPath}`;
+  };
+
+  const image = attachment?.file_type === 'image' && attachment.url && !isDeleted 
+    ? getFullUrl(attachment.url) 
+    : null;
+
+  const file = attachment?.file_type === 'dokumen' && !isDeleted ? {
+    name: attachment.original_filename, // <-- Menggunakan "original_filename"
+    size: '1MB', // Note: Ukuran file masih hardcoded
+    url: getFullUrl(attachment.url)     // <-- Menggunakan "url"
   } : null;
 
   const reply = reply_to_message ? {
@@ -682,6 +690,43 @@ export default function ChatBubblePeserta({ ...props }) {
     if (isMobile) setShowDropdownButton(false);
   };
 
+  // Sisipkan fungsi ini di dalam komponen ChatBubblePeserta Anda
+  const handleFileDownload = async (fileUrl, fileName) => {
+      try {
+        // 1. Ambil data file dari URL menggunakan fetch
+        const response = await fetch(fileUrl);
+        if (!response.ok) {
+          throw new Error('Network response was not ok.');
+        }
+
+        // 2. Ubah respons menjadi Blob (representasi data file)
+        const blob = await response.blob();
+        
+        // 3. Buat URL sementara untuk blob ini di browser
+        const url = window.URL.createObjectURL(blob);
+        
+        // 4. Buat elemen <a> sementara di dalam memori
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName || 'download'; // Atur nama file unduhan
+        
+        // 5. Tambahkan link ke body, klik secara otomatis, lalu hapus
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // 6. Hapus URL sementara untuk membersihkan memori
+        window.URL.revokeObjectURL(url);
+
+      } catch (error) {
+        console.error('File download failed:', error);
+        // Fallback: Jika gagal, coba buka di tab baru.
+        // Browser mungkin akan menanganinya sebagai unduhan.
+        window.open(fileUrl, '_blank');
+        alert('Download failed. Please try saving the file from the new tab.');
+      }
+    };
+
   const hasContent = message || image || file || reply;
 
   // Render status icons dengan pengondisian warna berdasarkan bubble
@@ -690,7 +735,7 @@ export default function ChatBubblePeserta({ ...props }) {
     
     return (
       <div className="flex items-center gap-1 flex-shrink-0">
-        {props.isEdited && isSender && (
+        {isEdited && (
           <span className="text-[10px] opacity-70 mr-1">diedit</span>
         )}
         
@@ -751,7 +796,13 @@ export default function ChatBubblePeserta({ ...props }) {
         <div className={`text-sm italic flex items-center gap-2 ${
           isSender ? "text-white opacity-80" : "text-gray-500"
         }`}>
-          <img src={assets.Tarik} alt="deleted" className="w-4 h-4 flex-shrink-0" />
+          <img src={assets.Tarik} alt="deleted" className="w-4 h-4 flex-shrink-0" 
+          style={{
+            filter: isSender 
+              ? 'brightness(0) saturate(100%) invert(1)' // Ikon jadi putih untuk bubble sender
+              : 'brightness(0) saturate(100%) invert(0.5)' // Ikon jadi abu-abu untuk bubble receiver
+          }}
+          />
           <span>
             {isSender ? "You deleted this message" : "This message was deleted"}
           </span>
@@ -1078,7 +1129,7 @@ export default function ChatBubblePeserta({ ...props }) {
         )}
 
         {/* Rectangle checkbox in selection mode */}
-        {isSelectionMode && (
+        {isSelectionMode && !isDeleted && (
           <div className="flex items-center mr-2 mt-2 relative z-20">
             <div
               className={`w-5 h-5 border-2 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
@@ -1210,14 +1261,15 @@ export default function ChatBubblePeserta({ ...props }) {
                       >
                         Open
                       </button>
-                      <a
-                        href={file.url}
-                        download={file.name}
+                      <button
                         className="px-6 py-1 text-xs rounded-md border border-[#4C0D68] text-[#4C0D68] hover:bg-[#4C0D68] hover:text-white transition"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Mencegah event lain terpicu
+                          handleFileDownload(file.url, file.name); // Panggil fungsi download baru
+                        }}
                       >
                         Save
-                      </a>
+                      </button>
                     </div>
                   </div>
                   {/* Status icons for file with caption */}

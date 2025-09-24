@@ -118,6 +118,7 @@ const BaseChatPage = ({
     unstarMessages,
     pinMessage,
     unpinMessage,
+    updateMessage,
     deleteMessagesForMe,
     deleteMessagesGlobally,
     loading: operationLoading,
@@ -684,29 +685,50 @@ const BaseChatPage = ({
 
   // Save edited message
   const handleSaveEdit = async () => {
-    if (!editText.trim()) return;
-    
-    // Call API to update message content
-    // You'll need to implement this endpoint
-    // const result = await messageService.updateMessage(editingMessage, {
-    //   content: editText.trim()
-    // });
-    
-    setEditingMessage(null);
-    setEditText("");
-    
-    // Reset textarea
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.style.height = 'auto';
-        inputRef.current.style.height = '24px';
-        inputRef.current.style.overflowY = 'hidden';
-        inputRef.current.focus();
-      }
-    }, 10);
-    
-    // Refetch messages to get updated content
-    refetchMessages();
+    if (!editText.trim() || !editingMessage) return;
+
+    // Panggil API untuk update pesan
+    const result = await updateMessage(editingMessage, editText.trim());
+
+    if (result.success) {
+      console.log("Pesan berhasil diupdate");
+
+      setMessages(currentMessages =>
+        currentMessages.map(msgGroup =>
+          msgGroup.map(msg => {
+            if (msg.message_id === editingMessage) {
+              return {
+                ...msg,
+                content: editText.trim(),
+                is_edited: true // <- TAMBAHAN INI
+              };
+            }
+            return msg;
+          })
+        )
+      );
+      
+      // Bersihkan state setelah berhasil
+      setEditingMessage(null);
+      setEditText("");
+
+      // Reset tampilan textarea
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.style.height = 'auto';
+          inputRef.current.style.height = '24px';
+          inputRef.current.style.overflowY = 'hidden';
+          inputRef.current.focus();
+        }
+      }, 10);
+
+      // Ambil ulang data pesan untuk menampilkan perubahan
+      // await refetchMessages();
+
+    } else {
+      console.error("Gagal mengupdate pesan:", result.error);
+      alert("Gagal menyimpan perubahan: " + result.error);
+    }
   };
 
   // Cancel edit
@@ -1210,7 +1232,7 @@ const BaseChatPage = ({
                 }
               } : null}
               onEdit={canSendMessages ? (messageId) => handleEdit(messageId) : null} 
-              isEdited={msg.isEdited}
+              isEdited={msg.is_edited || false} 
               isDeleted={msg.is_deleted_globally}
               isSelectionMode={isSelectionMode}
               isSelected={selectedMessages.has(msg.message_id)}
@@ -1476,11 +1498,25 @@ const BaseChatPage = ({
         >
           {flattenedMessages.length > 0 ? (
             <>
-              <DateSeparator timestamp={flattenedMessages[0]?.created_at} />
-              {flattenedMessages
-                .map((msg, idx, arr) => renderMessage(msg, idx, arr))
-                .filter(Boolean) // Filter out null values (deleted messages)
-              }
+              {flattenedMessages.map((msg, idx, arr) => {
+                // Ambil pesan sebelumnya
+                const prevMsg = arr[idx - 1];
+                
+                // Cek apakah DateSeparator perlu ditampilkan
+                // Kondisi: Ini adalah pesan pertama ATAU tanggal pesan ini berbeda dari pesan sebelumnya
+                const showDateSeparator = !prevMsg || 
+                  new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString();
+
+                return (
+                  <React.Fragment key={msg.message_id}>
+                    {/* Tampilkan DateSeparator jika kondisi terpenuhi */}
+                    {showDateSeparator && <DateSeparator timestamp={msg.created_at} />}
+                    
+                    {/* Render komponen pesan seperti biasa */}
+                    {renderMessage(msg, idx, arr)}
+                  </React.Fragment>
+                );
+              })}
               <div ref={messagesEndRef} />
             </>
           ) : (
@@ -1687,9 +1723,7 @@ const BaseChatPage = ({
             // 2. Logika 'content' yang sudah diperbaiki:
             // - Untuk dokumen, 'content' SELALU nama file.
             // - Untuk gambar, 'content' adalah caption jika ada, jika tidak, string kosong.
-            content: fileData.type === 'document' 
-                        ? fileData.file.name 
-                        : (fileData.caption.trim() || ''),
+            content: fileData.caption.trim() || '',
 
             // 3. Tambahkan caption sebagai field terpisah jika API Anda mendukungnya nanti.
             // caption: fileData.caption.trim(), // (Opsional, untuk pengembangan di masa depan)

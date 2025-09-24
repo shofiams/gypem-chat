@@ -194,6 +194,25 @@ export const messageService = {
     }
   },
 
+  updateMessage: async (messageId, content) => {
+    try {
+      const res = await axiosInstance.patch(`/messages/${messageId}`, {
+        content: content,
+      });
+      return {
+        success: true,
+        data: res.data.data,
+        message: res.data.message || "Pesan berhasil diperbarui",
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || "Gagal memperbarui pesan",
+        data: null,
+      };
+    }
+  },
+
   // Delete messages for me
   deleteMessagesForMe: async (messageStatusIds) => {
     try {
