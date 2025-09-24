@@ -12,19 +12,31 @@ const ImageIcon = ({ className = "w-6 h-6" }) => (
 export default function GroupMedia({ mediaList = [], openLightbox: externalOpenLightbox }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [imageLoadError, setImageLoadError] = useState(false);
 
   // Filter hanya foto dari mediaList
   const photoList = mediaList.filter(media => media.type === "image");
+
+  // Function untuk generate full URL foto
+  const getPhotoUrl = (photoPath) => {
+    const API_BASE_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
+    return `${API_BASE_URL}/uploads/${photoPath}`;
+  };
 
   // Preload semua foto supaya cepat muncul
   useEffect(() => {
     if (photoList && photoList.length > 0) {
       photoList.forEach(photo => {
         const img = new Image();
-        img.src = photo.url;
+        img.src = getPhotoUrl(photo.url);
       });
     }
   }, [photoList]);
+
+  // Reset image error state ketika index berubah
+  useEffect(() => {
+    setImageLoadError(false);
+  }, [currentIndex]);
 
   // Function untuk handle click pada foto
   const handlePhotoClick = (index) => {
@@ -43,6 +55,7 @@ export default function GroupMedia({ mediaList = [], openLightbox: externalOpenL
     
     setCurrentIndex(index);
     setLightboxOpen(true);
+    setImageLoadError(false); // Reset error state
     
     // Force update setelah set state
     setTimeout(() => {
@@ -53,6 +66,7 @@ export default function GroupMedia({ mediaList = [], openLightbox: externalOpenL
   const closeLightbox = () => {
     console.log('Closing lightbox');
     setLightboxOpen(false);
+    setImageLoadError(false); // Reset error state
   };
 
   const prevPhoto = () => {
@@ -63,14 +77,52 @@ export default function GroupMedia({ mediaList = [], openLightbox: externalOpenL
     setCurrentIndex((prev) => (prev + 1) % photoList.length);
   };
 
-  const downloadPhoto = () => {
-    const { url } = photoList[currentIndex];
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `photo-${currentIndex + 1}.jpg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadPhoto = async () => {
+    try {
+      const { url } = photoList[currentIndex];
+      const fullUrl = getPhotoUrl(url);
+      
+      // Fetch gambar sebagai blob
+      const response = await fetch(fullUrl);
+      if (!response.ok) throw new Error('Failed to fetch image');
+      
+      const blob = await response.blob();
+      
+      // Membuat object URL dari blob
+      const blobUrl = window.URL.createObjectURL(blob);
+      
+      // Membuat link download
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = `photo-${currentIndex + 1}.jpg`;
+      link.style.display = 'none';
+      
+      // Trigger download
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Cleanup object URL
+      window.URL.revokeObjectURL(blobUrl);
+      
+    } catch (error) {
+      console.error('Download failed:', error);
+      // Fallback ke method lama jika fetch gagal
+      const { url } = photoList[currentIndex];
+      const fullUrl = getPhotoUrl(url);
+      const link = document.createElement("a");
+      link.href = fullUrl;
+      link.download = `photo-${currentIndex + 1}.jpg`;
+      link.target = '_blank'; // Buka di tab baru sebagai fallback
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  // Handle image error dalam modal
+  const handleModalImageError = () => {
+    setImageLoadError(true);
   };
 
   // Keyboard navigation
@@ -96,6 +148,8 @@ export default function GroupMedia({ mediaList = [], openLightbox: externalOpenL
 
   // Function untuk render foto
   const renderPhotoItem = (photo, index) => {
+    const photoUrl = getPhotoUrl(photo.url);
+    
     return (
       <div
         key={`${photo.messageId || index}-${photo.url}`}
@@ -103,7 +157,7 @@ export default function GroupMedia({ mediaList = [], openLightbox: externalOpenL
         onClick={() => handlePhotoClick(index)}
       >
         <img
-          src={photo.url}
+          src={photoUrl}
           crossOrigin="anonymous"
           alt={`Photo from ${photo.sender || 'Unknown'}`}
           className="w-full h-full object-cover select-none"
@@ -224,14 +278,24 @@ export default function GroupMedia({ mediaList = [], openLightbox: externalOpenL
 
           {/* Konten Foto */}
           <div className="max-h-[90vh] max-w-[90vw] flex items-center justify-center">
-            <img
-              src={photoList[currentIndex].url}
-              alt="Preview"
-              crossOrigin="anonymous"
-              className="max-h-full max-w-full rounded-lg shadow-2xl select-none object-contain"
-              onClick={(e) => e.stopPropagation()}
-              draggable={false}
-            />
+            {imageLoadError ? (
+              // Fallback untuk modal ketika gambar gagal dimuat
+              <div className="bg-gray-800 bg-opacity-80 rounded-lg p-16 flex flex-col items-center justify-center text-white">
+                <ImageIcon className="w-20 h-20 mb-4 opacity-50" />
+                <p className="text-lg mb-2">Failed to load image</p>
+                <p className="text-sm text-gray-300">The image could not be displayed</p>
+              </div>
+            ) : (
+              <img
+                src={getPhotoUrl(photoList[currentIndex].url)}
+                alt="Preview"
+                crossOrigin="anonymous"
+                className="max-h-full max-w-full rounded-lg shadow-2xl select-none object-contain"
+                onClick={(e) => e.stopPropagation()}
+                draggable={false}
+                onError={handleModalImageError}
+              />
+            )}
           </div>
 
           {/* Tombol Next */}

@@ -95,15 +95,51 @@ export default function GroupPopup({ onClose, roomId }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
-  // Process members data from API
+  // ✅ PERUBAHAN: Process members data dari API dengan foto profil yang benar
   const processedMembers = useMemo(() => {
     if (!roomDetails?.members) return [];
     
-    return roomDetails.members.map(member => ({
-      name: member.nama,
-      isAdmin: member.member_type === 'admin',
-      photo: null // API doesn't provide member photos yet
-    }));
+    const API_BASE_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
+    
+    const mappedMembers = roomDetails.members.map(member => {
+      let photoUrl = null;
+      
+      // Cek apakah profile_photo sudah berupa URL lengkap atau hanya nama file
+      if (member.profile_photo) {
+        if (member.profile_photo.startsWith('http')) {
+          // Sudah berupa URL lengkap
+          photoUrl = member.profile_photo;
+        } else {
+          // Hanya nama file, perlu ditambahkan base URL
+          photoUrl = `${API_BASE_URL}/uploads/${member.profile_photo}`;
+        }
+      }
+      
+      return {
+        name: member.name, // Menggunakan 'name' bukan 'nama'
+        isAdmin: member.member_type === 'admin',
+        photo: photoUrl // Menggunakan URL foto profil dari API
+      };
+    });
+
+    // ✅ SORTING: Admin di paling atas, lalu urutkan berdasarkan abjad
+    const sortedMembers = mappedMembers.sort((a, b) => {
+      // Jika salah satu admin dan yang lain bukan, admin di atas
+      if (a.isAdmin && !b.isAdmin) return -1;
+      if (!a.isAdmin && b.isAdmin) return 1;
+      
+      // Jika keduanya admin atau keduanya bukan admin, urutkan berdasarkan nama (abjad)
+      return a.name.localeCompare(b.name, 'id', { sensitivity: 'base' });
+    });
+
+    // ✅ Debug logging untuk memeriksa URL gambar
+    console.log('Processed Members with Photos:', sortedMembers.map(m => ({
+      name: m.name,
+      isAdmin: m.isAdmin,
+      photo: m.photo
+    })));
+
+    return sortedMembers;
   }, [roomDetails]);
 
   const roomInfo = useMemo(() => {
@@ -232,14 +268,6 @@ export default function GroupPopup({ onClose, roomId }) {
               <ArrowLeft size={24} strokeWidth={2} />
             </button>
             <h2 className="font-semibold text-lg truncate">{roomInfo.name}</h2>
-            {/* ✅ PERUBAHAN: Tambahkan tombol refresh untuk debugging */}
-            <button 
-              onClick={handleRefreshData}
-              className="ml-auto p-2 hover:bg-gray-100 rounded"
-              title="Refresh data"
-            >
-              🔄
-            </button>
           </div>
         )}
 
