@@ -1338,10 +1338,6 @@ const BaseChatPage = ({
           {flattenedMessages.length > 0 ? (
             <>
               <DateSeparator timestamp={flattenedMessages[0]?.created_at} />
-//               {flattenedMessages
-//                 .map((msg, idx, arr) => renderMessage(msg, idx, arr))
-//                 .filter(Boolean)
-//               }
               {flattenedMessages.map((msg, idx, arr) => {
                 // Ambil pesan sebelumnya
                 const prevMsg = arr[idx - 1];
