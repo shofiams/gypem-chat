@@ -119,6 +119,7 @@ const BaseChatPage = ({
     unstarMessages,
     pinMessage,
     unpinMessage,
+    updateMessage,
     deleteMessagesForMe,
     deleteMessagesGlobally,
     loading: operationLoading,
@@ -475,21 +476,26 @@ const BaseChatPage = ({
   };
 
   const handleSend = async () => {
+    // 1. Pastikan ada pesan teks untuk dikirim
     if (!message.trim()) return;
-    
+
+    // 2. Siapkan data untuk pesan TEKS (bukan file)
     const messageData = {
-      content: message.trim(),
+      content: message.trim(), // Ambil teks dari input
       reply_to_message_id: replyingMessage ? replyingMessage.message_id : null,
     };
     
+    // 3. Panggil fungsi untuk mengirim pesan
     const result = await sendMessage(actualChatId, messageData);
     
+    // 4. Jika berhasil, bersihkan input dan perbarui chat
     if (result.success) {
       setMessage("");
       setReplyingMessage(null);
       setShowEmojiPicker(false);
       refetchMessages();
 
+      // Reset tinggi textarea dan scroll ke bawah
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.style.height = 'auto';
@@ -503,8 +509,10 @@ const BaseChatPage = ({
       setTimeout(() => {
         scrollToBottom();
       }, 50);
+
     } else {
       console.error("Failed to send message:", result.error);
+      alert("Gagal mengirim pesan: " + (result.message || "Silakan coba lagi."));
     }
   };
 
@@ -618,21 +626,52 @@ const BaseChatPage = ({
   };
 
   const handleSaveEdit = async () => {
-    if (!editText.trim()) return;
-    
-    setEditingMessage(null);
-    setEditText("");
-    
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.style.height = 'auto';
-        inputRef.current.style.height = '24px';
-        inputRef.current.style.overflowY = 'hidden';
-        inputRef.current.focus();
-      }
-    }, 10);
-    
-    refetchMessages();
+    if (!editText.trim() || !editingMessage) return;
+
+    // Panggil API untuk update pesan
+    const result = await updateMessage(editingMessage, editText.trim());
+
+    if (result.success) {
+      console.log("Pesan berhasil diupdate");
+
+      setMessages(currentMessages =>
+        currentMessages.map(msgGroup =>
+          msgGroup.map(msg => {
+            if (msg.message_id === editingMessage) {
+              // Objek yang dikembalikan harus cocok dengan apa yang dicek oleh bubble
+              return {
+                ...msg,
+                content: editText.trim(),
+                // TAMBAHKAN BARIS INI untuk memperbarui timestamp secara lokal
+                updated_at: new Date().toISOString(), 
+              };
+            }
+            return msg;
+          })
+        )
+      );
+      
+      // Bersihkan state setelah berhasil
+      setEditingMessage(null);
+      setEditText("");
+
+      // Reset tampilan textarea
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.style.height = 'auto';
+          inputRef.current.style.height = '24px';
+          inputRef.current.style.overflowY = 'hidden';
+          inputRef.current.focus();
+        }
+      }, 10);
+
+      // Ambil ulang data pesan untuk menampilkan perubahan
+      // await refetchMessages();
+
+    } else {
+      console.error("Gagal mengupdate pesan:", result.error);
+      alert("Gagal menyimpan perubahan: " + result.error);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -1028,6 +1067,7 @@ const BaseChatPage = ({
           <div className="z-10">
             <ChatBubblePeserta
               {...msg}
+              attachment={msg.attachment}
               isLastFromSender={isLastFromSender}
               isLastFromReceiver={isLastFromReceiver}
               onCopy={() => {}}
@@ -1043,7 +1083,7 @@ const BaseChatPage = ({
                 }
               } : null}
               onEdit={canSendMessages ? (messageId) => handleEdit(messageId) : null} 
-              isEdited={msg.isEdited}
+              isEdited={msg.is_edited || false} 
               isDeleted={msg.is_deleted_globally}
               isSelectionMode={isSelectionMode}
               isSelected={selectedMessages.has(msg.message_id)}
@@ -1298,10 +1338,29 @@ const BaseChatPage = ({
           {flattenedMessages.length > 0 ? (
             <>
               <DateSeparator timestamp={flattenedMessages[0]?.created_at} />
-              {flattenedMessages
-                .map((msg, idx, arr) => renderMessage(msg, idx, arr))
-                .filter(Boolean)
-              }
+//               {flattenedMessages
+//                 .map((msg, idx, arr) => renderMessage(msg, idx, arr))
+//                 .filter(Boolean)
+//               }
+              {flattenedMessages.map((msg, idx, arr) => {
+                // Ambil pesan sebelumnya
+                const prevMsg = arr[idx - 1];
+                
+                // Cek apakah DateSeparator perlu ditampilkan
+                // Kondisi: Ini adalah pesan pertama ATAU tanggal pesan ini berbeda dari pesan sebelumnya
+                const showDateSeparator = !prevMsg || 
+                  new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString();
+
+                return (
+                  <React.Fragment key={msg.message_id}>
+                    {/* Tampilkan DateSeparator jika kondisi terpenuhi */}
+                    {showDateSeparator && <DateSeparator timestamp={msg.created_at} />}
+                    
+                    {/* Render komponen pesan seperti biasa */}
+                    {renderMessage(msg, idx, arr)}
+                  </React.Fragment>
+                );
+              })}
               <div ref={messagesEndRef} />
             </>
           ) : (
@@ -1491,30 +1550,49 @@ const BaseChatPage = ({
         isOpen={showFileUpload}
         onClose={() => setShowFileUpload(false)}
         onSend={async (fileData) => {
-          const formData = new FormData();
+//           const formData = new FormData();
           
-          if (fileData.caption) {
-            formData.append('content', fileData.caption);
-          } else if (fileData.type === 'file') {
-            formData.append('content', fileData.file.name);
-          } else {
-            formData.append('content', 'Image');
-          }
+//           if (fileData.caption) {
+//             formData.append('content', fileData.caption);
+//           } else if (fileData.type === 'file') {
+//             formData.append('content', fileData.file.name);
+//           } else {
+//             formData.append('content', 'Image');
+//           }
           
-          formData.append('file', fileData.file.file);
+//           formData.append('file', fileData.file.file);
           
-          if (replyingMessage) {
-            formData.append('reply_to_message_id', replyingMessage.message_id);
-          }
+//           if (replyingMessage) {
+//             formData.append('reply_to_message_id', replyingMessage.message_id);
+//           }
 
-          const result = await sendMessage(actualChatId, formData);
+//           const result = await sendMessage(actualChatId, formData);
+
+          // 1. Siapkan objek data pesan.
+          const messageData = {
+            file: fileData.file.file, // File asli untuk diunggah.
+            
+            // 2. Logika 'content' yang sudah diperbaiki:
+            // - Untuk dokumen, 'content' SELALU nama file.
+            // - Untuk gambar, 'content' adalah caption jika ada, jika tidak, string kosong.
+            content: fileData.caption.trim() || '',
+
+            // 3. Tambahkan caption sebagai field terpisah jika API Anda mendukungnya nanti.
+            // caption: fileData.caption.trim(), // (Opsional, untuk pengembangan di masa depan)
+
+            reply_to_message_id: replyingMessage ? replyingMessage.message_id : null
+          };
+
+          // 4. Kirim data ke service.
+          const result = await sendMessage(actualChatId, messageData);
           
           if (result.success) {
             setReplyingMessage(null);
             refetchMessages();
-            scrollToBottom();
+            setTimeout(scrollToBottom, 100);
           } else {
             console.error("Failed to upload file:", result.error);
+            alert("Gagal mengirim file: " + (result.message || "Silakan coba lagi."));
           }
         }}
         fileButtonRef={fileButtonRef}

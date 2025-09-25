@@ -654,6 +654,27 @@ export const useMessageOperations = (opts = {}) => {
     setError(null);
   }, []);
 
+  // VVV TAMBAHKAN FUNGSI BARU INI VVV
+  const updateMessage = useCallback(async (messageId, content) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await messageService.updateMessage(messageId, content);
+      if (result.success) {
+        return { success: true, message: result.message };
+      } else {
+        setError(result.message);
+        return { success: false, error: result.message };
+      }
+    } catch (err) {
+      const errorMsg = err.message || "Failed to update message";
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   return {
     sendMessage,
     starMessages,
@@ -662,6 +683,7 @@ export const useMessageOperations = (opts = {}) => {
     deleteMessagesForMe,
     deleteMessagesGlobally,
     pinMessage,
+    updateMessage,
     unpinMessage,
     loading,
     error,
