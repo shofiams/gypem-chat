@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { INITIAL_CHATS, INITIAL_MESSAGES, STARRED_MESSAGES, PINNED_MESSAGES } from './chat_constant';
 import { ChatContext } from './use_chat_context';
 
+
 export const ChatProvider = ({ children }) => {
   const [chats, setChats] = useState(INITIAL_CHATS);
   const [chatMessages, setChatMessages] = useState(INITIAL_MESSAGES);

@@ -1,11 +1,11 @@
 // src/router/index.jsx
 import { createBrowserRouter, Navigate } from "react-router-dom";
-import MainLayout from "../layout/main_layout";
 import ChatPage from "../pages/list_chat_page";
 import StarPage from "../pages/list_chat_page";
 import NotFound from "../pages/not_found";
 import PesertaChatPage from "../pages/PesertaChatPage";
 import GroupChatPeserta from "../pages/GroupChatPeserta";
+import MainLayout from "../layout/main_layout/main_layout";
 
 export const router = createBrowserRouter([
   {
