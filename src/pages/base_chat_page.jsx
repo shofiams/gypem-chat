@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import ChatBubblePeserta from "../components/ChatBubblePeserta";
 import FileUploadPopup from "../components/FileUploadPopup";
+import { useChatHeader } from "../hooks/useChatHeader";
 import { assets } from "../assets/assets";
 import groupPhoto from "../assets/admin-profile.png";
 import chatBg from "../assets/chat-bg.png";
@@ -46,27 +47,22 @@ const getTimeGroupingProps = (currentMsg, currentIndex, allMessages) => {
   const nextMsg = allMessages[currentIndex + 1];
   const previousMsg = currentIndex > 0 ? allMessages[currentIndex - 1] : null;
   
-  // Get sender information
   const currentSender = currentMsg.sender_type === 'admin' ? "You" : currentMsg.sender_name;
   const nextSender = nextMsg ? (nextMsg.sender_type === 'admin' ? "You" : nextMsg.sender_name) : null;
   const previousSender = previousMsg ? (previousMsg.sender_type === 'admin' ? "You" : previousMsg.sender_name) : null;
   
-  // Get time information
   const currentTime = formatMessageTime(currentMsg.created_at);
   const nextTime = nextMsg ? formatMessageTime(nextMsg.created_at) : null;
   const previousTime = previousMsg ? formatMessageTime(previousMsg.created_at) : null;
   
-  // Determine if this is the last message in a time group
   const isLastInTimeGroup = !nextMsg || 
     nextSender !== currentSender || 
     nextTime !== currentTime;
   
-  // Determine if this is the first message in a time group
   const isFirstInTimeGroup = !previousMsg || 
     previousSender !== currentSender || 
     previousTime !== currentTime;
   
-  // Determine if time should be shown
   const showTime = isLastInTimeGroup;
   
   return {
@@ -97,8 +93,13 @@ const BaseChatPage = ({
 }) => {
   const { chatId: paramChatId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
+  // **PERBAIKAN:** Mendefinisikan `actualChatId` di sini agar bisa digunakan oleh semua hooks.
   const actualChatId = isEmbedded ? propChatId : paramChatId;
+
+  // **PERBAIKAN:** Menggunakan hook `useChatHeader` untuk mendapatkan data header.
+  const chatInfo = useChatHeader(actualChatId, isGroupChat);
   
   const { 
     data: contextMessages, 
@@ -127,17 +128,14 @@ const BaseChatPage = ({
 
   const currentChatPinnedMessages = useMemo(() => {
     if (!pinnedMessagesData || !Array.isArray(pinnedMessagesData)) return [];
-    
     return pinnedMessagesData;
   }, [pinnedMessagesData]);
 
-  // Get current user ID from auth/session
-  const currentUserId = "current_user_id"; // Replace with actual user ID from auth
-  const [chatInfo, setChatInfo] = useState(null);
+  // **PERBAIKAN:** Menghapus state `chatInfo` lokal karena sudah ditangani oleh `useChatHeader`.
+  // const [chatInfo, setChatInfo] = useState(null);
   const [messages, setMessages] = useState([]);
-  const location = useLocation();
 
-  // Updated state for multiple pinned messages
+  // ... (sisa state tidak berubah)
   const [replyingMessage, setReplyingMessage] = useState(null);
   const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
@@ -165,19 +163,17 @@ const BaseChatPage = ({
   const inputRef = useRef(null);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [isMobileKeyboard, setIsMobileKeyboard] = useState(false);
+
   const flattenedMessages = useMemo(() => {
     if (!messages || messages.length === 0) return [];
 
     return messages.flat().filter(msg => {
-      // Selalu tampilkan pesan yang dihapus secara global (agar bisa diganti teksnya)
       if (msg.is_deleted_globally) {
         return true;
       }
-      // Sembunyikan (filter) pesan yang dihapus hanya untuk saya
       if (!msg.message_status || msg.message_status.is_deleted_for_me) {
         return false;
       }
-      // Tampilkan semua pesan lainnya
       return true;
     });
   }, [messages]);
@@ -192,20 +188,21 @@ const BaseChatPage = ({
       setMessages(contextMessages);
     }
   }, [contextMessages]);
-
+  
+  // **PERBAIKAN:** Menghapus useEffect untuk `fetchChatInfo` karena sudah ditangani oleh `useChatHeader`.
+  /*
   useEffect(() => {
     const fetchChatInfo = async () => {
-      // Implement API call to get chat/room info
-      // const result = await chatService.getChatById(actualChatId);
-      // setChatInfo(result.data);
+      // ...
     };
-    
     if (actualChatId) {
       fetchChatInfo();
     }
   }, [actualChatId]);
+  */
 
-  // Check if chatId is valid and mark as read
+  // ... (Sisa dari useEffect dan fungsi lainnya tetap sama, tidak perlu diubah)
+
   useEffect(() => {
     if (!actualChatId) {
       if (!isEmbedded) {
@@ -214,7 +211,6 @@ const BaseChatPage = ({
       return;
     }
     
-    // Mark messages as read via API when opening chat
     const markAsRead = async () => {
       try {
         const unreadMessages = flattenedMessages
@@ -238,12 +234,11 @@ const BaseChatPage = ({
       markAsRead();
     }
     
-    // Scroll to bottom when opening chat
     setTimeout(() => {
       scrollToBottomInstant();
     }, 10);
-  }, [actualChatId, isEmbedded, flattenedMessages]);
-
+  }, [actualChatId, isEmbedded, flattenedMessages, navigate]);
+  
   useEffect(() => {
     const style = document.createElement("style");
     style.textContent = `
@@ -281,7 +276,6 @@ const BaseChatPage = ({
     return () => { document.head.removeChild(style); };
   }, []);
 
-  // Scroll detection for floating button
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
@@ -345,10 +339,8 @@ const BaseChatPage = ({
     };
   }, []);
 
-  // Auto-focus input when chat opens
   useEffect(() => {
     if (canSendMessages && !isSelectionMode && inputRef.current) {
-      // Small delay to ensure component is fully rendered
       setTimeout(() => {
         inputRef.current.focus();
       }, 100);
@@ -369,24 +361,20 @@ const BaseChatPage = ({
 
   useEffect(() => {
     if (editingMessage && editText && inputRef.current) {
-      // Delay sedikit untuk memastikan konten sudah ter-render
       setTimeout(() => {
         if (inputRef.current) {
           autoResize(inputRef.current);
           inputRef.current.focus();
           
-          // Set kursor ke akhir teks
           const textLength = editText.length;
           inputRef.current.setSelectionRange(textLength, textLength);
           
-          // Pastikan kursor terlihat pada teks panjang
           scrollToCursor(inputRef.current);
         }
       }, 50);
     }
   }, [editingMessage, editText]);
 
-  // Function to check selected message types
   const getSelectedMessageTypes = () => {
     if (!isSelectionMode || selectedMessages.size === 0) return { hasReceiver: false, hasSender: false };
     
@@ -407,30 +395,24 @@ const BaseChatPage = ({
     return { hasReceiver, hasSender };
   };
 
-  // Function to determine delete behavior based on selected messages
   const getDeleteBehavior = () => {
     if (isSelectionMode && selectedMessages.size > 0) {
       const { hasReceiver, hasSender } = getSelectedMessageTypes();
       
-      // If only sender messages are selected
       if (hasSender && !hasReceiver) {
-        return 'sender-only'; // Show delete options (for me/everyone)
+        return 'sender-only';
       }
-      // If receiver messages are selected (alone or mixed with sender)
       else if (hasReceiver) {
-        return 'receiver-included'; // Show simple delete confirmation
+        return 'receiver-included';
       }
     } else if (messageToDelete) {
-      // Single message delete - gunakan sender_type dari struktur data yang benar
       return messageToDelete.sender_type === 'peserta' ? 'sender-only' : 'receiver-included';
     }
     
-    return 'receiver-included'; // Default fallback
+    return 'receiver-included';
   };
 
   const handlePinMessage = async (messageStatusId) => {
-    console.log('handlePinMessage called with messageStatusId:', messageStatusId);
-    
     if (!messageStatusId) {
       console.error('messageStatusId is missing for pin');
       alert('Error: Status ID pesan tidak ditemukan');
@@ -438,73 +420,48 @@ const BaseChatPage = ({
     }
 
     try {
-      console.log('Pinning message...');
       const result = await pinMessage(messageStatusId);
-      console.log('Pin result:', result);
       
       if (result.success) {
-        console.log('Pesan berhasil di-pin');
-        // Refresh data setelah berhasil
         await refetchMessages();
         await refetchPinnedMessages();
       } else {
-        console.error('Failed to pin:', result.error);
         alert('Gagal pin pesan: ' + result.error);
       }
     } catch (error) {
-      console.error('Error pinning message:', error);
       alert('Gagal pin pesan: ' + error.message);
     }
   };
 
   const handleUnpinMessage = async (messageId, messageStatusId) => {
-    console.log('handleUnpinMessage called with:', { messageId, messageStatusId });
-    
     if (!messageId || !messageStatusId) {
-      console.error('messageId or messageStatusId missing');
       alert('Error: ID pesan tidak lengkap');
       return;
     }
 
     try {
       const result = await unpinMessage(messageId, messageStatusId);
-      console.log('Unpin result:', result);
       
       if (result && result.success) {
-        console.log('Pesan berhasil di-unpin');
         await refetchMessages();
         await refetchPinnedMessages();
       } else {
-        console.error('Failed to unpin:', result?.error);
         alert('Gagal unpin pesan: ' + (result?.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error unpinning message:', error);
       alert('Gagal unpin pesan: ' + error.message);
     }
   };
   const checkIsMessagePinned = (messageId) => {
     const message = flattenedMessages.find(msg => msg.message_id === messageId);
-    const isPinned = message?.message_status?.is_pinned || false;
-    console.log(`Checking pin status for message ${messageId}:`, {
-      isPinned, 
-      messageStatus: message?.message_status,
-      fullMessage: message
-    });
-    return isPinned;
+    return message?.message_status?.is_pinned || false;
   };
   
   const checkIsMessageStarred = (messageId) => {
     const message = flattenedMessages.find(msg => msg.message_id === messageId);
-    const isStarred = message?.message_status?.is_starred || false;
-    console.log(`Checking star status for message ${messageId}:`, {
-      isStarred, 
-      messageStatus: message?.message_status,
-      fullMessage: message
-    });
-    return isStarred;
+    return message?.message_status?.is_starred || false;
   };
-  // Function to navigate through pinned messages
+
   const navigatePinnedMessage = (direction) => {
     if (currentChatPinnedMessages.length <= 1) return;
     
@@ -565,7 +522,6 @@ const BaseChatPage = ({
         e.preventDefault();
         handleSaveEdit();
       } else if (e.key === 'Enter' && (e.altKey || e.shiftKey)) {
-        // Biarkan baris baru di mode edit dengan fokus kursor yang tepat
         e.preventDefault();
         const textarea = e.target;
         const start = textarea.selectionStart;
@@ -573,23 +529,19 @@ const BaseChatPage = ({
         const newValue = editText.substring(0, start) + '\n' + editText.substring(end);
         setEditText(newValue);
         
-        // Set posisi kursor setelah baris baru dan resize
         setTimeout(() => {
           textarea.selectionStart = textarea.selectionEnd = start + 1;
           textarea.focus();
           autoResize(textarea);
-          // Scroll ke posisi kursor jika textarea memiliki scroll
           scrollToCursor(textarea);
         }, 0);
       }
     } else {
       if (e.key === 'Enter' && !e.altKey && !e.shiftKey) {
-        // Kirim pesan dengan Enter (desktop) atau selalu di mobile
         e.preventDefault();
         handleSend();
         setShowEmojiPicker(false);
       } else if (e.key === 'Enter' && (e.altKey || e.shiftKey)) {
-        // Tambah baris baru dengan Alt+Enter atau Shift+Enter (desktop saja) dengan fokus kursor yang tepat
         if (!isMobileKeyboard) {
           e.preventDefault();
           const textarea = e.target;
@@ -598,19 +550,16 @@ const BaseChatPage = ({
           const newValue = message.substring(0, start) + '\n' + message.substring(end);
           setMessage(newValue);
           
-          // Set posisi kursor setelah baris baru dan resize
           setTimeout(() => {
             textarea.selectionStart = textarea.selectionEnd = start + 1;
             textarea.focus();
             autoResize(textarea);
-            // Scroll ke posisi kursor jika textarea memiliki scroll
             scrollToCursor(textarea);
           }, 0);
         }
       }
     }
     
-    // Handle tombol Escape untuk membatalkan edit
     if (e.key === 'Escape' && editingMessage) {
       handleCancelEdit();
     }
@@ -619,15 +568,13 @@ const BaseChatPage = ({
   const scrollToCursor = (textarea) => {
     if (!textarea) return;
     
-    // Hanya scroll jika textarea memiliki scroll (tinggi konten > tinggi visible)
     if (textarea.scrollHeight > textarea.clientHeight) {
-      const lineHeight = 24; // Sesuaikan dengan line-height CSS
+      const lineHeight = 24;
       const cursorPosition = textarea.selectionStart;
       const textBeforeCursor = textarea.value.substring(0, cursorPosition);
       const lines = textBeforeCursor.split('\n').length;
       const cursorY = lines * lineHeight;
       
-      // Scroll agar kursor tetap terlihat
       const scrollTop = Math.max(0, cursorY - textarea.clientHeight + lineHeight);
       textarea.scrollTop = scrollTop;
     }
@@ -636,19 +583,16 @@ const BaseChatPage = ({
   const autoResize = (textarea) => {
     if (!textarea) return;
     
-    // Reset height untuk mendapatkan scrollHeight yang akurat
     textarea.style.height = 'auto';
     const scrollHeight = textarea.scrollHeight;
-    const maxHeight = 120; // Tinggi maksimal dalam piksel (sekitar 5 baris)
-    const minHeight = 24;  // Tinggi minimal dalam piksel
+    const maxHeight = 120;
+    const minHeight = 24;
     
-    // Set height berdasarkan content, tapi tidak kurang dari minHeight
     const newHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
     textarea.style.height = newHeight + 'px';
     textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
   };
 
-  // Handler perubahan input yang ditingkatkan
   const handleInputChange = (e) => {
     const value = e.target.value;
     if (editingMessage) {
@@ -657,13 +601,11 @@ const BaseChatPage = ({
       setMessage(value);
     }
     
-    // Auto-resize textarea
     setTimeout(() => {
       autoResize(e.target);
     }, 0);
   };
 
-  // Handle edit message
   const handleEdit = (messageId) => {
     const messageToEdit = flattenedMessages.find(msg => msg.message_id === messageId);
     if (messageToEdit && messageToEdit.content) {
@@ -683,7 +625,6 @@ const BaseChatPage = ({
     }
   };
 
-  // Save edited message
   const handleSaveEdit = async () => {
     if (!editText.trim() || !editingMessage) return;
 
@@ -733,12 +674,10 @@ const BaseChatPage = ({
     }
   };
 
-  // Cancel edit
   const handleCancelEdit = () => {
     setEditingMessage(null);
     setEditText("");
     
-    // Reset textarea ke ukuran minimal
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.style.height = 'auto';
@@ -749,7 +688,6 @@ const BaseChatPage = ({
     }, 10);
   };
 
-  // Selection mode handlers
   const handleStartSelection = (messageId) => {
     setIsSelectionMode(true);
     setSelectedMessages(new Set([messageId]));
@@ -772,13 +710,7 @@ const BaseChatPage = ({
     });
   };
   const handleStarMessage = async (messageId, messageStatusId, isCurrentlyStarred) => {
-    console.log('=== STAR/UNSTAR DEBUG ===');
-    console.log('messageId:', messageId);
-    console.log('messageStatusId:', messageStatusId);
-    console.log('isCurrentlyStarred:', isCurrentlyStarred);
-  
     if (!messageStatusId) {
-      console.error('messageStatusId is missing');
       alert('Error: Status ID pesan tidak ditemukan');
       return;
     }
@@ -787,28 +719,19 @@ const BaseChatPage = ({
       let result;
       
       if (isCurrentlyStarred) {
-        console.log('Unstarring message...');
         result = await unstarMessages([messageStatusId]);
       } else {
-        console.log('Starring message...');
         result = await starMessages([messageStatusId]);
       }
       
-      console.log('Star/Unstar result:', result);
-      
       if (result.success) {
-        console.log(isCurrentlyStarred ? 'Pesan berhasil di-unstar' : 'Pesan berhasil di-star');
-        
-        // Refresh data setelah berhasil
         await refetchMessages();
         await refetchPinnedMessages();
       } else {
-        console.error('Failed to toggle star:', result.error);
         alert('Gagal mengubah status star: ' + result.error);
       }
       
     } catch (error) {
-      console.error('Error toggling star:', error);
       alert('Gagal mengubah status star pesan: ' + error.message);
     }
   };
@@ -825,7 +748,6 @@ const BaseChatPage = ({
     }
   };
 
-  // Search function
   const handleSearch = useCallback((query) => {
     if (searchHighlightTimer.current) {
       clearTimeout(searchHighlightTimer.current);
@@ -863,7 +785,6 @@ const BaseChatPage = ({
     }
   }, [contextMessages, chatInfo]);
 
-  // Navigation functions for search results
   const navigateSearchResults = (direction) => {
     if (searchResults.length === 0) return;
     
@@ -948,16 +869,12 @@ const BaseChatPage = ({
     });
   };
 
-  // Updated delete functions with conditional behavior
   const handleDeleteRequest = (messageId, messageStatusId, senderType) => {
-    console.log('handleDeleteRequest called with:', { messageId, messageStatusId, senderType });
-    
     if (isSelectionMode) {
       handleToggleSelection(messageId);
       return;
     }
     
-    // Pastikan data yang disimpan sesuai dengan struktur API
     setMessageToDelete({ 
       message_id: messageId, 
       message_status_id: messageStatusId, 
@@ -969,7 +886,6 @@ const BaseChatPage = ({
   const handleConfirmDelete = async () => {
     try {
       if (isSelectionMode && selectedMessages.size > 0) {
-        // Delete selected messages
         const messagesToDelete = Array.from(selectedMessages);
         const messagesData = messagesToDelete.map(msgId => {
           const msg = flattenedMessages.find(m => m.message_id === msgId);
@@ -979,49 +895,34 @@ const BaseChatPage = ({
           };
         }).filter(data => data.message_id && data.message_status_id);
         
-        console.log('Deleting selected messages:', messagesData);
-        
         const messageStatusIds = messagesData.map(d => d.message_status_id);
         
-        // PERBAIKAN: Untuk receiver-included behavior, hanya gunakan messageStatusIds
         const result = await deleteMessagesForMe(messageStatusIds);
         
         if (result.success) {
-          console.log('Messages deleted successfully');
           setIsSelectionMode(false);
           setSelectedMessages(new Set());
         } else {
-          console.error('Failed to delete messages:', result.error);
           alert('Gagal menghapus pesan: ' + result.error);
         }
         
       } else if (messageToDelete) {
-        // Delete single message
-        console.log('Deleting single message:', messageToDelete);
-        
-        // PERBAIKAN: Hanya gunakan message_status_id untuk deleteMessagesForMe
         const result = await deleteMessagesForMe([messageToDelete.message_status_id]);
         
-        if (result.success) {
-          console.log('Message deleted successfully');
-        } else {
-          console.error('Failed to delete message:', result.error);
+        if (!result.success) {
           alert('Gagal menghapus pesan: ' + result.error);
         }
       }
       
-      // Close modal and refresh data
       setShowDeleteModal(false);
       setShowDeleteOptions(false);
       setMessageToDelete(null);
       setSelectedDeleteOption('me');
       
-      // Refresh messages
       await refetchMessages();
       await refetchPinnedMessages();
       
     } catch (error) {
-      console.error('Error in handleConfirmDelete:', error);
       alert('Gagal menghapus pesan: ' + error.message);
     }
   };
@@ -1037,23 +938,19 @@ const BaseChatPage = ({
   };
 
   const handleFinalDelete = async () => {
-      // Kumpulkan ID pesan yang akan dihapus (sama seperti sebelumnya)
       const messageIdsToDelete = isSelectionMode
         ? Array.from(selectedMessages)
         : (messageToDelete ? [messageToDelete.message_id] : []);
 
       if (messageIdsToDelete.length === 0) return;
 
-      // Simpan state saat ini untuk jaga-jaga jika API gagal
       const previousMessages = [...messages];
 
-      // Langsung perbarui UI seolah-olah berhasil
       const deletedIdsSet = new Set(messageIdsToDelete);
       setMessages(currentMessages =>
         currentMessages.map(msgGroup =>
           msgGroup.map(msg => {
             if (deletedIdsSet.has(msg.message_id)) {
-              // Jika delete for everyone, flag pesannya
               if (selectedDeleteOption === 'everyone') {
                 return {
                   ...msg,
@@ -1062,7 +959,6 @@ const BaseChatPage = ({
                   attachment: null,
                 };
               }
-              // Jika delete for me, langsung hilangkan dari UI
               return null;
             }
             return msg;
@@ -1070,7 +966,6 @@ const BaseChatPage = ({
         )
       );
 
-      // Bersihkan UI modal
       setShowDeleteModal(false);
       setShowDeleteOptions(false);
       setMessageToDelete(null);
@@ -1081,7 +976,6 @@ const BaseChatPage = ({
       }
 
       try {
-        // Panggil API di latar belakang
         const messagesData = messageIdsToDelete.map(msgId => {
           const msg = flattenedMessages.find(m => m.message_id === msgId);
           return { message_id: msg?.message_id, message_status_id: msg?.message_status?.message_status_id };
@@ -1095,23 +989,16 @@ const BaseChatPage = ({
           : await deleteMessagesForMe(messageStatusIds);
 
         if (!result.success) {
-          // Jika API GAGAL, kembalikan state UI ke semula
-          console.error('API delete failed:', result?.error);
           alert('Gagal menghapus pesan: ' + result?.error);
           setMessages(previousMessages);
         } else {
-          console.log('API delete successful');
-          // Jika berhasil, kita bisa secara opsional refetch untuk sinkronisasi
-          // Ini tidak akan menyebabkan UI "kedip" karena API sudah mengembalikan data yang benar
           refetchMessages();
           refetchPinnedMessages();
         }
 
       } catch (error) {
-        // Jika terjadi error jaringan, kembalikan juga state UI
-        console.error('Network error during delete:', error);
         alert('Gagal menghapus pesan, periksa koneksi Anda.');
-        setMessages(previousMessages); // <-- KEMBALIKAN STATE
+        setMessages(previousMessages);
       }
   };
 
@@ -1123,30 +1010,20 @@ const BaseChatPage = ({
     setSelectedDeleteOption('me');
   };
 
-  // Function to determine if sender name should be shown in bubble
   const shouldShowSenderNameInBubble = (message, index) => {
     if (!showSenderNames) return false;
-    if (message.sender_type === 'admin') return false; // Don't show for own messages
+    if (message.sender_type === 'admin') return false;
     const prevMessage = index > 0 ? flattenedMessages[index - 1] : null;
     return !prevMessage || 
           prevMessage.sender_name !== message.sender_name || 
           prevMessage.sender_type !== message.sender_type;
   };
 
-  // Render message function with group chat support
   const renderMessage = (msg, idx, arr) => {
-    // [FIX] This check is now redundant due to flattenedMessages useMemo, but kept for safety.
-    // if (msg.message_status?.is_deleted_for_me) {
-    //   return null;
-    // }
-
     const nextMsg = arr[idx + 1];
     const prevMsg = idx > 0 ? arr[idx - 1] : null;
     
-    // Determine message type based on sender_type
     const isSender = msg.sender_type === 'peserta';
-    const nextIsSender = nextMsg?.sender_type === 'peserta';
-    const prevIsSender = prevMsg?.sender_type === 'peserta';
     
     const isLastFromSender = !nextMsg || nextMsg.sender_type !== msg.sender_type || 
       (isGroupChat && nextMsg.sender_name !== msg.sender_name);
@@ -1162,35 +1039,17 @@ const BaseChatPage = ({
       msg.sender_name && 
       isFirstFromSender;
     
-    // Get time grouping properties
     const timeGroupingProps = getTimeGroupingProps(msg, idx, arr);
     
-    // Get previous message sender for fallback logic
     const previousMessageSender = prevMsg ? 
       (prevMsg.sender_type === 'admin' ? "You" : prevMsg.sender_name) : null;
 
-    // Debug logging untuk setiap pesan
-    console.log(`Rendering message ${msg.message_id}:`, {
-      messageId: msg.message_id,
-      messageStatusId: msg.message_status?.message_status_id,
-      isStarred: msg.message_status?.is_starred,
-      isPinned: msg.message_status?.is_pinned,
-      senderType: msg.sender_type,
-      isDeletedForMe: msg.message_status?.is_deleted_for_me,
-      hasValidDeleteData: !!(msg.message_id && msg.message_status?.message_status_id && msg.sender_type)
-    });
-
-    // Validasi data yang diperlukan untuk delete
     const hasValidDeleteData = msg.message_id && 
                               msg.message_status?.message_status_id && 
                               msg.sender_type;
 
     if (!hasValidDeleteData) {
-      console.warn(`Message ${msg.message_id} missing required delete data:`, {
-        message_id: !!msg.message_id,
-        message_status_id: !!msg.message_status?.message_status_id,
-        sender_type: !!msg.sender_type
-      });
+      console.warn(`Message ${msg.message_id} missing required delete data`);
     }
 
     return (
@@ -1202,10 +1061,7 @@ const BaseChatPage = ({
           {highlightedMessageId === msg.message_id && (
             <div 
               className="absolute inset-0 bg-yellow-200 rounded-lg pointer-events-none z-0 opacity-70"
-              style={{
-                margin: '-2px',
-                padding: '2px',
-              }}
+              style={{ margin: '-2px', padding: '2px' }}
             />
           )}
           <div className="z-10">
@@ -1216,17 +1072,10 @@ const BaseChatPage = ({
               isLastFromReceiver={isLastFromReceiver}
               onCopy={() => {}}
               onReply={canSendMessages ? (replyData) => setReplyingMessage(replyData) : null}
-              onPin={(messageStatusId) => {
-                console.log('onPin called with:', messageStatusId);
-                handlePinMessage(messageStatusId);
-              }}
-              onUnpin={(messageId, messageStatusId) => {
-                console.log('onUnpin called with:', messageId, messageStatusId);
-                handleUnpinMessage(messageId, messageStatusId);
-              }}
+              onPin={(messageStatusId) => handlePinMessage(messageStatusId)}
+              onUnpin={(messageId, messageStatusId) => handleUnpinMessage(messageId, messageStatusId)}
               isPinned={checkIsMessagePinned(msg.message_id)}
               onDelete={hasValidDeleteData ? (messageId, messageStatusId, senderType) => {
-                console.log('Message delete called:', { messageId, messageStatusId, senderType });
                 if (isSelectionMode) {
                   handleToggleSelection(messageId);
                 } else {
@@ -1249,7 +1098,6 @@ const BaseChatPage = ({
               isStarred={checkIsMessageStarred(msg.message_id)}
               searchQuery={searchQuery}
               highlightSearchTerm={highlightSearchTerm}
-              // Group chat specific props
               showSenderName={showSenderNameInBubble}
               sender={msg.sender_name}
               getSenderColor={getSenderColor}
@@ -1258,7 +1106,6 @@ const BaseChatPage = ({
               previousMessageSender={previousMessageSender}
               {...timeGroupingProps}
               isLastBubble={idx === arr.length - 1}
-              // Custom props from parent
               {...customChatBubbleProps}
             />
           </div>
@@ -1267,7 +1114,7 @@ const BaseChatPage = ({
     );
   };
 
-  // Default header component
+  // **PERBAIKAN:** `defaultHeader` sekarang sepenuhnya mengandalkan `chatInfo` dari hook.
   const defaultHeader = (
     <div className="flex items-center gap-3 p-3 border-b">
       <button
@@ -1286,10 +1133,16 @@ const BaseChatPage = ({
       </button>
       
       <div className="relative">
-        <img
-          src={chatInfo?.avatar || groupPhoto}
+       <img
+          src={chatInfo?.avatar || groupPhoto  }
           alt="profile"
-          className="w-10 h-10 rounded-full"
+          className="w-10 h-10 rounded-full object-cover"
+          crossOrigin="anonymous"
+          onError={(e) => { 
+            console.error("Gagal memuat gambar avatar:", e);
+            e.target.onerror = null; 
+            e.target.src=groupPhoto;
+          }}
         />
         {chatInfo?.isOnline && (
           <span
@@ -1302,22 +1155,14 @@ const BaseChatPage = ({
         className={`flex-1 ${isGroupChat && onGroupHeaderClick ? 'cursor-pointer' : ''}`}
         onClick={isGroupChat && onGroupHeaderClick ? onGroupHeaderClick : undefined}
       >
-        <p className="font-semibold text-sm">{chatInfo?.room_name || 'Chat'}</p>
-        {isGroupChat && chatInfo?.members ? (
-          <div className="text-xs text-gray-500 leading-4">
+        <p className="font-semibold text-sm">{chatInfo?.name}</p>
+        <div className="text-xs text-gray-500 leading-4">
             <span className="truncate block">
-              {chatInfo.members.length > 3 
-                ? `${chatInfo.members.slice(0, 3).join(', ')}...` 
-                : chatInfo.members.join(', ')
-              }
+                {chatInfo?.subtitle}
             </span>
-          </div>
-        ) : (
-          <p className="text-xs text-gray-500">{chatInfo?.isOnline ? 'Online' : 'Offline'}</p>
-        )}
+        </div>
       </div>
 
-      {/* Search Section */}
       <button 
         data-search-button
         onClick={() => setShowSearchResults(!showSearchResults)}
@@ -1328,12 +1173,10 @@ const BaseChatPage = ({
     </div>
   );
 
-  // Get delete behavior for current selection
   const deleteBehavior = getDeleteBehavior();
 
   return (
     <div className="flex flex-col h-full overflow-hidden border-l-[1px]">
-      {/* Header - use custom or default */}
       {isSelectionMode ? (
         <div className="flex items-center justify-between p-3 border-b bg-white">
           <div className="flex items-center gap-3">
@@ -1363,11 +1206,9 @@ const BaseChatPage = ({
         customHeader || defaultHeader
       )}
 
-      {/* Floating Search Bar */}
       {showSearchResults && !isSelectionMode && (
         <div className="absolute top-[66px] right-0 z-50 w-3/5 max-w-md">
           <div className="bg-[#f4f0f0] bg-opacity-80 rounded-bl-xl shadow-lg border overflow-hidden" style={{ borderColor: '#4C0D68' }}>
-            {/* Search Input Header */}
             <div className="pl-5 pr-3 py-3 flex items-center gap-2">
               <div className="flex-1 border-[1px] border-b-[6px] rounded-lg text-sm outline-none relative" style={{ borderColor: '#4C0D68' }}>
                 <input
@@ -1379,7 +1220,6 @@ const BaseChatPage = ({
                   autoFocus
                 />
                 
-                {/* Results counter inside search input */}
                 {searchQuery && (
                   <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 bg-white px-2 py-1 rounded border pointer-events-none">
                     {searchResults.length > 0 
@@ -1390,7 +1230,6 @@ const BaseChatPage = ({
                 )}
               </div>
               
-              {/* Navigation buttons */}
               <div className="flex items-center gap-1">
                 {searchResults.length > 0 && (
                   <>
@@ -1431,7 +1270,6 @@ const BaseChatPage = ({
         </div>
       )}
 
-      {/* Enhanced Pinned Message Section */}
       {currentChatPinnedMessages.length > 0 && !isSelectionMode && (
         <div
           className="flex items-center gap-2 px-3 py-2 border-b"
@@ -1477,7 +1315,6 @@ const BaseChatPage = ({
         </div>
       )}
 
-      {/* Chat Area */}
       <div className="flex-1 flex flex-col min-h-0">
         <div
           ref={(curr) => {
@@ -1500,6 +1337,11 @@ const BaseChatPage = ({
         >
           {flattenedMessages.length > 0 ? (
             <>
+              <DateSeparator timestamp={flattenedMessages[0]?.created_at} />
+//               {flattenedMessages
+//                 .map((msg, idx, arr) => renderMessage(msg, idx, arr))
+//                 .filter(Boolean)
+//               }
               {flattenedMessages.map((msg, idx, arr) => {
                 // Ambil pesan sebelumnya
                 const prevMsg = arr[idx - 1];
@@ -1531,7 +1373,6 @@ const BaseChatPage = ({
           )}
         </div>
 
-        {/* Floating Scroll to Bottom Button */}
         {showScrollButton && !isSelectionMode && (
           <div className="absolute bottom-24 right-4 z-40">
             <button
@@ -1544,7 +1385,6 @@ const BaseChatPage = ({
           </div>
         )}
 
-        {/* Reply Preview */}
         {replyingMessage && !isSelectionMode && canSendMessages && (
           <div className={`flex items-center justify-between bg-gray-100 px-3 py-2 border-l-4 border-[#bd2cfc] transition-all duration-300`}>
             <div>
@@ -1564,7 +1404,6 @@ const BaseChatPage = ({
           </div>
         )}
 
-        {/* Edit Preview */}
         {editingMessage && !isSelectionMode && canSendMessages && (
         <div
             className={`flex items-center justify-between bg-[#4C0D68]/10 px-3 py-2 border-l-4 border-[#4C0D68] transition-all duration-300`}
@@ -1586,13 +1425,11 @@ const BaseChatPage = ({
         </div>
         )}
 
-        {/* Input Section - hide if can't send messages or in selection mode */}
         {canSendMessages && !isSelectionMode && (
           <div
             className={`relative p-3 flex items-center gap-2 border-t transition-all duration-300`}
             style={{ borderColor: "#bababa" }}
           >
-            {/* Tombol Emoji dan File */}
             <div className="relative">
               <div
                 className={`rounded-md p-1 cursor-pointer transition-colors ${
@@ -1628,7 +1465,6 @@ const BaseChatPage = ({
                         setMessage(newValue);
                       }
                       
-                      // Set posisi kursor setelah emoji
                       setTimeout(() => {
                         textarea.selectionStart = textarea.selectionEnd = start + emojiData.emoji.length;
                         textarea.focus();
@@ -1665,7 +1501,6 @@ const BaseChatPage = ({
               </div>
             )}
 
-            {/* Message Input */}
             <div
               className="flex items-center flex-1 border rounded-2xl px-3 py-1"
               style={{ borderColor: "#4C0D68" }}
@@ -1684,7 +1519,6 @@ const BaseChatPage = ({
                 }}
               />
               
-              {/* Tombol Kirim */}
               <button 
                 onClick={editingMessage ? handleSaveEdit : handleSend}
                 disabled={editingMessage ? !editText.trim() : !message.trim()}
@@ -1705,7 +1539,6 @@ const BaseChatPage = ({
           </div>
         )}
 
-        {/* Custom Footer */}
         {!canSendMessages && !isSelectionMode && customFooter && (
           <div>
             {customFooter}
@@ -1713,11 +1546,28 @@ const BaseChatPage = ({
         )}
       </div>
 
-      {/* File Upload Popup */}
       <FileUploadPopup
         isOpen={showFileUpload}
         onClose={() => setShowFileUpload(false)}
         onSend={async (fileData) => {
+//           const formData = new FormData();
+          
+//           if (fileData.caption) {
+//             formData.append('content', fileData.caption);
+//           } else if (fileData.type === 'file') {
+//             formData.append('content', fileData.file.name);
+//           } else {
+//             formData.append('content', 'Image');
+//           }
+          
+//           formData.append('file', fileData.file.file);
+          
+//           if (replyingMessage) {
+//             formData.append('reply_to_message_id', replyingMessage.message_id);
+//           }
+
+//           const result = await sendMessage(actualChatId, formData);
+
           // 1. Siapkan objek data pesan.
           const messageData = {
             file: fileData.file.file, // File asli untuk diunggah.
@@ -1748,7 +1598,6 @@ const BaseChatPage = ({
         fileButtonRef={fileButtonRef}
       />
 
-      {/* Updated Delete Modal with conditional behavior */}
       {showDeleteModal && (
         <>
         <div className="fixed inset-0 bg-black bg-opacity-10 backdrop-blur-[1px] z-[9998]" />

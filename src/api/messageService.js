@@ -156,7 +156,7 @@ export const messageService = {
   // Get messages by room and type
   fetchMessagesByRoomAndType: async (roomId, messageType) => {
     try {
-      const res = await axiosInstance.get(`/rooms/${roomId}/messages?type=${messageType}`);
+      const res = await axiosInstance.get(`/rooms/${roomId}/messages/${messageType}`);
       
       return {
         success: true,
@@ -236,6 +236,7 @@ export const messageService = {
       };
     }
   },
+
   // Delete messages globally
   deleteMessagesGlobally: async (messageIds) => {
     try {

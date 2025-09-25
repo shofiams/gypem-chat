@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import {
   Grid,
   Users,
@@ -8,31 +8,55 @@ import {
   ArrowLeft,
 } from "react-feather";
 
+import { useRoomDetails } from "../../hooks/useRooms";
+import { useRoomMedia } from "../../hooks/useMessages";
 import logo from "../../assets/logo.png";
-
 import GroupOverview from "./GroupOverview";
 import GroupMembers from "./GroupMembers";
 import GroupMedia from "./GroupMedia";
 import GroupFiles from "./GroupFiles";
 import GroupLinks from "./GroupLinks";
 
-export default function GroupPopup({ onClose }) {
+export default function GroupPopup({ onClose, roomId }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [seeMore, setSeeMore] = useState(false);
   const [seeAllMembers, setSeeAllMembers] = useState(false);
-
   const [exitLoading, setExitLoading] = useState(false);
   const [exitText, setExitText] = useState("Exit Group");
-
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
-
+  
   const [showScrollbar, setShowScrollbar] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
   const scrollRef = useRef(null);
   const popupRef = useRef(null);
   const hideTimeout = useRef(null);
+
+  // Use hooks for data fetching
+  const { roomDetails, loading: roomLoading, error: roomError } = useRoomDetails(roomId);
+  
+  const { 
+    mediaList, 
+    files, 
+    links, 
+    loading: mediaLoading, 
+    error: mediaError,
+    refetch: refetchMedia 
+  } = useRoomMedia(roomId);
+
+  const loading = roomLoading || mediaLoading;
+  const error = roomError || mediaError;
+
+  // Debug logging untuk memastikan data terambil
+  useEffect(() => {
+    if (roomId) {
+      console.log('GroupPopup - Room ID:', roomId);
+      console.log('Media Data:', { mediaList, files, links });
+      console.log('Loading:', { roomLoading, mediaLoading });
+      console.log('Errors:', { roomError, mediaError });
+    }
+  }, [roomId, mediaList, files, links, roomLoading, mediaLoading, roomError, mediaError]);
 
   // Detect screen resize
   useEffect(() => {
@@ -71,58 +95,146 @@ export default function GroupPopup({ onClose }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
-  const tabs = [
-    { id: "overview", label: "Overview", icon: Grid },
-    { id: "members", label: "Members", icon: Users },
-    { id: "media", label: "Media", icon: ImageIcon },
-    { id: "files", label: "Files", icon: FileText },
-    { id: "links", label: "Links", icon: LinkIcon },
-  ];
+  // ✅ PERUBAHAN: Process members data dari API dengan foto profil yang benar
+  const processedMembers = useMemo(() => {
+    if (!roomDetails?.members) return [];
+    
+    const API_BASE_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
+    
+    const mappedMembers = roomDetails.members.map(member => {
+      let photoUrl = null;
+      
+      // Cek apakah profile_photo sudah berupa URL lengkap atau hanya nama file
+      if (member.profile_photo) {
+        if (member.profile_photo.startsWith('http')) {
+          // Sudah berupa URL lengkap
+          photoUrl = member.profile_photo;
+        } else {
+          // Hanya nama file, perlu ditambahkan base URL
+          photoUrl = `${API_BASE_URL}/uploads/${member.profile_photo}`;
+        }
+      }
+      
+      return {
+        name: member.name, // Menggunakan 'name' bukan 'nama'
+        isAdmin: member.member_type === 'admin',
+        photo: photoUrl // Menggunakan URL foto profil dari API
+      };
+    });
 
-  const files = [
-    { name: "Juknis Olympiade Star", type: "pdf", url: "/files/juknis1.pdf" },
-    { name: "Juknis Olympiade Star", type: "pdf", url: "/files/juknis2.pdf" },
-    { name: "Panduan Acara", type: "word", url: "/files/panduan.docx" },
-    { name: "Formulir Pendaftaran", type: "word", url: "/files/formulir.docx" },
-    { name: "Materi Presentasi", type: "pdf", url: "/files/materi.pdf" },
-    { name: "Surat Undangan", type: "word", url: "/files/undangan.docx" },
-  ];
+    // ✅ SORTING: Admin di paling atas, lalu urutkan berdasarkan abjad
+    const sortedMembers = mappedMembers.sort((a, b) => {
+      // Jika salah satu admin dan yang lain bukan, admin di atas
+      if (a.isAdmin && !b.isAdmin) return -1;
+      if (!a.isAdmin && b.isAdmin) return 1;
+      
+      // Jika keduanya admin atau keduanya bukan admin, urutkan berdasarkan nama (abjad)
+      return a.name.localeCompare(b.name, 'id', { sensitivity: 'base' });
+    });
 
-  const links = Array(8).fill("https://www.flaticon.com/free-icon/folder_1092218");
+    // ✅ Debug logging untuk memeriksa URL gambar
+    console.log('Processed Members with Photos:', sortedMembers.map(m => ({
+      name: m.name,
+      isAdmin: m.isAdmin,
+      photo: m.photo
+    })));
 
-  const members = [
-    { name: "You", isAdmin: true, photo: logo },
-    { name: "Shafira", photo: logo },
-    { name: "Maulana", photo: logo },
-    { name: "Jamil", photo: logo },
-    { name: "Aku", photo: logo },
-    { name: "Anak", photo: logo },
-    { name: "Poliwangi", photo: logo },
-    { name: "Jinggo", photo: logo },
-    { name: "Yes", photo: logo },
-    { name: "Yesss", photo: logo },
-  ];
+    return sortedMembers;
+  }, [roomDetails]);
 
-  const mediaFiles = import.meta.glob("../../assets/*.{JPG,jpg,png,mp4}", { eager: true });
-  const mediaList = Object.values(mediaFiles).map((mod) => {
-    const url = mod.default;
-    const ext = url.split(".").pop().toLowerCase();
-    return { type: ext === "mp4" ? "video" : "image", url };
-  });
+  const roomInfo = useMemo(() => {
+    const API_BASE_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
+    
+    const photoPath = roomDetails?.room?.description?.url_photo;
+    
+    const fullLogoUrl = photoPath 
+      ? `${API_BASE_URL}/uploads/${photoPath}`
+      : logo;
+    return {
+      logo: fullLogoUrl,
+      name: roomDetails?.room?.description?.name || 'Group',
+      description: roomDetails?.room?.description?.description || 'No description available'
+    };
+  }, [roomDetails]);
 
-  const descriptionText =
-    "Lorem Ipsum is simply dummy text of the printing and typesetting industry. " +
-    "Lorem Ipsum has been the industry's standard dummy text ever since. " +
-    "Additional text to simulate a longer description when see more is clicked. " +
-    "Even more text to test scrolling in the main content area.".repeat(5);
-
+  // Handle exit/delete group
   const handleExit = () => {
     setExitLoading(true);
+    // TODO: Implement actual API call for leave/delete group
     setTimeout(() => {
       setExitLoading(false);
       setExitText("Delete Group");
     }, 1500);
   };
+
+  // ✅ PERUBAHAN: Tambahkan handler untuk refresh data
+  const handleRefreshData = () => {
+    if (refetchMedia) {
+      refetchMedia();
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg">
+          <div className="flex items-center space-x-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900"></div>
+            <p>Loading group details...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg max-w-sm mx-4">
+          <h3 className="text-lg font-semibold mb-2 text-red-600">Error</h3>
+          <p className="text-gray-700 mb-4">{error}</p>
+          <div className="flex space-x-2">
+            <button 
+              onClick={handleRefreshData}
+              className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition"
+            >
+              Retry
+            </button>
+            <button 
+              onClick={onClose} 
+              className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const tabs = [
+    { id: "overview", label: "Overview", icon: Grid },
+    { 
+      id: "members", 
+      label: `Members`, 
+      icon: Users 
+    },
+    { 
+      id: "media", 
+      label: `Photos`, 
+      icon: ImageIcon 
+    },
+    { 
+      id: "files", 
+      label: `Files`, 
+      icon: FileText 
+    },
+    { 
+      id: "links", 
+      label: `Links`, 
+      icon: LinkIcon 
+    },
+  ];
 
   const openLightbox = (index) => {
     setCurrentMediaIndex(index);
@@ -155,7 +267,7 @@ export default function GroupPopup({ onClose }) {
             <button onClick={onClose} className="mr-3">
               <ArrowLeft size={24} strokeWidth={2} />
             </button>
-            <h2 className="font-semibold text-lg">Group Detail</h2>
+            <h2 className="font-semibold text-lg truncate">{roomInfo.name}</h2>
           </div>
         )}
 
@@ -207,27 +319,41 @@ export default function GroupPopup({ onClose }) {
           >
             {activeTab === "overview" && (
               <GroupOverview
-                groupLogo={logo}
+                groupLogo={roomInfo.logo}
+                groupName={roomInfo.name}
                 seeMore={seeMore}
                 setSeeMore={setSeeMore}
-                descriptionText={descriptionText}
+                descriptionText={roomInfo.description}
                 handleExit={handleExit}
                 exitLoading={exitLoading}
                 exitText={exitText}
                 setExitText={setExitText}
-                groupPhoto={logo}
               />
             )}
             {activeTab === "members" && (
               <GroupMembers
-                members={members}
+                members={processedMembers}
                 seeAllMembers={seeAllMembers}
                 setSeeAllMembers={setSeeAllMembers}
+                groupLogo={roomInfo.logo}
               />
             )}
-            {activeTab === "links" && <GroupLinks links={links} />}
-            {activeTab === "media" && <GroupMedia mediaList={mediaList} openLightbox={openLightbox} />}
-            {activeTab === "files" && <GroupFiles files={files} />}
+            {activeTab === "links" && (
+              <GroupLinks 
+                links={links || []} 
+              />
+            )}
+            {activeTab === "media" && (
+              <GroupMedia 
+                mediaList={mediaList || []} 
+                openLightbox={openLightbox} 
+              />
+            )}
+            {activeTab === "files" && (
+              <GroupFiles 
+                files={files || []} 
+              />
+            )}
           </div>
         </div>
       </div>

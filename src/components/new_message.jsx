@@ -6,18 +6,17 @@ import profileList from "../assets/profile_list.svg";
 import { useAdmins } from "../hooks/useAdmins";
 import { useRoomOperations } from "../hooks/useRooms"; 
 import { useRooms } from "../hooks/useRooms"; 
-// Import untuk API operations
 
-const NewMessagePopup = ({ isOpen, onClose }) => {
+const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   const popupRef = useRef(null);
   const navigate = useNavigate();
   const { getAllChats, createNewChat, setActiveChat } = useChatContext();
   const { data: admins, loading, error } = useAdmins();
-  const { createPrivateRoom, loading: creatingRoom } = useRoomOperations(); // Hook untuk API
+  const { createPrivateRoom, loading: creatingRoom } = useRoomOperations();
   
+  // Tambahkan refetch dari useRooms hook
   const { refetch: refetchRooms } = useRooms(); 
 
-  // State untuk loading dan error handling
   const [processingContact, setProcessingContact] = useState(null);
 
   useEffect(() => {
@@ -42,6 +41,9 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
     
     try {
       const isMobile = window.innerWidth < 768;
+      
+      // Pertama, cek apakah room sudah ada dengan merefresh data rooms
+      await refetchRooms();
       const allChats = getAllChats();
       
       // Cek existing chat berdasarkan adminId
@@ -55,15 +57,15 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
         if (isMobile) {
           navigate(`/chats/${existingChat.id}`);
         } else {
-          // For desktop: ensure we're on chats page first
           if (window.location.pathname !== '/chats') {
             navigate('/chats');
           }
-          // Set active chat after a brief delay to ensure state is ready
           setTimeout(() => {
             setActiveChat(existingChat.id);
           }, 10);
         }
+        // Refetch rooms setelah navigasi ke existing chat
+        await refetchRooms();
         onClose();
         return;
       }
@@ -73,7 +75,24 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
       const result = await createPrivateRoom(contact.id);
       
       if (result.success) {
-        // Berhasil buat room di API, sekarang buat local chat
+        // Setelah berhasil buat room, refresh data rooms
+        console.log("Private room created successfully:", result.data);
+        
+        // PERBAIKAN: Trigger refresh di parent component dulu
+        if (onChatCreated) {
+          await onChatCreated();
+        }
+        
+        // Dispatch custom event untuk refresh komponen lain
+        window.dispatchEvent(new CustomEvent('chatListRefresh'));
+        
+        // Tunggu sebentar untuk memastikan parent component sudah refresh
+        await new Promise(resolve => setTimeout(resolve, 200));
+        
+        // Refresh local rooms data
+        await refetchRooms();
+
+        // Buat local chat dengan data dari API response
         const newChatData = {
           name: contact.name,
           avatar: contact.profilePhoto ? `/path/to/images/${contact.profilePhoto}` : profileList,
@@ -88,35 +107,37 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
           showCentang: false,
           showCentangAbu: false,
           type: 'one-to-one',
-          // Tambahan data admin untuk referensi
           adminId: contact.id,
           email: contact.email,
           bio: contact.bio,
-          // Data dari API response
           roomId: result.data?.room_id,
           roomMemberId: result.data?.room_member_id
         };
 
         const newChatId = createNewChat(newChatData);
         
-        if (newChatId) {
+        // Tunggu sebentar untuk memastikan state ter-update
+        await new Promise(resolve => setTimeout(resolve, 150));
+        
+        if (newChatId || result.data?.room_id) {
+          // Gunakan room_id dari API response sebagai fallback
+          const chatIdToUse = newChatId || result.data?.room_id;
+          
           if (isMobile) {
-            navigate(`/chats/${newChatId}`);
+            navigate(`/chats/${chatIdToUse}`);
           } else {
-            // For desktop: ensure we're on chats page first
+            // Pastikan kita di halaman chats untuk desktop split view
             if (window.location.pathname !== '/chats') {
               navigate('/chats');
             }
-            // Set active chat after creation with longer delay to ensure state updates
+            // Delay yang lebih lama untuk desktop untuk memastikan navigation selesai
             setTimeout(() => {
-              setActiveChat(newChatId);
-            }, 50);
+              setActiveChat(chatIdToUse);
+            }, 200);
           }
         }
         
-        console.log("Private room created successfully:", result.data);
       } else {
-        // Handle error dari API
         console.error("Failed to create private room:", result.error);
         alert(`Failed to create chat: ${result.error}`);
       }
@@ -209,15 +230,13 @@ const NewMessagePopup = ({ isOpen, onClose }) => {
                 alt="avatar"
                 className="w-13 h-13 rounded-full object-cover md:w-8 md:h-8 md:object-none"
                 onError={(e) => {
-                  e.target.src = profileList; // Fallback to default image if profile photo fails to load
+                  e.target.src = profileList;
                 }}
               />
               <div className="flex-1">
                 <span className="text-gray-900 text-lg font-medium block md:text-gray-800 md:text-sm md:font-normal md:inline">
                   {contact.name}
-                  
                 </span>
-                {/* Divider hanya untuk mobile dan bukan item terakhir */}
                 {index !== contacts.length - 1 && (
                   <div className="border-b border-gray-300 relative top-4 md:hidden"></div>
                 )}

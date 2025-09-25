@@ -84,6 +84,37 @@ export default function ProfilePopup({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose, showEditOptionsDesktop, showEditOptionsMobile, isOpen]);
 
+  // Add scroll bar styles to document head
+  useEffect(() => {
+    if (isOpen) {
+      const style = document.createElement('style');
+      style.textContent = `
+        .profile-scroll::-webkit-scrollbar {
+          width: 6px;
+        }
+        .profile-scroll::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .profile-scroll::-webkit-scrollbar-thumb {
+          background: rgba(0, 0, 0, 0.1);
+          border-radius: 3px;
+        }
+        .profile-scroll::-webkit-scrollbar-thumb:hover {
+          background: rgba(0, 0, 0, 0.15);
+        }
+        .profile-scroll {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+        }
+      `;
+      document.head.appendChild(style);
+      
+      return () => {
+        document.head.removeChild(style);
+      };
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   return (
@@ -100,7 +131,7 @@ export default function ProfilePopup({
         ref={popupRef}
         className="absolute left-[70px] bottom-2 bg-white shadow-md rounded-xl z-30 text-sm font-medium
           flex w-[600px] h-[430px]
-          max-md:fixed max-md:top-0 max-md:left-0 max-md:w-full max-md:h-[calc(100vh-70px)] max-md:rounded-none max-md:shadow-none max-md:bottom-auto max-md:overflow-hidden max-md:z-40"
+          max-md:fixed max-md:top-0 max-md:left-0 max-md:w-full max-md:h-[calc(100vh-70px)] max-md:rounded-none max-md:shadow-none max-md:bottom-auto max-md:z-40"
       >
         {/* Desktop */}
         <div className="md:flex w-full max-md:hidden overflow-hidden rounded-xl">
@@ -119,7 +150,7 @@ export default function ProfilePopup({
 
           <div className="w-[1px] bg-gray-200" />
 
-          <div className="flex-1 p-6 relative bg-white">
+          <div className="flex-1 p-6 relative bg-white overflow-y-auto profile-scroll">
             <div className="relative flex flex-col items-center">
               <div className="relative">
                 {isDefaultProfile ? (
@@ -212,7 +243,7 @@ export default function ProfilePopup({
         </div>
 
         {/* Mobile */}
-        <div className="md:hidden w-full h-full bg-white overflow-hidden flex flex-col">
+        <div className="md:hidden w-full h-full bg-white overflow-y-auto profile-scroll flex flex-col">
           <div className="flex flex-col place-items-center py-14">
             <div className="relative">
               {isDefaultProfile ? (

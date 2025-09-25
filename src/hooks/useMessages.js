@@ -147,21 +147,28 @@ export const useMessagesByRoom = (roomId, opts = {}) => {
   const { autoFetch = true } = opts;
 
   const fetchMessagesByRoom = useCallback(async () => {
-    if (!roomId) return;
+    if (!roomId) {
+      console.warn('useMessagesByRoom: No roomId provided');
+      return;
+    }
 
     setLoading(true);
     setError(null);
 
     try {
+      console.log('Fetching messages for room:', roomId);
       const result = await messageService.fetchMessagesByRoom(roomId);
 
       if (result.success) {
+        console.log('Messages fetched successfully:', result.data.length, 'messages');
         setData(result.data);
       } else {
+        console.error('Failed to fetch messages:', result.message);
         setError(result.message);
         setData([]);
       }
     } catch (err) {
+      console.error('Error fetching messages:', err);
       setError(err.message || "Failed to fetch messages by room");
       setData([]);
     } finally {
@@ -224,6 +231,197 @@ export const useMessagesByRoomAndType = (roomId, messageType, opts = {}) => {
     loading,
     error,
     refetch: fetchMessagesByRoomAndType,
+  };
+};
+
+// Hook useRoomMedia yang menggunakan API endpoints
+export const useRoomMedia = (roomId) => {
+  const [mediaList, setMediaList] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [links, setLinks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // Menggunakan API endpoints yang spesifik untuk setiap tipe
+  const { 
+    data: imageMessages, 
+    loading: imageLoading, 
+    error: imageError, 
+    refetch: refetchImages 
+  } = useMessagesByRoomAndType(roomId, 'image', { autoFetch: true });
+
+  const { 
+    data: documentMessages, 
+    loading: documentLoading, 
+    error: documentError, 
+    refetch: refetchDocuments 
+  } = useMessagesByRoomAndType(roomId, 'dokumen', { autoFetch: true });
+
+  const { 
+    data: linkMessages, 
+    loading: linkLoading, 
+    error: linkError, 
+    refetch: refetchLinks 
+  } = useMessagesByRoomAndType(roomId, 'tautan', { autoFetch: true });
+
+  const processApiData = useCallback(() => {
+    const API_BASE_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
+
+    const processedImages = [];
+    if (imageMessages && Array.isArray(imageMessages)) {
+      imageMessages.forEach(group => {
+        if (Array.isArray(group)) {
+          group.forEach(message => {
+            if (message?.attachment) {
+              processedImages.push({
+                type: 'image',
+                url: message.attachment.url || `${API_BASE_URL}/uploads/${message.attachment.file_path}`,
+                messageId: message.message_id,
+                sender: message.sender_name,
+                fileName: message.content || message.attachment.file_path
+              });
+            }
+          });
+        }
+      });
+    }
+
+    const processedFiles = [];
+    if (documentMessages && Array.isArray(documentMessages)) {
+      documentMessages.forEach(group => {
+        if (Array.isArray(group)) {
+          group.forEach(message => {
+            if (message?.attachment) {
+              const fileType = getFileType(message.attachment.file_path);
+              
+              processedFiles.push({
+                name: message.content || message.attachment.file_path,
+                type: fileType,
+                url: message.attachment.url || `${API_BASE_URL}/uploads/${message.attachment.file_path}`,
+                messageId: message.message_id,
+                sender: message.sender_name,
+                originalPath: message.attachment.file_path
+              });
+            }
+          });
+        }
+      });
+    }
+
+    const processedLinks = [];
+    if (linkMessages && Array.isArray(linkMessages)) {
+      linkMessages.forEach(group => {
+        if (Array.isArray(group)) {
+          group.forEach(message => {
+            if (message?.attachment?.url) {
+              let linkUrl = message.attachment.url;
+              
+              if (!linkUrl.startsWith('http://') && !linkUrl.startsWith('https://')) {
+                linkUrl = `https://${linkUrl}`;
+              }
+              
+              try {
+                new URL(linkUrl);
+                processedLinks.push({
+                  url: linkUrl,
+                  messageId: message.message_id,
+                  sender: message.sender_name
+                });
+              } catch (error) {
+                console.warn('❌ Invalid URL found:', linkUrl);
+              }
+            } else {
+              console.warn('❌ Message tanpa attachment.url:', message);
+            }
+          });
+        }
+      });
+    }
+
+    setMediaList(processedImages);
+    setFiles(processedFiles);
+    setLinks(removeDuplicateLinks(processedLinks));
+    
+    console.log('Final processed data:', {
+      images: processedImages.length,
+      files: processedFiles.length, 
+      links: processedLinks.length
+    });
+    
+  }, [imageMessages, documentMessages, linkMessages]);
+
+  // Helper function untuk menghapus duplikat links
+  const removeDuplicateLinks = (linkObjects) => {
+    if (!Array.isArray(linkObjects)) return [];
+    const seenUrls = new Set();
+    return linkObjects.filter(linkObj => {
+      if (seenUrls.has(linkObj.url)) {
+        return false;
+      } else {
+        seenUrls.add(linkObj.url);
+        return true;
+      }
+    });
+  };
+
+  // Helper function untuk mendeteksi tipe file
+  const getFileType = (filePath) => {
+    if (!filePath) return 'Unknown';
+    const extension = filePath.split('.').pop()?.toLowerCase();
+    const fileTypes = {
+      'pdf': 'PDF',
+      'doc': 'Word',
+      'docx': 'Word',
+      'jpg': 'Image',
+      'jpeg': 'Image',
+      'png': 'Image',
+      'webp': 'Image',
+      'svg': 'Image',
+    };
+    return fileTypes[extension] || extension?.toUpperCase() || 'Unknown';
+  };
+
+  // Process data ketika ada perubahan
+  useEffect(() => {
+    processApiData();
+  }, [processApiData]);
+
+  // Set loading state
+  useEffect(() => {
+    setLoading(imageLoading || documentLoading || linkLoading);
+  }, [imageLoading, documentLoading, linkLoading]);
+
+  // Set error state
+  useEffect(() => {
+    const errors = [imageError, documentError, linkError].filter(Boolean);
+    if (errors.length > 0) {
+      setError(errors[0]);
+    } else {
+      setError(null);
+    }
+  }, [imageError, documentError, linkError]);
+
+  // Manual refetch function
+  const refetch = useCallback(async () => {
+    console.log('useRoomMedia: Manual refetch triggered');
+    try {
+      await Promise.all([
+        refetchImages(),
+        refetchDocuments(), 
+        refetchLinks()
+      ]);
+    } catch (err) {
+      console.error('Error during manual refetch:', err);
+    }
+  }, [refetchImages, refetchDocuments, refetchLinks]);
+
+  return {
+    mediaList: mediaList || [],
+    files: files || [],
+    links: links || [],
+    loading,
+    error,
+    refetch,
   };
 };
 

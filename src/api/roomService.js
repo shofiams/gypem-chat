@@ -82,6 +82,23 @@ export const roomService = {
     }
   },
 
+  leaveRoom: async (roomMemberId) => {
+    try {
+      const res = await axiosInstance.delete(`/rooms/${roomMemberId}/leave`);
+      return {
+        success: true,
+        data: null,
+        message: res.data.message,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || "Failed to leave room",
+        data: null,
+      };
+    }
+  },
+
   // delete room
   deleteRooms: async (roomMemberIds) => {
     try {
