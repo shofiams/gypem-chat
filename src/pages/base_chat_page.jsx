@@ -10,33 +10,45 @@ import EmojiPicker from "emoji-picker-react";
 import { useMessagesByRoom, useMessageOperations, usePinnedMessagesByRoom } from "../hooks/useMessages";
 import { messageService, formatMessageTime } from "../api/messageService";
 
-const DateSeparator = ({ children, timestamp }) => {
-  const formatDate = (timestamp) => {
-    if (!timestamp) return "Today";
+const DateSeparator = ({ timestamp }) => {
+  // Fungsi baru untuk memformat tanggal secara dinamis
+  const formatDate = (isoString) => {
+    if (!isoString) return "Today";
     
-    const date = new Date(timestamp);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    if (date.toDateString() === today.toDateString()) {
+    const date = new Date(isoString);
+    const now = new Date();
+
+    // Cek selisih hari
+    const diffTime = now - date;
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (date.toDateString() === now.toDateString()) {
       return "Today";
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return "Yesterday";
-    } else {
-      return date.toLocaleDateString('id-ID', { 
-        weekday: 'long', 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
     }
+    
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    }
+
+    // Jika dalam 7 hari terakhir, tampilkan nama hari
+    if (diffDays <= 7) {
+      return date.toLocaleDateString([], { weekday: 'long' }); // e.g., "Wednesday"
+    }
+    
+    // Jika lebih dari seminggu, tampilkan tanggal lengkap
+    return date.toLocaleDateString([], {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
   };
 
   return (
     <div className="flex justify-center my-3">
       <span className="bg-white border border-gray-200 px-3 py-1 text-[11px] text-gray-500 rounded-[20px] shadow">
-        {children || formatDate(timestamp)}
+        {formatDate(timestamp)}
       </span>
     </div>
   );
