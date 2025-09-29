@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { getContrast, darken } from "color2k";
-import BaseChatPage from "./base_chat_page";
+import BaseChatPage from "./BaseChatPage";
 import GroupPopup from "../components/GroupPopup/GroupPopup";
 
 // Fungsi untuk generate hash dari string
