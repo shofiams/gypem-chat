@@ -15,6 +15,7 @@ import PinnedMessage from "./components/PinnedMessage";
 import MessageList from "./components/MessageList";
 import ChatFooter from "./components/ChatFooter";
 import DeleteMessageModal from "./components/DeleteMessageModal";
+import { assets } from "../../assets/assets";
 
 const BaseChatPage = ({
   isEmbedded = false,
@@ -183,9 +184,9 @@ const BaseChatPage = ({
         {showScrollButton && !isSelectionMode && (
           <button 
             onClick={scrollToBottom}
-            className="absolute bottom-24 right-4 z-40 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg"
+            className="absolute bottom-24 right-5 z-40 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg"
           >
-            &#x2193;
+            <img src={assets.ArrowDownThin} alt="Scroll to bottom" className="w-6 h-6" />
           </button>
         )}
 

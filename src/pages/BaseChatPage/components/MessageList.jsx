@@ -1,5 +1,5 @@
 import React from 'react';
-import ChatBubblePeserta from '../../../components/ChatBubblePeserta';
+import ChatBubblePeserta from '../../../components/ChatBubblePeserta.jsx';
 import DateSeparator from './DateSeparator';
 
 // --- LANGKAH 1: Tambahkan kembali import untuk gambar background ---

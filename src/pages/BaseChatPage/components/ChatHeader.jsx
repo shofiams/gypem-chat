@@ -64,6 +64,7 @@ const ChatHeader = ({
       <img
         src={chatInfo?.avatar || groupPhoto}
         alt="profile"
+        crossOrigin='anonymous'
         className="w-10 h-10 rounded-full object-cover"
       />
       <div
