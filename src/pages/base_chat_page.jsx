@@ -4,7 +4,7 @@ import ChatBubblePeserta from "../components/ChatBubblePeserta";
 import FileUploadPopup from "../components/FileUploadPopup";
 import { useChatHeader } from "../hooks/useChatHeader";
 import { assets } from "../assets/assets";
-import groupPhoto from "../assets/admin-profile.png";
+import groupPhoto from "../assets/User.svg";
 import chatBg from "../assets/chat-bg.png";
 import EmojiPicker from "emoji-picker-react";
 import { useMessagesByRoom, useMessageOperations, usePinnedMessagesByRoom } from "../hooks/useMessages";

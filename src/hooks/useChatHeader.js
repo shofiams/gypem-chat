@@ -35,22 +35,37 @@ export const useChatHeader = (chatId, isGroupChat) => {
       if (roomDetailsLoading) return { name: 'Loading...', subtitle: '', isGroup: true };
       if (error) return { name: 'Error', subtitle: 'Gagal memuat detail', isGroup: true };
 
-      if (roomDetails) {
-        const { room, members } = roomDetails;
-        
-        const memberNames = members?.map(member => member.nama || `Peserta #${member.member_id}`) || [];
+      // ✅ KODE BARU (DENGAN SORTING YANG SAMA SEPERTI GroupMembers)
+if (roomDetails) {
+  const { room, members } = roomDetails;
+  
+  // Mapping members dengan field yang benar
+  const mappedMembers = members?.map(member => ({
+    name: member.name,
+    isAdmin: member.member_type === 'admin'
+  })) || [];
 
-        return {
-          name: room?.description?.name || 'Group Chat',
-          avatar: room?.description?.url_photo ? `${API_BASE_URL}/uploads/${room.description.url_photo}` : null,
-          subtitle: memberNames.length > 0
-            ? memberNames.slice(0, 3).join(', ') + (memberNames.length > 3 ? '...' : '')
-            : '',
-          isOnline: false,
-          isGroup: true,
-          memberCount: members?.length || 0,
-        };
-      }
+  // Sorting: Admin dulu, lalu alfabetis (SAMA seperti di GroupMembers.jsx)
+  const sortedMembers = mappedMembers.sort((a, b) => {
+    if (a.isAdmin && !b.isAdmin) return -1;
+    if (!a.isAdmin && b.isAdmin) return 1;
+    return a.name.localeCompare(b.name, 'id', { sensitivity: 'base' });
+  });
+
+  // Ambil nama-nama yang sudah tersortir
+  const memberNames = sortedMembers.map(m => m.name);
+
+  return {
+    name: room?.description?.name || 'Group Chat',
+    avatar: room?.description?.url_photo ? `${API_BASE_URL}/uploads/${room.description.url_photo}` : null,
+    subtitle: memberNames.length > 0
+      ? memberNames.slice(0, 3).join(', ') + (memberNames.length > 3 ? '...' : '')
+      : '',
+    isOnline: false,
+    isGroup: true,
+    memberCount: members?.length || 0,
+  };
+}
     }
 
     // Fallback jika data belum ada
