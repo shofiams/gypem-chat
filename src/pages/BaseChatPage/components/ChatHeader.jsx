@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { assets } from '../../../assets/assets';
-import groupPhoto from '../../../assets/admin-profile.png';
+import groupPhoto from '../../../assets/User.svg';
 
 const ChatHeader = ({
   // Props untuk header normal
@@ -76,16 +76,16 @@ const ChatHeader = ({
           className="w-10 h-10 rounded-full object-cover"
         />
         <div
-          className={`flex-1 ${isGroupChat && onGroupHeaderClick ? 'cursor-pointer' : ''}`}
+          className={`flex-1 min-w-0 ${isGroupChat && onGroupHeaderClick ? 'cursor-pointer' : ''}`}
           onClick={isGroupChat ? onGroupHeaderClick : undefined}
         >
-          <p className="font-semibold text-sm">{chatInfo?.name}</p>
-          <p className="text-xs text-gray-500 truncate">{chatInfo?.subtitle}</p>
+          <p className="font-semibold text-sm truncate">{chatInfo?.name}</p>
+          <p className="text-xs text-gray-500 truncate max-w-full">{chatInfo?.subtitle}</p>
         </div>
         <button
             data-search-button
             onClick={() => setShowSearchResults(!showSearchResults)}
-            className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded transition"
+            className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded transition flex-shrink-0"
         >
             <img src={assets.Search} alt="Search" className="w-5 h-5" />
         </button>

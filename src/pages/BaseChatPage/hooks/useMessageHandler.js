@@ -1,6 +1,13 @@
 import { useCallback, useState } from 'react';
 import { useMessageOperations } from '../../../hooks/useMessages';
 
+// Fungsi helper untuk dispatch event
+const dispatchMessagesUpdate = (roomId) => {
+  if (roomId) {
+    window.dispatchEvent(new CustomEvent('messagesUpdated', { detail: { roomId } }));
+  }
+};
+
 export const useMessageHandler = ({
   actualChatId,
   message, setMessage,
@@ -42,6 +49,8 @@ export const useMessageHandler = ({
       setReplyingMessage(null);
       refetchMessages();
 
+      // --- TAMBAHAN: Kirim sinyal update ---
+      dispatchMessagesUpdate(actualChatId);
       // --- TAMBAHKAN LOGIKA RESET TINGGI TEXTAREA DI SINI ---
       setTimeout(() => {
         if (inputRef.current) {
@@ -65,6 +74,8 @@ export const useMessageHandler = ({
       setEditText("");
       refetchMessages();
 
+      // --- TAMBAHAN: Kirim sinyal update ---
+      dispatchMessagesUpdate(actualChatId);
       // --- TAMBAHKAN LOGIKA RESET TINGGI TEXTAREA DI SINI JUGA ---
       setTimeout(() => {
         if (inputRef.current) {
@@ -117,10 +128,56 @@ export const useMessageHandler = ({
   };
 
   // --- FUNGSI HAPUS (Tidak berubah) ---
-  const handleFinalDelete = useCallback(async () => {
-    // ... (kode yang sudah ada)
+const handleFinalDelete = useCallback(async () => {
+    let result;
+    if (isSelectionMode) {
+      // Logic for multi-selection delete
+      const messageStatusIds = Array.from(selectedMessages).map(id => flattenedMessages.find(m => m.message_id === id)?.message_status?.message_status_id).filter(Boolean);
+      const messageIds = Array.from(selectedMessages);
+      
+      if (selectedDeleteOption === 'everyone') {
+        result = await deleteMessagesGlobally(messageIds);
+      } else {
+        result = await deleteMessagesForMe(messageStatusIds);
+      }
+    } else if (messageToDelete) {
+      // Logic for single message delete
+      if (selectedDeleteOption === 'everyone') {
+        result = await deleteMessagesGlobally([messageToDelete.message_id]);
+      } else {
+        result = await deleteMessagesForMe([messageToDelete.message_status_id]);
+      }
+    }
+
+    if (result?.success) {
+      refetchMessages();
+      // --- TAMBAHAN: Kirim sinyal update ---
+      dispatchMessagesUpdate(actualChatId);
+      // ---
+    } else {
+      console.error('Failed to delete message(s):', result?.error);
+    }
+    
+    setShowDeleteModal(false);
+    setMessageToDelete(null);
+    setIsSelectionMode(false);
+    setSelectedMessages(new Set());
+    setSelectedDeleteOption('me');
+
   }, [
-    // ... (dependencies yang sudah ada)
+    isSelectionMode,
+    selectedMessages,
+    messageToDelete,
+    selectedDeleteOption,
+    deleteMessagesGlobally,
+    deleteMessagesForMe,
+    refetchMessages,
+    actualChatId,
+    flattenedMessages,
+    setShowDeleteModal,
+    setMessageToDelete,
+    setIsSelectionMode,
+    setSelectedMessages,
   ]);
 
 
