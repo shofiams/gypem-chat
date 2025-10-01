@@ -132,26 +132,37 @@ export const roomService = {
   },
 };
 
-// Simple helper for time formatting
+// helper for time formatting
 export const formatTime = (isoString) => {
   if (!isoString) return "";
 
   const date = new Date(isoString);
   const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
+  const seconds = Math.round((now - date) / 1000);
+  const minutes = Math.round(seconds / 60);
+  const hours = Math.round(minutes / 60);
 
-  if (isToday) {
-    return date
-      .toLocaleTimeString("id-ID", {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-      })
-      .replace(":", ".");
-  } else {
-    return date.toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "2-digit",
-    });
+  // Batas waktu dalam detik (3 jam * 60 menit * 60 detik)
+  const threeHoursInSeconds = 3 * 60 * 60;
+
+  if (seconds < 60) {
+    return "just now";
   }
+
+  if (seconds < threeHoursInSeconds) {
+    if (minutes < 60) {
+      return `${minutes} minute ago`;
+    } else {
+      return `${hours} hour ago`;
+    }
+  }
+
+  // Jika lebih dari 3 jam, tampilkan waktu spesifik
+  return date
+    .toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    })
+    .replace(":", ".");
 };
