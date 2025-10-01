@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FiArrowLeft } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import profileList from "../assets/profile_list.svg";
+import profileList from "../assets/user.svg";
 import { useAdmins } from "../hooks/useAdmins";
 import { useRoomOperations } from "../hooks/useRooms";
 import { useRooms } from "../hooks/useRooms";
+
 
 const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   const popupRef = useRef(null);
@@ -14,6 +15,8 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   const { rooms, refetch: refetchRooms } = useRooms();
 
   const [processingContact, setProcessingContact] = useState(null);
+
+  const PHOTO_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -206,11 +209,12 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
               <img
                 src={
                   contact.profilePhoto
-                    ? `/path/to/images/${contact.profilePhoto}`
+                    ? `${PHOTO_URL}uploads/${contact.profilePhoto}`
                     : profileList
                 }
                 alt="avatar"
-                className="w-13 h-13 rounded-full object-cover md:w-8 md:h-8 md:object-none"
+                crossOrigin="anonymous"
+                className="w-8 h-8 rounded-full object-cover"
                 onError={(e) => {
                   e.target.src = profileList;
                 }}
