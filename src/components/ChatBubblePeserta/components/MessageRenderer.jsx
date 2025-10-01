@@ -36,7 +36,8 @@ const BubbleTail = ({ isSender, shouldHaveTail }) => {
 const MessageRenderer = (props) => {
   const {
     isSender,
-    isDeleted,
+    // --- UBAH PROPS DI SINI ---
+    is_deleted_globally, // Gunakan prop ini dari data API
     content,
     searchQuery,
     highlightSearchTerm,
@@ -52,7 +53,6 @@ const MessageRenderer = (props) => {
     handleFileDownload,
     getSenderColor,
     sender_name,
-    // --- UBAH PROPS DI SINI ---
     shouldShowSenderName,
     shouldHaveTail,
   } = props;
@@ -63,12 +63,12 @@ const MessageRenderer = (props) => {
   };
 
   const image =
-    attachment?.file_type === "image" && attachment.url && !isDeleted
+    attachment?.file_type === "image" && attachment.url && !is_deleted_globally
       ? getFullUrl(attachment.url)
       : null;
 
   const file =
-    attachment?.file_type === "dokumen" && !isDeleted
+    attachment?.file_type === "dokumen" && !is_deleted_globally
       ? {
           name: attachment.original_filename,
           size: "1MB",
@@ -124,7 +124,8 @@ const MessageRenderer = (props) => {
   };
 
   const renderMessageText = () => {
-    if (isDeleted) {
+    // --- UBAH KONDISI DI SINI ---
+    if (is_deleted_globally) {
       return (
         <div
           className={`text-sm italic flex items-center gap-2 ${
@@ -294,7 +295,6 @@ const MessageRenderer = (props) => {
   return (
     <>
     <BubbleTail isSender={isSender} shouldHaveTail={shouldHaveTail} />
-      {/* --- UBAH PEMANGGILAN FUNGSI DI SINI --- */}
       {shouldShowSenderName() && (
         <div
           className="font-semibold text-[14px]"
@@ -312,7 +312,7 @@ const MessageRenderer = (props) => {
         <div className={`w-64 ${isSender ? "" : ""}`}>
           <div
             className={`relative overflow-hidden aspect-square ${
-              content && !isDeleted ? "rounded-t-lg" : "rounded-lg"
+              content && !is_deleted_globally ? "rounded-t-lg" : "rounded-lg"
             }`}
           >
             {imageLoading && !imageLoadError && (
@@ -361,14 +361,14 @@ const MessageRenderer = (props) => {
               />
             )}
 
-            {!content && !isDeleted && (
+            {!content && !is_deleted_globally && (
               <div className="absolute bottom-1 right-1 flex items-center gap-1 p-1 rounded bg-black/50">
                 <MessageStatus {...props} />
               </div>
             )}
           </div>
 
-          {content && !isDeleted && (
+          {content && !is_deleted_globally && (
             <div
               className={`p-1 rounded-b-lg ${
                 isSender ? "bg-[#4C0D68] text-white" : "bg-white text-black"
@@ -424,7 +424,7 @@ const MessageRenderer = (props) => {
               </button>
             </div>
           </div>
-          {!content && !isDeleted && (
+          {!content && !is_deleted_globally && (
             <div className="flex justify-end mt-1">
               <MessageStatus {...props} />
             </div>
@@ -432,7 +432,7 @@ const MessageRenderer = (props) => {
         </div>
       )}
 
-      {!image && (content || isDeleted) && (
+      {!image && (content || is_deleted_globally) && (
         <div
           className={`text-sm ${
             isSender ? "text-white" : "text-black"
@@ -442,7 +442,7 @@ const MessageRenderer = (props) => {
             <div className="min-w-0 flex-1 break-words leading-relaxed">
               {renderMessageText()}
             </div>
-            {!isDeleted && <MessageStatus {...props} />}
+            {!is_deleted_globally && <MessageStatus {...props} />}
           </div>
         </div>
       )}

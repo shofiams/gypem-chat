@@ -8,6 +8,8 @@ const MessageStatus = (props) => {
     created_at,
     isStarred,
     isPinned,
+    // --- TAMBAHKAN PROPS BARU ---
+    is_deleted_globally, 
   } = props;
 
   const wasMessageEdited =
@@ -19,7 +21,8 @@ const MessageStatus = (props) => {
         <span className="text-[10px] opacity-70 mr-1">diedit</span>
       )}
 
-      {isStarred && (
+      {/* --- KONDISI BARU: Jangan tampilkan jika pesan dihapus --- */}
+      {isStarred && !is_deleted_globally && (
         <img
           src={assets.StarFill2}
           alt="star"
@@ -31,7 +34,8 @@ const MessageStatus = (props) => {
           }}
         />
       )}
-      {isPinned && (
+      {/* --- KONDISI BARU: Jangan tampilkan jika pesan dihapus --- */}
+      {isPinned && !is_deleted_globally && (
         <img
           src={assets.PinFill}
           alt="pin"

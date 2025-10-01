@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'; // PERBAIKAN DI SINI
+import { useState, useRef } from 'react';
 
 export const useChatState = () => {
   const [replyingMessage, setReplyingMessage] = useState(null);
@@ -11,7 +11,8 @@ export const useChatState = () => {
   const [message, setMessage] = useState("");
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState(null);
-  
+  const [selectedDeleteOption, setSelectedDeleteOption] = useState('me'); // Baris ini ditambahkan
+
   const inputRef = useRef(null);
   const fileButtonRef = useRef(null);
 
@@ -26,6 +27,7 @@ export const useChatState = () => {
     message, setMessage,
     showDeleteModal, setShowDeleteModal,
     messageToDelete, setMessageToDelete,
+    selectedDeleteOption, setSelectedDeleteOption, // Baris ini ditambahkan
     inputRef,
     fileButtonRef,
   };

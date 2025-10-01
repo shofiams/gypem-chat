@@ -14,9 +14,9 @@ const BubbleWrapper = React.forwardRef((props, ref) => {
     handleBubbleClick,
     getBubbleClasses,
     children,
-    shouldShowTime,
-    time,
-    isDeleted,
+    shouldShowTime, // Prop fungsi dari handlers
+    time,           // Prop waktu (misal: "10:30 AM")
+    is_deleted_globally,
     isMobile,
     showDropdownButton,
     hasContent,
@@ -24,9 +24,8 @@ const BubbleWrapper = React.forwardRef((props, ref) => {
     buttonRef,
   } = props;
 
-  // Fungsi untuk menampilkan tombol dropdown (tidak berubah)
   const shouldShowDropdownButton = () => {
-    if (!hasContent || isDeleted || isSelectionMode) return false;
+    if (!hasContent || is_deleted_globally || isSelectionMode) return false;
     if (isMobile) {
       return showDropdownButton;
     } else {
@@ -34,7 +33,6 @@ const BubbleWrapper = React.forwardRef((props, ref) => {
     }
   };
 
-  // Fungsi untuk me-render checkbox (tidak berubah)
   const renderCheckbox = () => (
     <div
       className={`w-5 h-5 border-2 rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
@@ -59,11 +57,10 @@ const BubbleWrapper = React.forwardRef((props, ref) => {
     </div>
   );
 
-  // --- PERBAIKAN UTAMA: STRUKTUR JSX BARU ---
   return (
     <div
       ref={ref}
-      className="flex w-full relative items-start" // Jadikan kontainer utama relatif
+      className="flex w-full relative items-start"
       onClick={isSelectionMode ? handleBubbleClick : null}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -71,7 +68,6 @@ const BubbleWrapper = React.forwardRef((props, ref) => {
       onTouchEnd={handleTouchEnd}
       onTouchMove={handleTouchMove}
     >
-      {/* 1. Overlay Ungu (jika terpilih) */}
       {isSelected && (
         <div
           className="absolute inset-0 pointer-events-none z-10"
@@ -79,22 +75,21 @@ const BubbleWrapper = React.forwardRef((props, ref) => {
         />
       )}
 
-      {/* 2. Kontainer untuk Checkbox (selalu di kiri jika mode seleksi) */}
       <div className={`flex-shrink-0 transition-all duration-200 ${isSelectionMode ? 'w-12' : 'w-0'}`}>
-        {isSelectionMode && !isDeleted && (
+        {isSelectionMode && !is_deleted_globally && (
           <div className="h-full flex items-start justify-center pt-2">
             {renderCheckbox()}
           </div>
         )}
       </div>
 
-      {/* 3. Kontainer untuk konten pesan (bubble, waktu, dll) */}
       <div className={`flex-1 flex flex-col min-w-0 py-1 ${isSender ? "items-end" : "items-start"}`}>
         <div className="relative">
           <div
             className={`${getBubbleClasses()} ${
               isSelectionMode ? "cursor-pointer" : ""
             }`}
+            onClick={!isSelectionMode ? handleBubbleClick : undefined} // Klik bubble hanya jika tidak dalam mode seleksi
           >
             {children}
           </div>
@@ -129,9 +124,13 @@ const BubbleWrapper = React.forwardRef((props, ref) => {
           )}
         </div>
 
+        {/* --- AWAL PERUBAHAN --- */}
+        {/* Tampilkan timestamp di bawah bubble jika kondisi terpenuhi */}
         {shouldShowTime() && !isSelectionMode && (
           <span className="text-[10px] text-gray-500 mt-1 px-1">{time}</span>
         )}
+        {/* --- AKHIR PERUBAHAN --- */}
+
       </div>
     </div>
   );

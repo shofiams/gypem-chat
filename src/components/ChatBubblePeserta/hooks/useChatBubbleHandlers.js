@@ -17,7 +17,8 @@ export const useChatBubbleHandlers = (props, state, stateSetters) => {
     onImageNavigation,
     images,
     imageIndex,
-    isDeleted,
+    // --- TERIMA PROP YANG BENAR ---
+    is_deleted_globally, 
     message_status,
     sender_name,
     isLastBubble,
@@ -26,14 +27,13 @@ export const useChatBubbleHandlers = (props, state, stateSetters) => {
     showSenderName: showSenderNameProp,
     isFirstFromSender,
     previousMessageSender,
-    onImageClick, // <-- Pastikan prop ini diterima
+    onImageClick, 
   } = props;
 
   const { isMobile, dropdownRef, buttonRef, longPressTimer } = state;
   const {
     setDropdownOpen,
     setShowDropdownButton,
-    // setIsImageModalOpen, // <-- Kita tidak lagi mengatur state ini dari sini
     setShowCopied,
     setImageLoadError,
     setImageLoading,
@@ -42,11 +42,17 @@ export const useChatBubbleHandlers = (props, state, stateSetters) => {
 
   const isSender = sender_type === 'peserta';
 
+  // --- UBAH LOGIKA DI SINI ---
   const hasContent = useMemo(() => {
-    const image = attachment?.file_type === 'image' && attachment.url && !isDeleted;
-    const file = attachment?.file_type === 'dokumen' && !isDeleted;
+    // Jika sudah dihapus, langsung kembalikan false
+    if (is_deleted_globally) {
+      return false;
+    }
+    const image = attachment?.file_type === 'image' && attachment.url;
+    const file = attachment?.file_type === 'dokumen';
     return !!(content || image || file || reply_to_message);
-  }, [content, attachment, reply_to_message, isDeleted]);
+  }, [content, attachment, reply_to_message, is_deleted_globally]);
+
 
   const handleMouseEnter = () => {
     if (!isMobile) {
@@ -103,7 +109,7 @@ export const useChatBubbleHandlers = (props, state, stateSetters) => {
         hasTail
           ? "rounded-tl-lg rounded-tr-lg rounded-bl-lg rounded-br-sm"
           : "rounded-lg"
-      } ${isDeleted ? "italic opacity-80" : ""}`;
+      } ${is_deleted_globally ? "italic opacity-80" : ""}`;
     } else {
       return `${baseClasses} bg-white text-black ${
         hasTail
@@ -159,22 +165,19 @@ export const useChatBubbleHandlers = (props, state, stateSetters) => {
       onToggleSelection();
       return;
     }
-    if (isDeleted) return;
+    if (is_deleted_globally) return;
     if (isMobile && !isSelectionMode) {
       e.preventDefault();
       setShowDropdownButton((prev) => !prev);
     }
   };
   
-  // --- FUNGSI YANG DIPERBAIKI ---
   const handleImageClick = (e) => {
     e.stopPropagation();
-    // Panggil fungsi onImageClick yang dikirim dari BaseChatPage
-    if (!isSelectionMode && !isDeleted && typeof onImageClick === 'function') {
+    if (!isSelectionMode && !is_deleted_globally && typeof onImageClick === 'function') {
       onImageClick();
     }
   };
-  // --- AKHIR PERBAIKAN ---
 
   const handleImageError = (e) => {
     setImageLoadError(true);
@@ -209,11 +212,11 @@ export const useChatBubbleHandlers = (props, state, stateSetters) => {
         image:
           attachment?.file_type === "image" &&
           attachment.url &&
-          !isDeleted
+          !is_deleted_globally
             ? `${API_BASE_URL}/uploads/${attachment.url}`
             : null,
         file:
-          attachment?.file_type === "dokumen" && !isDeleted
+          attachment?.file_type === "dokumen" && !is_deleted_globally
             ? {
                 name: attachment.original_filename,
                 size: "1MB",

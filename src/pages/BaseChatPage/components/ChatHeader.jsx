@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { assets } from '../../../assets/assets';
-import groupPhoto from '../../../assets/admin-profile.png';
+import groupPhoto from '../../../assets/User.svg';
 
 const ChatHeader = ({
   // Props untuk header normal

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useMessageOperations } from '../../../hooks/useMessages';
 
 export const useMessageHandler = ({
@@ -8,22 +8,25 @@ export const useMessageHandler = ({
   editingMessage, setEditingMessage,
   editText, setEditText,
   refetchMessages,
+  refetchPinnedMessages,
   isSelectionMode, selectedMessages,
   setIsSelectionMode, setSelectedMessages,
   messageToDelete, setMessageToDelete,
   setShowDeleteModal,
   flattenedMessages,
-  inputRef // <-- TAMBAHKAN inputRef SEBAGAI PARAMETER
+  inputRef,
+  selectedDeleteOption, setSelectedDeleteOption,
 }) => {
   const { sendMessage, updateMessage, deleteMessagesForMe, deleteMessagesGlobally } = useMessageOperations();
-  const [selectedDeleteOption, setSelectedDeleteOption] = useState('me');
+
+  // --- FUNGSI LAINNYA TIDAK BERUBAH ---
 
   const autoResize = (textarea) => {
     if (!textarea) return;
     textarea.style.height = 'auto';
     const scrollHeight = textarea.scrollHeight;
-    const maxHeight = 120; // Samakan dengan di komponen utama
-    const minHeight = 24;  // Samakan dengan di komponen utama
+    const maxHeight = 120;
+    const minHeight = 24;
     
     const newHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
     textarea.style.height = newHeight + 'px';
@@ -42,15 +45,13 @@ export const useMessageHandler = ({
       setReplyingMessage(null);
       refetchMessages();
 
-      // --- TAMBAHKAN LOGIKA RESET TINGGI TEXTAREA DI SINI ---
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.style.height = 'auto';
-          inputRef.current.style.height = '24px'; // Atur ke tinggi minimal
+          inputRef.current.style.height = '24px';
           inputRef.current.style.overflowY = 'hidden';
         }
       }, 10);
-      // --- ---
 
     } else {
       console.error("Failed to send message:", result.error);
@@ -65,15 +66,13 @@ export const useMessageHandler = ({
       setEditText("");
       refetchMessages();
 
-      // --- TAMBAHKAN LOGIKA RESET TINGGI TEXTAREA DI SINI JUGA ---
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.style.height = 'auto';
-          inputRef.current.style.height = '24px'; // Atur ke tinggi minimal
+          inputRef.current.style.height = '24px';
           inputRef.current.style.overflowY = 'hidden';
         }
       }, 10);
-      // --- ---
 
     } else {
       console.error("Failed to update message:", result.error);
@@ -87,14 +86,12 @@ export const useMessageHandler = ({
     } else {
       setMessage(value);
     }
-    // Panggil autoResize dari sini
     setTimeout(() => autoResize(e.target), 0);
   };
 
   const handleCancelEdit = () => {
     setEditingMessage(null);
     setEditText("");
-    // --- TAMBAHKAN LOGIKA RESET TINGGI SAAT BATAL EDIT ---
     setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.style.height = 'auto';
@@ -102,7 +99,6 @@ export const useMessageHandler = ({
         inputRef.current.style.overflowY = 'hidden';
       }
     }, 10);
-    // --- ---
   };
 
   const handleKeyDown = (e) => {
@@ -115,14 +111,89 @@ export const useMessageHandler = ({
       }
     }
   };
-
-  // --- FUNGSI HAPUS (Tidak berubah) ---
+  
   const handleFinalDelete = useCallback(async () => {
-    // ... (kode yang sudah ada)
-  }, [
-    // ... (dependencies yang sudah ada)
-  ]);
+      try {
+        let messageStatusIds = [];
+        let messageIds = [];
 
+        // Logika untuk multi-select
+        if (isSelectionMode) {
+          const messagesData = Array.from(selectedMessages).map(msgId => {
+            const msg = flattenedMessages.find(m => m.message_id === msgId);
+            if (!msg) {
+              console.warn(`Message with ID ${msgId} not found in the current chat's flattenedMessages.`);
+              return null;
+            }
+            return {
+              message_id: msg.message_id,
+              message_status_id: msg.message_status?.message_status_id,
+            };
+          }).filter(Boolean); 
+
+          messageIds = messagesData.map(d => d.message_id);
+
+          messageStatusIds = messagesData
+            .map(d => d.message_status_id)
+            .filter(Boolean);
+
+        // Logika untuk single delete
+        } else if (messageToDelete) {
+          messageIds = [messageToDelete.message_id];
+          if (messageToDelete.message_status_id) {
+            messageStatusIds = [messageToDelete.message_status_id];
+          }
+        }
+
+        if (selectedDeleteOption === 'everyone' && messageIds.length === 0) {
+          alert('Error: Tidak ada ID pesan yang valid untuk dihapus.');
+          return;
+        }
+        if (selectedDeleteOption === 'me' && messageStatusIds.length === 0) {
+          alert('Error: Tidak dapat menemukan status pesan untuk dihapus. Cek konsol untuk info lebih lanjut.');
+          console.error("Debug Info:", { messageToDelete, selectedMessages: Array.from(selectedMessages) });
+          return;
+        }
+        
+        const result = selectedDeleteOption === 'everyone'
+          ? await deleteMessagesGlobally(messageIds)
+          : await deleteMessagesForMe(messageStatusIds);
+
+        if (result.success) {
+          refetchMessages();
+          if (refetchPinnedMessages) {
+            refetchPinnedMessages();
+          }
+        } else {
+          alert('Gagal menghapus pesan: ' + (result.error || 'Unknown error'));
+        }
+      } catch (error) {
+        alert('Gagal menghapus pesan: ' + error.message);
+      } finally {
+        setShowDeleteModal(false);
+        setMessageToDelete(null);
+        setSelectedDeleteOption('me');
+        if (isSelectionMode) {
+          setIsSelectionMode(false);
+          setSelectedMessages(new Set());
+        }
+      }
+    }, [
+      isSelectionMode,
+      selectedMessages,
+      messageToDelete,
+      selectedDeleteOption,
+      flattenedMessages,
+      deleteMessagesGlobally,
+      deleteMessagesForMe,
+      refetchMessages,
+      refetchPinnedMessages,
+      setShowDeleteModal,
+      setMessageToDelete,
+      setSelectedDeleteOption,
+      setIsSelectionMode,
+      setSelectedMessages,
+    ]);
 
   return {
     handleSend,
@@ -131,7 +202,5 @@ export const useMessageHandler = ({
     handleCancelEdit,
     handleKeyDown,
     handleFinalDelete,
-    selectedDeleteOption,
-    setSelectedDeleteOption,
   };
 };

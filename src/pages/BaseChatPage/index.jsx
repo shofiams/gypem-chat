@@ -1,3 +1,5 @@
+// src/pages/BaseChatPage/index.jsx
+
 import React, { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useChatHeader } from "../../hooks/useChatHeader";
@@ -74,6 +76,8 @@ const BaseChatPage = ({
   const { refetch: refetchPinnedMessages } = usePinnedMessagesByRoom(actualChatId);
   const { pinMessage, unpinMessage, starMessages, unstarMessages } = useMessageOperations();
   const chatInfo = useChatHeader(actualChatId, isGroupChat);
+  
+  const [openDropdownId, setOpenDropdownId] = useState(null);
 
   const {
     replyingMessage, setReplyingMessage,
@@ -86,6 +90,7 @@ const BaseChatPage = ({
     message, setMessage,
     showDeleteModal, setShowDeleteModal,
     messageToDelete, setMessageToDelete,
+    selectedDeleteOption, setSelectedDeleteOption,
     inputRef,
     fileButtonRef,
   } = useChatState();
@@ -96,27 +101,8 @@ const BaseChatPage = ({
   const [currentSearchIndex, setCurrentSearchIndex] = useState(-1);
   const [highlightedMessageId, setHighlightedMessageId] = useState(null);
   const searchHighlightTimer = useRef(null);
+  const [currentDeleteBehavior, setCurrentDeleteBehavior] = useState(null);
   
-  const {
-    handleSend,
-    handleSaveEdit,
-    handleInputChange,
-    handleCancelEdit,
-    handleKeyDown,
-    handleFinalDelete,
-    selectedDeleteOption,
-    setSelectedDeleteOption
-  } = useMessageHandler({
-      actualChatId, message, setMessage, replyingMessage, setReplyingMessage,
-      editingMessage, setEditingMessage, editText, setEditText, refetchMessages,
-      isSelectionMode, selectedMessages, setIsSelectionMode, setSelectedMessages,
-      messageToDelete, setMessageToDelete, setShowDeleteModal,
-      flattenedMessages: contextMessages,
-      inputRef 
-  });
-
-  const { messagesContainerRef, showScrollButton, scrollToBottom } = useScrollManager(contextMessages, actualChatId);
-
   const flattenedMessages = useMemo(() => {
     if (!contextMessages || contextMessages.length === 0) return [];
     return contextMessages.flat().filter(msg => {
@@ -124,8 +110,34 @@ const BaseChatPage = ({
         return !(!msg.message_status || msg.message_status.is_deleted_for_me);
     });
   }, [contextMessages]);
-  
-  // --- AWAL PERUBAHAN UNTUK IMAGE VIEWER ---
+
+  const {
+    handleSend,
+    handleSaveEdit,
+    handleInputChange,
+    handleCancelEdit,
+    handleKeyDown,
+    handleFinalDelete,
+  } = useMessageHandler({
+      actualChatId, message, setMessage, replyingMessage, setReplyingMessage,
+      editingMessage, setEditingMessage, editText, setEditText,
+      refetchMessages,
+      refetchPinnedMessages,
+      isSelectionMode, selectedMessages, setIsSelectionMode, setSelectedMessages,
+      messageToDelete, setMessageToDelete,
+      setShowDeleteModal,
+      flattenedMessages: flattenedMessages,
+      inputRef,
+      selectedDeleteOption, setSelectedDeleteOption
+  });
+
+   useEffect(() => {
+    if (setIsSelectionMode) setIsSelectionMode(false);
+    if (setSelectedMessages) setSelectedMessages(new Set());
+  }, [actualChatId, setIsSelectionMode, setSelectedMessages]);
+
+  const { messagesContainerRef, showScrollButton, scrollToBottom } = useScrollManager(contextMessages, actualChatId);
+
   const [isImageViewerOpen, setImageViewerOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -158,12 +170,14 @@ const BaseChatPage = ({
       }
     });
   };
-  // --- AKHIR PERUBAHAN UNTUK IMAGE VIEWER ---
 
+  // --- AWAL PERUBAHAN 1: Filter pesan yang dihapus dari daftar pin ---
   const clientSidePinnedMessages = useMemo(() => {
     if (!flattenedMessages) return [];
-    return flattenedMessages.filter(msg => msg.message_status?.is_pinned);
+    // Tambahkan filter !msg.is_deleted_globally
+    return flattenedMessages.filter(msg => msg.message_status?.is_pinned && !msg.is_deleted_globally);
   }, [flattenedMessages]);
+  // --- AKHIR PERUBAHAN 1 ---
 
   const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
   const messageRefs = useRef({});
@@ -222,14 +236,28 @@ const BaseChatPage = ({
   };
 
   const getDeleteBehavior = () => {
-    const messagesToConsider = isSelectionMode ? Array.from(selectedMessages) : [messageToDelete?.message_id];
-    if (messagesToConsider.some(id => flattenedMessages.find(m => m.message_id === id)?.sender_type !== 'peserta')) {
-        return 'receiver-included';
+    const idsToDelete = isSelectionMode 
+        ? Array.from(selectedMessages) 
+        : [messageToDelete?.message_id];
+
+    if (!idsToDelete[0] && !isSelectionMode) {
+        return 'sender-only';
     }
-    return 'sender-only';
+
+    const allAreSenderMessages = idsToDelete.every(id => {
+        if (!id) return true; 
+        const msg = flattenedMessages.find(m => m.message_id === id);
+        if (!msg) {
+            return true; 
+        }
+        return msg.sender_type === 'peserta';
+    });
+
+    return allAreSenderMessages ? 'sender-only' : 'receiver-included';
   };
   
-    const handleSearch = useCallback((query) => {
+  // --- AWAL PERUBAHAN 2: Filter pesan yang dihapus dari hasil pencarian ---
+  const handleSearch = useCallback((query) => {
     if (searchHighlightTimer.current) {
       clearTimeout(searchHighlightTimer.current);
       searchHighlightTimer.current = null;
@@ -244,7 +272,9 @@ const BaseChatPage = ({
     }
 
     const results = flattenedMessages.filter(msg => 
-      msg.content && msg.content.toLowerCase().includes(query.toLowerCase())
+      !msg.is_deleted_globally && // Tambahkan kondisi ini
+      msg.content && 
+      msg.content.toLowerCase().includes(query.toLowerCase())
     ).reverse();
 
     setSearchResults(results);
@@ -262,6 +292,7 @@ const BaseChatPage = ({
       setHighlightedMessageId(null);
     }
   }, [flattenedMessages]);
+  // --- AKHIR PERUBAHAN 2 ---
   
     const navigateSearchResults = (direction) => {
     if (searchResults.length === 0) return;
@@ -302,15 +333,22 @@ const BaseChatPage = ({
 
   const renderMessage = useCallback((msg, idx, arr) => {
     const timeGroupingProps = getTimeGroupingProps(msg, idx, arr);
+    const formattedTime = formatMessageTime(msg.created_at);
+    
+    const handleToggleDropdown = (messageId) => {
+      setOpenDropdownId(prevId => (prevId === messageId ? null : messageId));
+    };
 
     return (
       <div ref={(el) => (messageRefs.current[msg.message_id] = el)} key={msg.message_id}>
         <ChatBubblePeserta
           {...msg}
+          time={formattedTime}
+          dropdownOpen={openDropdownId === msg.message_id}
+          onToggleDropdown={() => handleToggleDropdown(msg.message_id)}
+          onCloseDropdown={() => setOpenDropdownId(null)}
           onReply={(replyData) => setReplyingMessage(replyData)}
-          // --- TAMBAHKAN PROP BARU UNTUK IMAGE VIEWER ---
           onImageClick={() => openImageViewer(msg.message_id)}
-          // ---
           onPin={async (messageStatusId) => {
             const result = await pinMessage(messageStatusId);
             if(result.success) {
@@ -335,6 +373,8 @@ const BaseChatPage = ({
           }}
           onDelete={(messageId, messageStatusId, senderType) => {
             setMessageToDelete({ message_id: messageId, message_status_id: messageStatusId, sender_type: senderType });
+            const behavior = senderType === 'peserta' ? 'sender-only' : 'receiver-included';
+            setCurrentDeleteBehavior(behavior);
             setShowDeleteModal(true);
           }}
           onEdit={(messageId) => {
@@ -360,7 +400,7 @@ const BaseChatPage = ({
         />
       </div>
     );
-  }, [isSelectionMode, selectedMessages, flattenedMessages, customChatBubbleProps, showSenderNames, getSenderColor, setReplyingMessage, setEditingMessage, setEditText, pinMessage, unpinMessage, refetchMessages, refetchPinnedMessages, searchQuery]);
+  }, [isSelectionMode, selectedMessages, flattenedMessages, customChatBubbleProps, showSenderNames, getSenderColor, setReplyingMessage, setEditingMessage, setEditText, pinMessage, unpinMessage, refetchMessages, refetchPinnedMessages, searchQuery, openDropdownId]);
 
 
   return (
@@ -374,7 +414,11 @@ const BaseChatPage = ({
         isSelectionMode={isSelectionMode}
         selectedCount={selectedMessages.size}
         onCancelSelection={() => { setIsSelectionMode(false); setSelectedMessages(new Set()); }}
-        onDeleteSelection={() => setShowDeleteModal(true)}
+        onDeleteSelection={() => {
+            const behavior = getDeleteBehavior();
+            setCurrentDeleteBehavior(behavior);
+            setShowDeleteModal(true);
+        }}
         showSearchResults={showSearchResults}
         setShowSearchResults={setShowSearchResults}
         searchQuery={searchQuery}
@@ -398,7 +442,10 @@ const BaseChatPage = ({
             messages={flattenedMessages}
             messagesContainerRef={messagesContainerRef}
             renderMessage={renderMessage}
-            onBackgroundClick={() => setShowEmojiPicker(false)} 
+            onBackgroundClick={() => {
+              setShowEmojiPicker(false);
+              setOpenDropdownId(null);
+            }} 
         />
 
         {showScrollButton && !isSelectionMode && (
@@ -457,16 +504,19 @@ const BaseChatPage = ({
         onClose={() => {
             setShowDeleteModal(false);
             setMessageToDelete(null);
+            setCurrentDeleteBehavior(null);
         }}
-        onConfirm={handleFinalDelete}
+        onConfirm={() => {
+            console.log("Delete button clicked in modal."); // DEBUG
+            handleFinalDelete();
+        }}
         isSelectionMode={isSelectionMode}
         selectedMessagesCount={selectedMessages.size}
-        deleteBehavior={getDeleteBehavior()}
+        deleteBehavior={currentDeleteBehavior}
         selectedDeleteOption={selectedDeleteOption}
         onSetDeleteOption={setSelectedDeleteOption}
       />
       
-      {/* --- TAMBAHKAN KOMPONEN IMAGE VIEWER DI SINI --- */}
       <ImageViewerModal
         isImageModalOpen={isImageViewerOpen}
         handleImageClick={closeImageViewer}
@@ -475,7 +525,6 @@ const BaseChatPage = ({
         image={allImagesInChat[currentImageIndex]?.url}
         images={allImagesInChat}
       />
-      {/* --- --- */}
     </div>
   );
 };
