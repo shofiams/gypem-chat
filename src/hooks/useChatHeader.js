@@ -58,9 +58,7 @@ if (roomDetails) {
   return {
     name: room?.description?.name || 'Group Chat',
     avatar: room?.description?.url_photo ? `${API_BASE_URL}/uploads/${room.description.url_photo}` : null,
-    subtitle: memberNames.length > 0
-      ? memberNames.slice(0, 3).join(', ') + (memberNames.length > 3 ? '...' : '')
-      : '',
+    subtitle: memberNames.slice(0, 5).join(', '), // Maksimal 5 nama
     isOnline: false,
     isGroup: true,
     memberCount: members?.length || 0,
