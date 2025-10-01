@@ -73,7 +73,11 @@ const ChatFooter = ({
             <img src={assets.Happy} alt="emoji" className="w-6 h-6" />
           </button>
           {showEmojiPicker && (
-            <div className="absolute bottom-12 left-0 z-50">
+            // --- PERUBAHAN UTAMA DI SINI ---
+            <div 
+              className="absolute bottom-12 left-0 z-50"
+              onClick={(e) => e.stopPropagation()} // Tambahkan ini
+            >
               <EmojiPicker onEmojiClick={(emojiData) => {
                  // Logika untuk menambahkan emoji ke input
                  const textarea = inputRef.current;
@@ -90,6 +94,7 @@ const ChatFooter = ({
                  }, 0);
               }} />
             </div>
+            // --- ---
           )}
         </div>
 

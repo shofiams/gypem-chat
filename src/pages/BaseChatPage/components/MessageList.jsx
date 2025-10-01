@@ -1,5 +1,4 @@
 import React from 'react';
-import ChatBubblePeserta from '../../../components/ChatBubblePeserta.jsx';
 import DateSeparator from './DateSeparator';
 
 // --- LANGKAH 1: Tambahkan kembali import untuk gambar background ---
@@ -9,6 +8,7 @@ const MessageList = ({
   messages,
   messagesContainerRef,
   renderMessage,
+  onBackgroundClick // <-- Tambahkan prop baru
 }) => {
   const hasMessages = Array.isArray(messages) && messages.length > 0;
 
@@ -21,6 +21,7 @@ const MessageList = ({
         backgroundImage: `url(${chatBg})`,
         backgroundSize: "cover",
       }}
+      onClick={onBackgroundClick} // <-- Terapkan prop di sini
     >
       {hasMessages ? (
         messages.map((msg, idx, arr) => {

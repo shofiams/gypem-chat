@@ -3,17 +3,15 @@ import React, { useState, useEffect } from 'react';
 const DeleteMessageModal = ({
   isOpen,
   onClose,
-  onConfirm, // Ini adalah fungsi handleFinalDelete dari parent
+  onConfirm,
   isSelectionMode,
   selectedMessagesCount,
   deleteBehavior,
   selectedDeleteOption,
   onSetDeleteOption
 }) => {
-  // State untuk mengontrol alur tampilan di dalam modal
   const [showDeleteOptions, setShowDeleteOptions] = useState(false);
 
-  // Reset state internal saat modal ditutup atau dibuka kembali
   useEffect(() => {
     if (!isOpen) {
       setShowDeleteOptions(false);
@@ -41,8 +39,8 @@ const DeleteMessageModal = ({
       <div className="fixed inset-0 bg-black bg-opacity-10 backdrop-blur-[1px] z-[9998]" />
       <div className="fixed inset-0 flex items-center justify-center z-[9999]">
         <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4 shadow-xl border border-gray-200">
-          
-          {/* Tampilan 1: Untuk pesan orang lain (hanya 'Delete for me') */}
+
+          {/* Tampilan untuk pesan receiver (hanya 'Delete for me') */}
           {deleteBehavior === 'receiver-included' && (
             <>
               <div className="mb-4">
@@ -71,7 +69,7 @@ const DeleteMessageModal = ({
             </>
           )}
 
-          {/* Tampilan 2: Untuk pesan sendiri, tahap memilih */}
+          {/* Tampilan untuk pesan sender, tahap memilih */}
           {deleteBehavior !== 'receiver-included' && !showDeleteOptions && (
             <>
               <div className="mb-4">
@@ -109,7 +107,7 @@ const DeleteMessageModal = ({
             </>
           )}
 
-          {/* Tampilan 3: Untuk pesan sendiri, tahap konfirmasi */}
+          {/* Tampilan untuk pesan sender, tahap konfirmasi */}
           {deleteBehavior !== 'receiver-included' && showDeleteOptions && (
             <>
               <div className="mb-4">
