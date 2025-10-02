@@ -10,7 +10,7 @@ import {
 
 import { useRoomDetails } from "../../hooks/useRooms";
 import { useRoomMedia } from "../../hooks/useMessages";
-import logo from "../../assets/logo.png";
+import logo from "../../assets/User.svg";
 import GroupOverview from "./GroupOverview";
 import GroupMembers from "./GroupMembers";
 import GroupMedia from "./GroupMedia";
