@@ -51,9 +51,9 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
         const freshRoomsData = await refetchRooms();
         const currentRooms = freshRoomsData || rooms;
         
-        return currentRooms.find(
-          (room) => room.name === `Admin${contact.id}` && room.room_type === "one_to_one"
-        );
+          return currentRooms.find(
+        (room) => room.name.toLowerCase() === `Admin${contact.id}`.toLowerCase() && room.room_type === "one_to_one"
+      );
       };
 
       const existingRoom = await checkExistingRoom();
