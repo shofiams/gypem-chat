@@ -1,5 +1,5 @@
 import React from "react";
-import BaseChatPage from "./base_chat_page";
+import BaseChatPage from "./BaseChatPage";
 
 const PesertaChatPage = ({ isEmbedded = false, onClose, chatId, highlightMessageId = null, onMessageHighlight = null }) => {
   return (

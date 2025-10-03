@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { getContrast, darken } from "color2k";
-import BaseChatPage from "./base_chat_page";
+import { useParams } from "react-router-dom";
+import BaseChatPage from "./BaseChatPage";
 import GroupPopup from "../components/GroupPopup/GroupPopup";
 
 // Fungsi untuk generate hash dari string
@@ -76,7 +77,15 @@ const generateMemberColorWithColor2k = (memberName) => {
   return color;
 };
 
-const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId, highlightMessageId = null, onMessageHighlight = null }) => {
+const GroupChatPeserta = ({ 
+  isEmbedded = false, 
+  onClose, 
+  chatId: propChatId, 
+  highlightMessageId = null, 
+  onMessageHighlight = null 
+}) => {
+  const { chatId: paramChatId } = useParams();
+  const chatId = isEmbedded ? propChatId : paramChatId;
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   
   const getSenderColor = (sender) => {
@@ -85,7 +94,7 @@ const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId, highlightMessag
 
   const readOnlyFooter = (
     <div
-      className="text-center text-white text-sm py-2 font-medium"
+      className="text-center text-white text-sm py-3 font-medium border-t"
       style={{ backgroundColor: "#4C0D68" }}
     >
       Only admins can send messages.
@@ -108,10 +117,10 @@ const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId, highlightMessag
         onClose={onClose}
         chatId={chatId}
         isGroupChat={true}
-        canSendMessages={false}
+        canSendMessages={false} // PENTING: ini yang menonaktifkan input
         showSenderNames={true}
         getSenderColor={getSenderColor}
-        customFooter={readOnlyFooter}
+        customFooter={readOnlyFooter} // Footer yang menggantikan input
         customChatBubbleProps={customChatBubbleProps}
         onGroupHeaderClick={() => setIsPopupOpen(true)}
         highlightMessageId={highlightMessageId}
@@ -121,6 +130,7 @@ const GroupChatPeserta = ({ isEmbedded = false, onClose, chatId, highlightMessag
       {isPopupOpen && (
         <GroupPopup
           onClose={() => setIsPopupOpen(false)}
+          roomId={chatId}
         />
       )}
     </>

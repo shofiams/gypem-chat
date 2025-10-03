@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
+import { X } from "react-feather";
 
 export default function GroupOverview({
   groupLogo,
+  groupName,
   seeMore,
   setSeeMore,
   descriptionText,
@@ -13,9 +15,11 @@ export default function GroupOverview({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [exitLoading, setExitLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
+  const [showImageLightbox, setShowImageLightbox] = useState(false);
 
   const exitPopupRef = useRef(null);
   const deletePopupRef = useRef(null);
+  const lightboxRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -29,6 +33,17 @@ export default function GroupOverview({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [showExitConfirm, showDeleteConfirm]);
+
+  // Handle escape key untuk menutup lightbox
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && showImageLightbox) {
+        setShowImageLightbox(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [showImageLightbox]);
 
   const handleConfirmExit = async () => {
     setExitLoading(true);
@@ -59,9 +74,11 @@ export default function GroupOverview({
         <img
           src={groupLogo}
           alt="Group Logo"
-          className="w-28 h-28 rounded-full shadow-md object-cover"
+          crossOrigin="anonymous"
+          className="w-28 h-28 rounded-full shadow-md object-cover cursor-pointer hover:opacity-90 transition-opacity"
+          onClick={() => setShowImageLightbox(true)}
         />
-        <h2 className="mt-4 text-lg font-semibold">ClassAll</h2>
+        <h2 className="mt-4 text-lg font-semibold">{groupName}</h2>
       </div>
 
       {/* Deskripsi */}
@@ -69,9 +86,9 @@ export default function GroupOverview({
         <h3 className="font-semibold text-gray-800 mb-2">Description</h3>
         <div className="bg-gray-50 px-5 py-3 rounded-2xl shadow-sm">
           <p className="text-sm text-gray-700 text-justify">
-            {seeMore ? descriptionText : descriptionText.slice(0, 150) + "..."}
+            {seeMore ? descriptionText : (descriptionText.length > 150 ? descriptionText.slice(0, 150) + "..." : descriptionText)}
           </p>
-          {!seeMore && (
+          {!seeMore && descriptionText.length > 150 && (
             <button
               onClick={() => setSeeMore(true)}
               className="text-yellow-500 mt-2 text-sm hover:underline"
@@ -172,14 +189,52 @@ export default function GroupOverview({
         )}
       </div>
 
+      {/* Lightbox untuk memperbesar gambar */}
+      {showImageLightbox && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-90 z-[9999] flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setShowImageLightbox(false)}
+        >
+          {/* Tombol Close */}
+          <button
+            onClick={() => setShowImageLightbox(false)}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 transition-colors z-10"
+            aria-label="Close"
+          >
+            <X size={32} strokeWidth={2} />
+          </button>
+
+          {/* Gambar yang diperbesar */}
+          <div
+            ref={lightboxRef}
+            className="relative max-w-4xl max-h-[90vh] animate-scaleIn"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={groupLogo}
+              alt={groupName}
+              crossOrigin="anonymous"
+              className="w-auto h-auto max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain"
+            />
+          </div>
+        </div>
+      )}
+
       <style>
         {`
           @keyframes fadeIn {
             from { opacity: 0; transform: translateY(5px); }
             to { opacity: 1; transform: translateY(0); }
           }
+          @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+          }
           .animate-fadeIn {
             animation: fadeIn 0.2s ease-out;
+          }
+          .animate-scaleIn {
+            animation: scaleIn 0.3s ease-out;
           }
         `}
       </style>

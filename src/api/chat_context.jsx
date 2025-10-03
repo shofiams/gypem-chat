@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { INITIAL_CHATS, INITIAL_MESSAGES, STARRED_MESSAGES, PINNED_MESSAGES } from './chat_constant';
 import { ChatContext } from './use_chat_context';
 
+
 export const ChatProvider = ({ children }) => {
   const [chats, setChats] = useState(INITIAL_CHATS);
   const [chatMessages, setChatMessages] = useState(INITIAL_MESSAGES);
@@ -253,7 +254,7 @@ export const ChatProvider = ({ children }) => {
     }));
   }, []);
 
-  // add new chat
+  // add new chat - Updated to support API data
   const createNewChat = (chatData) => {
     const newChatId = Math.max(...chats.map(c => c.id), 0) + 1;
     
@@ -270,7 +271,11 @@ export const ChatProvider = ({ children }) => {
       showCentang: false,
       showCentangAbu: false,
       type: "one-to-one", 
-      ...chatData, 
+      ...chatData,
+      // Ensure API data is preserved
+      roomId: chatData.roomId,
+      roomMemberId: chatData.roomMemberId,
+      adminId: chatData.adminId
     };
     
     setChats(prevChats => [...prevChats, newChat]);
@@ -321,6 +326,24 @@ export const ChatProvider = ({ children }) => {
     setActiveChatId(null);
   }, []);
 
+  // NEW: Find chat by adminId (untuk cek existing chat)
+  const getChatByAdminId = useCallback((adminId) => {
+    return chats.find(chat => chat.adminId === adminId && chat.type !== 'group');
+  }, [chats]);
+
+  // NEW: Update chat with API room data
+  const updateChatWithRoomData = useCallback((chatId, roomData) => {
+    const id = parseInt(chatId);
+    setChats(prev => prev.map(chat => 
+      chat.id === id ? { 
+        ...chat, 
+        roomId: roomData.room_id,
+        roomMemberId: roomData.room_member_id,
+        // Update other relevant API fields if needed
+      } : chat
+    ));
+  }, []);
+
   const value = {
     // Data
     chats,
@@ -330,10 +353,12 @@ export const ChatProvider = ({ children }) => {
     // Chat operations
     getAllChats,
     getChatById,
+    getChatByAdminId, // NEW
     createNewChat,
     deleteChat,
     markChatAsRead,
     updateChatOnlineStatus,
+    updateChatWithRoomData, // NEW
     setActiveChat,
     clearActiveChat,
     

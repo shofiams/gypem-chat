@@ -15,13 +15,17 @@ export const useRooms = () => {
 
       if (result.success) {
         setRooms(result.data);
+        // PERBAIKAN: Return data untuk digunakan langsung
+        return result.data;
       } else {
         setError(result.message);
         setRooms([]);
+        return [];
       }
     } catch (err) {
       setError(err.message || "Failed to fetch rooms");
       setRooms([]);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -35,7 +39,7 @@ export const useRooms = () => {
     rooms,
     loading,
     error,
-    refetch: fetchRooms,
+    refetch: fetchRooms, // Sekarang mengembalikan data
     retry: fetchRooms,
   };
 };
@@ -56,13 +60,16 @@ export const useRoomDetails = (roomId) => {
 
       if (result.success) {
         setRoomDetails(result.data);
+        return result.data;
       } else {
         setError(result.message);
         setRoomDetails(null);
+        return null;
       }
     } catch (err) {
       setError(err.message || "Failed to fetch room details");
       setRoomDetails(null);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -95,6 +102,8 @@ export const useRoomOperations = () => {
       const result = await roomService.createPrivateRoom(targetAdminId);
 
       if (result.success) {
+        // PERBAIKAN: Tambahkan delay kecil untuk memberi waktu backend memproses
+        await new Promise(resolve => setTimeout(resolve, 100));
         return { success: true, message: result.message };
       } else {
         setError(result.message);
@@ -102,6 +111,28 @@ export const useRoomOperations = () => {
       }
     } catch (err) {
       const errorMsg = err.message || "Failed to create private room";
+      setError(errorMsg);
+      return { success: false, error: errorMsg };
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const leave = useCallback(async (roomMemberId) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await roomService.leaveRoom(roomMemberId);
+
+      if (result.success) {
+        return { success: true, message: result.message };
+      } else {
+        setError(result.message);
+        return { success: false, error: result.message };
+      }
+    } catch (err) {
+      const errorMsg = err.message || "Failed to leave room";
       setError(errorMsg);
       return { success: false, error: errorMsg };
     } finally {
@@ -117,6 +148,8 @@ export const useRoomOperations = () => {
       const result = await roomService.deleteRooms(roomMemberIds);
 
       if (result.success) {
+        // PERBAIKAN: Tambahkan delay untuk memberi waktu backend memproses penghapusan
+        await new Promise(resolve => setTimeout(resolve, 100));
         return { success: true, message: result.message };
       } else {
         setError(result.message);
@@ -137,6 +170,7 @@ export const useRoomOperations = () => {
 
   return {
     createPrivateRoom,
+    leave,
     deleteRooms,
     loading,
     error,

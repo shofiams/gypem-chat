@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useState } from "react";
+import defaultAvatar from "../../assets/User.svg";
 
 export default function GroupMembers({
   members,
@@ -6,36 +7,58 @@ export default function GroupMembers({
   setSeeAllMembers,
   groupLogo,
 }) {
+  const [imageErrors, setImageErrors] = useState({});
+  
   return (
     <div>
       <h3 className="mb-4 text-lg font-semibold">
-        {members.length} Members
+        {`Members (${members.length})`}
       </h3>
       <div className="bg-gray-50 rounded-2xl shadow-sm overflow-hidden">
         {(seeAllMembers ? members : members.slice(0, 4)).map(
-          (member, idx) => (
-            <div
-              key={idx}
-              className="flex items-center px-4 py-3 border-b border-gray-300 last:border-none"
-            >
-              {/* Foto anggota */}
-              <img
-                src={member.photo || groupLogo}
-                alt={member.name}
-                className="w-9 h-9 rounded-full mr-3 object-cover border border-gray-300"
-              />
-              
-              {/* Nama anggota */}
-              <span className="flex-1">{member.name}</span>
-              
-              {/* Label admin */}
-              {member.isAdmin && (
-                <span className="bg-yellow-200 text-yellow-800 text-xs px-2 py-1 rounded-full">
-                  Admin Group
-                </span>
-              )}
-            </div>
-          )
+          (member, idx) => {
+            const memberKey = `${member.name}-${member.isAdmin}-${idx}`;
+            const hasImageError = imageErrors[memberKey];
+            
+            // ✅ PERBAIKAN: Logika yang lebih sederhana dan stabil
+            let imageSource = defaultAvatar; // Default pertama
+            
+            if (!hasImageError && member.photo) {
+              // Hanya gunakan member.photo jika belum error dan ada photo-nya
+              imageSource = member.photo;
+            }
+            
+            return (
+              <div
+                key={memberKey}
+                className="flex items-center px-4 py-3 border-b border-gray-300 last:border-none"
+              >
+                {/* Foto anggota */}
+                <img
+                  src={imageSource}
+                  alt={member.name}
+                  className="w-9 h-9 rounded-full mr-3 object-cover border border-gray-300"
+                  onError={() => {
+                    // ✅ Hanya set error, tidak ada kondisi
+                    setImageErrors(prev => ({
+                      ...prev,
+                      [memberKey]: true
+                    }));
+                  }}
+                />
+                
+                {/* Nama anggota */}
+                <span className="flex-1">{member.name}</span>
+                
+                {/* Label admin */}
+                {member.isAdmin && (
+                  <span className="bg-yellow-200 text-yellow-800 text-xs px-2 py-1 rounded-full">
+                    Admin Group
+                  </span>
+                )}
+              </div>
+            );
+          }
         )}
 
         {/* Tombol lihat semua */}
