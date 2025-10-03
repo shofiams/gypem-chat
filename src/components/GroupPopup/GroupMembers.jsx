@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import defaultAvatar from "../../assets/User.svg";
 
 export default function GroupMembers({
   members,
@@ -7,10 +8,10 @@ export default function GroupMembers({
   groupLogo,
 }) {
   const [imageErrors, setImageErrors] = useState({});
+  
   return (
     <div>
       <h3 className="mb-4 text-lg font-semibold">
-        {/* ✅ PERUBAHAN HANYA DI SINI */}
         {`Members (${members.length})`}
       </h3>
       <div className="bg-gray-50 rounded-2xl shadow-sm overflow-hidden">
@@ -18,7 +19,14 @@ export default function GroupMembers({
           (member, idx) => {
             const memberKey = `${member.name}-${member.isAdmin}-${idx}`;
             const hasImageError = imageErrors[memberKey];
-            const imageSource = hasImageError ? groupLogo : (member.photo || groupLogo);
+            
+            // ✅ PERBAIKAN: Logika yang lebih sederhana dan stabil
+            let imageSource = defaultAvatar; // Default pertama
+            
+            if (!hasImageError && member.photo) {
+              // Hanya gunakan member.photo jika belum error dan ada photo-nya
+              imageSource = member.photo;
+            }
             
             return (
               <div
@@ -30,24 +38,12 @@ export default function GroupMembers({
                   src={imageSource}
                   alt={member.name}
                   className="w-9 h-9 rounded-full mr-3 object-cover border border-gray-300"
-                  onError={(e) => {
-                    // ✅ Prevent infinite loop dan set fallback
-                    if (!hasImageError) {
-                      setImageErrors(prev => ({
-                        ...prev,
-                        [memberKey]: true
-                      }));
-                    }
-                  }}
-                  onLoad={() => {
-                    // ✅ Reset error state jika gambar berhasil load
-                    if (hasImageError) {
-                      setImageErrors(prev => {
-                        const newState = { ...prev };
-                        delete newState[memberKey];
-                        return newState;
-                      });
-                    }
+                  onError={() => {
+                    // ✅ Hanya set error, tidak ada kondisi
+                    setImageErrors(prev => ({
+                      ...prev,
+                      [memberKey]: true
+                    }));
                   }}
                 />
                 

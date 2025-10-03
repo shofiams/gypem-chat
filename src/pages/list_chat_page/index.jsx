@@ -180,6 +180,21 @@ export default function ChatPage() {
         return () => window.removeEventListener('resize', handleResize);
     }, [isMobile, location.pathname]);
 
+    // Tambahkan useEffect ini di index.jsx sekitar baris 178-183
+useEffect(() => {
+    const handleSetActiveChat = (event) => {
+        const { chatId } = event.detail;
+        console.log('setActiveChat event received, chatId:', chatId); // untuk debugging
+        setActiveChat(chatId);
+    };
+    
+    window.addEventListener('setActiveChat', handleSetActiveChat);
+    
+    return () => {
+        window.removeEventListener('setActiveChat', handleSetActiveChat);
+    };
+}, [setActiveChat]);
+
     useEffect(() => {
         const handleKeydown = (e) => {
             if (e.key === 'Escape') {

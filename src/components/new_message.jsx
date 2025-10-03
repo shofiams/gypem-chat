@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FiArrowLeft } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import profileList from "../assets/profile_list.svg";
+import profileList from "../assets/user.svg";
 import { useAdmins } from "../hooks/useAdmins";
 import { useRoomOperations } from "../hooks/useRooms";
 import { useRooms } from "../hooks/useRooms";
+import { useChatContext } from "../api/use_chat_context";
 
 const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   const popupRef = useRef(null);
@@ -12,8 +13,11 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   const { data: admins, loading, error } = useAdmins();
   const { createPrivateRoom, loading: creatingRoom } = useRoomOperations();
   const { rooms, refetch: refetchRooms } = useRooms();
+  const { setActiveChat } = useChatContext();
 
   const [processingContact, setProcessingContact] = useState(null);
+
+  const PHOTO_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -30,7 +34,6 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   }, [isOpen, onClose]);
 
   const handleContactClick = async (contact) => {
-    // Prevent multiple clicks
     if (processingContact === contact.id || creatingRoom) return;
 
     setProcessingContact(contact.id);
@@ -38,95 +41,154 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
     try {
       const isMobile = window.innerWidth < 768;
 
-      // Refresh rooms data untuk cek existing room
+      // PERBAIKAN 1: Refresh rooms dan tunggu hasil terbaru
+      console.log('Refreshing rooms before check...');
       await refetchRooms();
+      await new Promise((resolve) => setTimeout(resolve, 200));
 
-      // Cek existing room berdasarkan adminId
-      const existingRoom = rooms.find(
-        (room) => room.adminId === contact.id && room.type !== "group"
-      );
+      // PERBAIKAN 2: Gunakan closure untuk mendapatkan data rooms terbaru
+      const checkExistingRoom = async () => {
+        const freshRoomsData = await refetchRooms();
+        const currentRooms = freshRoomsData || rooms;
+        
+        return currentRooms.find(
+          (room) => room.name === `Admin${contact.id}` && room.room_type === "one_to_one"
+        );
+      };
+
+      const existingRoom = await checkExistingRoom();
 
       if (existingRoom) {
-        // Langsung redirect ke room yang sudah ada TANPA NOTIFIKASI
+        const roomId = existingRoom.room_id || existingRoom.id;
+        
+        console.log('Existing room found:', roomId);
+        
+        onClose();
+        
         if (isMobile) {
-          navigate(`/chats/${existingRoom.room_id || existingRoom.id}`);
+          navigate(`/chats/${roomId}`);
         } else {
           if (window.location.pathname !== "/chats") {
             navigate("/chats");
+            await new Promise((resolve) => setTimeout(resolve, 300));
           }
-          // Untuk desktop, dispatch event untuk set active chat
-          setTimeout(() => {
-            window.dispatchEvent(
-              new CustomEvent("setActiveChat", {
-                detail: { chatId: existingRoom.room_id || existingRoom.id },
-              })
-            );
-          }, 100);
+          
+          setActiveChat(roomId);
         }
-        onClose(); // Tutup popup
-        return; // Keluar dari fungsi
+        
+        setProcessingContact(null);
+        return;
       }
 
-      // Buat private room baru melalui API (hanya jika room belum ada)
+      // PERBAIKAN 3: Buat room baru dengan error handling yang lebih baik
+      console.log('Creating new room for contact:', contact.id);
       const result = await createPrivateRoom(contact.id);
 
       if (result.success) {
+        console.log('Room created successfully');
+        
         if (onChatCreated) {
           await onChatCreated();
         }
 
+        // PERBAIKAN 4: Trigger refresh dengan delay yang cukup
         window.dispatchEvent(new CustomEvent("chatListRefresh"));
-
         await new Promise((resolve) => setTimeout(resolve, 300));
 
-        await refetchRooms();
+        // PERBAIKAN 5: Polling dengan strategi yang lebih agresif
+        let newRoom = null;
+        let attempts = 0;
+        const maxAttempts = 8; // Tingkatkan jumlah percobaan
+        const delayMs = 250; // Kurangi delay antar percobaan
 
-        const roomId = result.data?.room_id || result.roomId;
+        while (!newRoom && attempts < maxAttempts) {
+          attempts++;
+          console.log(`Attempt ${attempts}/${maxAttempts}: Searching for new room...`);
+          
+          // Force refresh dan ambil data terbaru
+          const freshData = await refetchRooms();
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+          
+          // Cari room dengan berbagai kemungkinan
+          const currentRooms = freshData || rooms;
+          
+          // Coba berbagai cara pencarian
+          newRoom = currentRooms.find((room) => {
+            const isCorrectName = room.name === `Admin${contact.id}`;
+            const isCorrectType = room.room_type === "one_to_one";
+            
+            // Log untuk debugging
+            if (isCorrectName) {
+              console.log('Found room with matching name:', room);
+            }
+            
+            return isCorrectName && isCorrectType;
+          });
+          
+          // Jika belum ketemu, coba cari yang paling baru dibuat
+          if (!newRoom && attempts === maxAttempts) {
+            console.log('Last attempt: Looking for most recent room...');
+            const sortedRooms = [...currentRooms].sort((a, b) => {
+              const dateA = new Date(a.created_at || a.updated_at || 0);
+              const dateB = new Date(b.created_at || b.updated_at || 0);
+              return dateB - dateA;
+            });
+            
+            // Ambil room terbaru yang sesuai dengan admin
+            newRoom = sortedRooms.find(room => 
+              room.name === `Admin${contact.id}` && 
+              room.room_type === "one_to_one"
+            );
+          }
+          
+          if (newRoom) {
+            console.log('Room found:', newRoom);
+            break;
+          }
+        }
+        
+        if (newRoom) {
+          const roomId = newRoom.room_id || newRoom.id;
+          console.log('Navigating to room:', roomId);
 
-        if (roomId) {
+          onClose();
+
           if (isMobile) {
             navigate(`/chats/${roomId}`);
           } else {
             if (window.location.pathname !== "/chats") {
               navigate("/chats");
+              await new Promise((resolve) => setTimeout(resolve, 300));
             }
+            
+            // PERBAIKAN 6: Set active chat dengan delay
             setTimeout(() => {
-              window.dispatchEvent(
-                new CustomEvent("setActiveChat", {
-                  detail: { chatId: roomId },
-                })
-              );
-            }, 200);
+              setActiveChat(roomId);
+            }, 100);
           }
         } else {
-          await refetchRooms();
-          const newRoom = rooms.find((room) => room.adminId === contact.id);
-          if (newRoom) {
-            const newRoomId = newRoom.room_id || newRoom.id;
-            if (isMobile) {
-              navigate(`/chats/${newRoomId}`);
-            } else {
-              if (window.location.pathname !== "/chats") {
-                navigate("/chats");
-              }
-              setTimeout(() => {
-                window.dispatchEvent(
-                  new CustomEvent("setActiveChat", {
-                    detail: { chatId: newRoomId },
-                  })
-                );
-              }, 200);
-            }
-          }
+          console.error('Room not found after', maxAttempts, 'attempts');
+          console.log('Contact ID:', contact.id);
+          console.log('Expected room name:', `Admin${contact.id}`);
+          console.log('Available rooms:', rooms.map(r => ({
+            id: r.room_id,
+            name: r.name,
+            type: r.room_type
+          })));
+          
+          // PERBAIKAN 7: Tetap tutup popup dan trigger refresh final
+          onClose();
+          window.dispatchEvent(new CustomEvent("chatListRefresh"));
         }
       } else {
         console.error("Failed to create private room:", result.error);
+        alert(result.error || "Failed to create chat. Please try again.");
       }
     } catch (error) {
       console.error("Error creating private room:", error);
+      alert("An error occurred. Please try again.");
     } finally {
       setProcessingContact(null);
-      onClose();
     }
   };
 
@@ -206,11 +268,12 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
               <img
                 src={
                   contact.profilePhoto
-                    ? `/path/to/images/${contact.profilePhoto}`
+                    ? `${PHOTO_URL}uploads/${contact.profilePhoto}`
                     : profileList
                 }
                 alt="avatar"
-                className="w-13 h-13 rounded-full object-cover md:w-8 md:h-8 md:object-none"
+                crossOrigin="anonymous"
+                className="w-8 h-8 rounded-full object-cover"
                 onError={(e) => {
                   e.target.src = profileList;
                 }}

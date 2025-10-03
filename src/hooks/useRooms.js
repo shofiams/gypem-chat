@@ -5,7 +5,6 @@ export const useRooms = () => {
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  console.log(rooms + 'rooms')
 
   const fetchRooms = useCallback(async () => {
     setLoading(true);
@@ -16,13 +15,17 @@ export const useRooms = () => {
 
       if (result.success) {
         setRooms(result.data);
+        // PERBAIKAN: Return data untuk digunakan langsung
+        return result.data;
       } else {
         setError(result.message);
         setRooms([]);
+        return [];
       }
     } catch (err) {
       setError(err.message || "Failed to fetch rooms");
       setRooms([]);
+      return [];
     } finally {
       setLoading(false);
     }
@@ -36,7 +39,7 @@ export const useRooms = () => {
     rooms,
     loading,
     error,
-    refetch: fetchRooms,
+    refetch: fetchRooms, // Sekarang mengembalikan data
     retry: fetchRooms,
   };
 };
@@ -57,13 +60,16 @@ export const useRoomDetails = (roomId) => {
 
       if (result.success) {
         setRoomDetails(result.data);
+        return result.data;
       } else {
         setError(result.message);
         setRoomDetails(null);
+        return null;
       }
     } catch (err) {
       setError(err.message || "Failed to fetch room details");
       setRoomDetails(null);
+      return null;
     } finally {
       setLoading(false);
     }
@@ -96,6 +102,8 @@ export const useRoomOperations = () => {
       const result = await roomService.createPrivateRoom(targetAdminId);
 
       if (result.success) {
+        // PERBAIKAN: Tambahkan delay kecil untuk memberi waktu backend memproses
+        await new Promise(resolve => setTimeout(resolve, 100));
         return { success: true, message: result.message };
       } else {
         setError(result.message);
@@ -140,6 +148,8 @@ export const useRoomOperations = () => {
       const result = await roomService.deleteRooms(roomMemberIds);
 
       if (result.success) {
+        // PERBAIKAN: Tambahkan delay untuk memberi waktu backend memproses penghapusan
+        await new Promise(resolve => setTimeout(resolve, 100));
         return { success: true, message: result.message };
       } else {
         setError(result.message);

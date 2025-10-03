@@ -10,7 +10,7 @@ import {
 
 import { useRoomDetails } from "../../hooks/useRooms";
 import { useRoomMedia } from "../../hooks/useMessages";
-import logo from "../../assets/logo.png";
+import logo from "../../assets/User.svg";
 import GroupOverview from "./GroupOverview";
 import GroupMembers from "./GroupMembers";
 import GroupMedia from "./GroupMedia";
@@ -45,6 +45,26 @@ export default function GroupPopup({ onClose, roomId }) {
     refetch: refetchMedia 
   } = useRoomMedia(roomId);
 
+  // --- TAMBAHAN: useEffect untuk mendengarkan event sinkronisasi ---
+  useEffect(() => {
+    const handleMessagesUpdate = (event) => {
+      // Cek apakah update ini untuk room yang sedang dibuka
+      if (event.detail.roomId === roomId) {
+        console.log(`Sync event received for room ${roomId}. Refetching media...`);
+        refetchMedia(); // Panggil fungsi refetch dari useRoomMedia
+      }
+    };
+
+    // Daftarkan event listener saat komponen mount
+    window.addEventListener('messagesUpdated', handleMessagesUpdate);
+
+    // Hapus event listener saat komponen unmount untuk mencegah memory leak
+    return () => {
+      window.removeEventListener('messagesUpdated', handleMessagesUpdate);
+    };
+  }, [roomId, refetchMedia]); // Dependencies: roomId dan refetchMedia
+  // ---
+  
   const loading = roomLoading || mediaLoading;
   const error = roomError || mediaError;
 

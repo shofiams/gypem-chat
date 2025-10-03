@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { getContrast, darken } from "color2k";
+import { useParams } from "react-router-dom";
 import BaseChatPage from "./BaseChatPage";
 import GroupPopup from "../components/GroupPopup/GroupPopup";
 
@@ -79,10 +80,12 @@ const generateMemberColorWithColor2k = (memberName) => {
 const GroupChatPeserta = ({ 
   isEmbedded = false, 
   onClose, 
-  chatId, 
+  chatId: propChatId, 
   highlightMessageId = null, 
   onMessageHighlight = null 
 }) => {
+  const { chatId: paramChatId } = useParams();
+  const chatId = isEmbedded ? propChatId : paramChatId;
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   
   const getSenderColor = (sender) => {
