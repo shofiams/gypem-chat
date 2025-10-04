@@ -106,8 +106,7 @@ const BaseChatPage = ({
   const flattenedMessages = useMemo(() => {
     if (!contextMessages || contextMessages.length === 0) return [];
     return contextMessages.flat().filter(msg => {
-        if (msg.is_deleted_globally) return true;
-        return !(!msg.message_status || msg.message_status.is_deleted_for_me);
+        return msg.message_status && !msg.message_status.is_deleted_for_me;
     });
   }, [contextMessages]);
 
