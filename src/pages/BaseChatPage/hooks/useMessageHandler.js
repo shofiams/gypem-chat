@@ -16,6 +16,7 @@ export const useMessageHandler = ({
   flattenedMessages,
   inputRef,
   selectedDeleteOption, setSelectedDeleteOption,
+  scrollToBottom, // <-- Terima prop baru
 }) => {
   const { sendMessage, updateMessage, deleteMessagesForMe, deleteMessagesGlobally } = useMessageOperations();
 
@@ -42,6 +43,15 @@ export const useMessageHandler = ({
       setMessage("");
       setReplyingMessage(null);
       refetchMessages();
+
+      // --- PERUBAIKAN UTAMA DI SINI ---
+      // Panggil scroll ke bawah SECARA LANGSUNG setelah mengirim pesan.
+      // Timeout memastikan scroll terjadi setelah pesan baru di-render.
+      setTimeout(() => {
+        if (scrollToBottom) {
+          scrollToBottom('auto'); // 'auto' untuk scroll instan
+        }
+      }, 100);
 
       setTimeout(() => {
         if (inputRef.current) {
@@ -115,7 +125,6 @@ export const useMessageHandler = ({
         let messageStatusIds = [];
         let messageIds = [];
 
-        // Logika untuk multi-select
         if (isSelectionMode) {
           const messagesData = Array.from(selectedMessages).map(msgId => {
             const msg = flattenedMessages.find(m => m.message_id === msgId);
@@ -135,7 +144,6 @@ export const useMessageHandler = ({
             .map(d => d.message_status_id)
             .filter(Boolean);
 
-        // Logika untuk single delete
         } else if (messageToDelete) {
           messageIds = [messageToDelete.message_id];
           if (messageToDelete.message_status_id) {

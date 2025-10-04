@@ -111,6 +111,8 @@ const BaseChatPage = ({
     });
   }, [contextMessages]);
 
+  const { messagesContainerRef, showScrollButton, scrollToBottom } = useScrollManager(contextMessages, actualChatId);
+
   const {
     handleSend,
     handleSaveEdit,
@@ -128,15 +130,14 @@ const BaseChatPage = ({
       setShowDeleteModal,
       flattenedMessages: flattenedMessages,
       inputRef,
-      selectedDeleteOption, setSelectedDeleteOption
+      selectedDeleteOption, setSelectedDeleteOption,
+      scrollToBottom, // <-- Teruskan fungsi scroll ke handler
   });
 
    useEffect(() => {
     if (setIsSelectionMode) setIsSelectionMode(false);
     if (setSelectedMessages) setSelectedMessages(new Set());
   }, [actualChatId, setIsSelectionMode, setSelectedMessages]);
-
-  const { messagesContainerRef, showScrollButton, scrollToBottom } = useScrollManager(contextMessages, actualChatId);
 
   const [isImageViewerOpen, setImageViewerOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -171,13 +172,10 @@ const BaseChatPage = ({
     });
   };
 
-  // --- AWAL PERUBAHAN 1: Filter pesan yang dihapus dari daftar pin ---
   const clientSidePinnedMessages = useMemo(() => {
     if (!flattenedMessages) return [];
-    // Tambahkan filter !msg.is_deleted_globally
     return flattenedMessages.filter(msg => msg.message_status?.is_pinned && !msg.is_deleted_globally);
   }, [flattenedMessages]);
-  // --- AKHIR PERUBAHAN 1 ---
 
   const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
   const messageRefs = useRef({});
@@ -256,7 +254,6 @@ const BaseChatPage = ({
     return allAreSenderMessages ? 'sender-only' : 'receiver-included';
   };
   
-  // --- AWAL PERUBAHAN 2: Filter pesan yang dihapus dari hasil pencarian ---
   const handleSearch = useCallback((query) => {
     if (searchHighlightTimer.current) {
       clearTimeout(searchHighlightTimer.current);
@@ -272,7 +269,7 @@ const BaseChatPage = ({
     }
 
     const results = flattenedMessages.filter(msg => 
-      !msg.is_deleted_globally && // Tambahkan kondisi ini
+      !msg.is_deleted_globally && 
       msg.content && 
       msg.content.toLowerCase().includes(query.toLowerCase())
     ).reverse();
@@ -292,7 +289,6 @@ const BaseChatPage = ({
       setHighlightedMessageId(null);
     }
   }, [flattenedMessages]);
-  // --- AKHIR PERUBAHAN 2 ---
   
     const navigateSearchResults = (direction) => {
     if (searchResults.length === 0) return;
@@ -450,7 +446,7 @@ const BaseChatPage = ({
 
         {showScrollButton && !isSelectionMode && (
           <button
-            onClick={scrollToBottom}
+            onClick={() => scrollToBottom('smooth')} // <-- Panggil dengan 'smooth'
             className="absolute bottom-24 right-5 z-40 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg"
           >
             <img src={assets.ArrowDownThin} alt="Scroll to bottom" className="w-6 h-6" />
@@ -493,7 +489,7 @@ const BaseChatPage = ({
             if (result.success) {
                 setReplyingMessage(null);
                 refetchMessages();
-                setTimeout(scrollToBottom, 100);
+                setTimeout(() => scrollToBottom('auto'), 100); // <-- Scroll instan setelah kirim file
             }
         }}
         fileButtonRef={fileButtonRef}
@@ -507,7 +503,7 @@ const BaseChatPage = ({
             setCurrentDeleteBehavior(null);
         }}
         onConfirm={() => {
-            console.log("Delete button clicked in modal."); // DEBUG
+            console.log("Delete button clicked in modal.");
             handleFinalDelete();
         }}
         isSelectionMode={isSelectionMode}

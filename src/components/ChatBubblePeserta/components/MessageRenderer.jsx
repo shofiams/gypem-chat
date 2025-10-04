@@ -155,22 +155,35 @@ const MessageRenderer = (props) => {
       return null;
     }
 
+    // --- AWAL PERUBAHAN LOGIKA READ MORE ---
     const MAX_LINES = 15;
-    const countLines = (text) => (text ? text.split("\n").length : 0);
-    const truncateToLines = (text, maxLines) => {
-      if (!text) return "";
-      const lines = text.split("\n");
-      if (lines.length <= maxLines) return text;
-      return lines.slice(0, maxLines).join("\n") + "...";
-    };
+    const MAX_CHARS = 500; // Menambahkan batas karakter
+
+    // Logika untuk menentukan apakah tombol "Read more" harus ditampilkan
     const shouldShowReadMore = (text) =>
-      countLines(text) > MAX_LINES || (text && text.length > 500);
+      (text && text.split("\n").length > MAX_LINES) ||
+      (text && text.length > MAX_CHARS);
+
+    // Logika untuk memotong teks jika terlalu panjang
+    const truncateText = (text) => {
+      if (!text) return "";
+
+      const lines = text.split("\n");
+      // Prioritaskan pemotongan berdasarkan baris
+      if (lines.length > MAX_LINES) {
+        return lines.slice(0, MAX_LINES).join("\n") + "...";
+      }
+      // Jika tidak melebihi batas baris, periksa batas karakter (untuk kasus satu kata panjang)
+      if (text.length > MAX_CHARS) {
+        return text.substring(0, MAX_CHARS) + "...";
+      }
+      return text;
+    };
 
     const needsReadMore = shouldShowReadMore(content);
     const displayText =
-      needsReadMore && !isExpanded
-        ? truncateToLines(content, MAX_LINES)
-        : content;
+      needsReadMore && !isExpanded ? truncateText(content) : content;
+    // --- AKHIR PERUBAHAN LOGIKA READ MORE ---
 
     const linkifyText = (text) => {
       if (!text) return text;

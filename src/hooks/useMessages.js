@@ -150,7 +150,7 @@ export const useMessagesByRoom = (roomId, opts = {}) => {
     }
   }, [autoFetch, roomId, fetchMessagesByRoom]);
 
-  return { data, loading, error, refetch: fetchMessagesByRoom };
+  return { data, loading, error, refetch: fetchMessagesByRoom, setData };
 };
 
 // Hook untuk mendapatkan pesan berdasarkan room dan tipe
