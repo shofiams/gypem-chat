@@ -1,7 +1,7 @@
 import React from "react";
 import DropdownMenuPeserta from "../../DropdownMenuPeserta";
 
-const DropdownMenu = (props) => {
+const Toggle = (props) => {
   const {
     dropdownOpen,
     dropdownRef,
@@ -82,4 +82,4 @@ const DropdownMenu = (props) => {
   );
 };
 
-export default DropdownMenu;
+export default Toggle;

@@ -3,7 +3,7 @@ import { useChatBubbleHandlers } from "./hooks/useChatBubbleHandlers.js";
 import { useChatBubbleState } from "./hooks/useChatBubbleState.js";
 import BubbleWrapper from "./components/BubbleWrapper.jsx";
 import MessageRenderer from "./components/MessageRenderer.jsx";
-import DropdownMenu from "./components/DropdownMenu.jsx";
+import Toggle from "./components/Toggle.jsx";
 import CopiedToast from "./components/CopiedToast.jsx";
 
 export default function ChatBubblePeserta(props) {
@@ -35,7 +35,7 @@ export default function ChatBubblePeserta(props) {
       </BubbleWrapper>
 
       {/* DropdownMenu dan CopiedToast tetap sama */}
-      <DropdownMenu {...props} {...state} {...handlers} />
+      <Toggle {...props} {...state} {...handlers} />
       <CopiedToast showCopied={state.showCopied} />
     </>
   );
