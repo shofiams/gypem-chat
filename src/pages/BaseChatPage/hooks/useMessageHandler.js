@@ -110,7 +110,42 @@ export const useMessageHandler = ({
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // 1. Tangani penambahan baris baru secara eksplisit
+    if (e.key === 'Enter' && (e.shiftKey || e.altKey)) {
+      e.preventDefault(); // Mencegah perilaku default lainnya
+
+      const textarea = e.target;
+      const currentValue = editingMessage ? editText : message;
+      const selectionStart = textarea.selectionStart;
+
+      // Membuat nilai baru dengan baris baru di posisi kursor
+      const newValue = 
+        currentValue.substring(0, selectionStart) + 
+        '\n' + 
+        currentValue.substring(textarea.selectionEnd);
+
+      // Memperbarui state yang sesuai
+      if (editingMessage) {
+        setEditText(newValue);
+      } else {
+        setMessage(newValue);
+      }
+
+      // Atur posisi kursor setelah baris baru ditambahkan
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = selectionStart + 1;
+        autoResize(textarea); // Panggil autoResize agar textarea melebar
+
+        // Pastikan textarea scroll ke bawah agar kursor selalu terlihat
+        textarea.scrollTop = textarea.scrollHeight;
+
+      }, 0);
+
+      return; // Hentikan eksekusi lebih lanjut
+    }
+
+    // 2. Tangani pengiriman pesan hanya dengan "Enter"
+    if (e.key === 'Enter') {
       e.preventDefault();
       if (editingMessage) {
         handleSaveEdit();

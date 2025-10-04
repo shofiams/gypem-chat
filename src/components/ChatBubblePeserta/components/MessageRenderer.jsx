@@ -278,7 +278,7 @@ const MessageRenderer = (props) => {
                 setIsExpanded(true);
               }}
               className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${
-                isSender ? "text-white" : "text-[#4C0D68]"
+                isSender ? "text-blue-500" : "text-blue-500"
               }`}
             >
               Read more
@@ -293,7 +293,7 @@ const MessageRenderer = (props) => {
                 setIsExpanded(false);
               }}
               className={`text-xs font-medium underline hover:opacity-80 transition-opacity ${
-                isSender ? "text-white" : "text-[#4C0D68]"
+                isSender ? "text-blue-500" : "text-blue-500"
               }`}
             >
               Show less
@@ -319,7 +319,7 @@ const MessageRenderer = (props) => {
         </div>
       )}
 
-      {renderReply()}
+      {!is_deleted_globally && renderReply()}
 
       {image && (
         <div className={`w-64 ${isSender ? "" : ""}`}>
