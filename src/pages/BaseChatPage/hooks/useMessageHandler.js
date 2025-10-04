@@ -1,13 +1,6 @@
 import { useCallback } from 'react';
 import { useMessageOperations } from '../../../hooks/useMessages';
 
-// Fungsi helper untuk dispatch event
-const dispatchMessagesUpdate = (roomId) => {
-  if (roomId) {
-    window.dispatchEvent(new CustomEvent('messagesUpdated', { detail: { roomId } }));
-  }
-};
-
 export const useMessageHandler = ({
   actualChatId,
   message, setMessage,
@@ -25,8 +18,6 @@ export const useMessageHandler = ({
   selectedDeleteOption, setSelectedDeleteOption,
 }) => {
   const { sendMessage, updateMessage, deleteMessagesForMe, deleteMessagesGlobally } = useMessageOperations();
-
-  // --- FUNGSI LAINNYA TIDAK BERUBAH ---
 
   const autoResize = (textarea) => {
     if (!textarea) return;
