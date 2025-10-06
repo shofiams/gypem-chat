@@ -6,26 +6,23 @@ export const useScrollManager = (messages, chatId) => {
   const lastScrollHeightRef = useRef(null);
   const lastChatIdRef = useRef(null);
 
-  // Fungsi untuk scroll halus (hanya untuk tombol "scroll to bottom")
-  const scrollToBottomSmooth = useCallback(() => {
+  // --- PERBAIKAN: Fungsi scroll yang lebih fleksibel ---
+  const scrollToBottom = useCallback((behavior = 'auto') => {
     if (messagesContainerRef.current) {
       messagesContainerRef.current.scrollTo({
         top: messagesContainerRef.current.scrollHeight,
-        behavior: 'smooth',
+        behavior: behavior, // Bisa 'auto' (instan) atau 'smooth'
       });
     }
   }, []);
 
-  // --- PERBAIKAN UTAMA DI SINI ---
-  // Gunakan useLayoutEffect untuk mengatur posisi scroll SEBELUM browser sempat melukis tampilan.
-  // Efek ini sekarang lebih cerdas dan tidak akan auto-scroll setiap saat.
   useLayoutEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
-    // Jika chat diganti, paksa scroll ke bawah (untuk load awal)
+    // Scroll instan saat chat diganti
     if (chatId !== lastChatIdRef.current) {
-      container.scrollTop = container.scrollHeight;
+      scrollToBottom('auto');
       lastChatIdRef.current = chatId;
       lastScrollHeightRef.current = container.scrollHeight;
       return;
@@ -34,32 +31,29 @@ export const useScrollManager = (messages, chatId) => {
     const prevScrollHeight = lastScrollHeightRef.current;
     const currentScrollHeight = container.scrollHeight;
     
-    // Periksa apakah pengguna berada di dekat bagian bawah sebelum DOM diperbarui
+    // Cek apakah pengguna berada di dekat bagian bawah sebelum DOM diperbarui
     const isNearBottom = prevScrollHeight - container.clientHeight <= container.scrollTop + 50;
 
-    // Jika tinggi scroll tidak berubah, itu berarti hanya update pada pesan (seperti pin/edit).
-    // Dalam kasus ini, kita tidak melakukan apa-apa dan mempertahankan posisi scroll.
     if (prevScrollHeight === currentScrollHeight) {
-      // do nothing
+      // Tinggi tidak berubah (edit, star, pin), jadi tidak melakukan apa-apa.
+      // Ini sudah sesuai dengan permintaan Anda.
     }
-    // Jika ada pesan baru (tinggi scroll bertambah) DAN pengguna ada di bawah, scroll ke bawah.
     else if (isNearBottom) {
-      container.scrollTop = container.scrollHeight;
+      // Ada pesan baru saat pengguna sudah di bawah, scroll instan.
+      scrollToBottom('auto');
     }
 
     // Simpan tinggi scroll terakhir untuk render berikutnya.
     lastScrollHeightRef.current = container.scrollHeight;
 
-  }, [messages, chatId]);
+  }, [messages, chatId, scrollToBottom]); // Tambahkan scrollToBottom ke dependencies
 
-  // Efek untuk memunculkan/menyembunyikan tombol scroll berdasarkan interaksi pengguna
   useEffect(() => {
     const container = messagesContainerRef.current;
     if (!container) return;
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = container;
-      // Tampilkan tombol jika pengguna sudah scroll ke atas lebih dari satu layar
       setShowScrollButton(scrollHeight - scrollTop > clientHeight + 150);
     };
 
@@ -70,7 +64,7 @@ export const useScrollManager = (messages, chatId) => {
   return { 
       messagesContainerRef, 
       showScrollButton, 
-      // Kembalikan versi halus untuk digunakan oleh tombol
-      scrollToBottom: scrollToBottomSmooth 
+      // Kembalikan fungsi scrollToBottom agar bisa dipanggil dari luar
+      scrollToBottom 
     };
 };

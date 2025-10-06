@@ -16,6 +16,7 @@ export const useMessageHandler = ({
   flattenedMessages,
   inputRef,
   selectedDeleteOption, setSelectedDeleteOption,
+  scrollToBottom, // <-- Terima prop baru
 }) => {
   const { sendMessage, updateMessage, deleteMessagesForMe, deleteMessagesGlobally } = useMessageOperations();
 
@@ -42,6 +43,15 @@ export const useMessageHandler = ({
       setMessage("");
       setReplyingMessage(null);
       refetchMessages();
+
+      // --- PERUBAIKAN UTAMA DI SINI ---
+      // Panggil scroll ke bawah SECARA LANGSUNG setelah mengirim pesan.
+      // Timeout memastikan scroll terjadi setelah pesan baru di-render.
+      setTimeout(() => {
+        if (scrollToBottom) {
+          scrollToBottom('auto'); // 'auto' untuk scroll instan
+        }
+      }, 100);
 
       setTimeout(() => {
         if (inputRef.current) {
@@ -100,7 +110,42 @@ export const useMessageHandler = ({
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // 1. Tangani penambahan baris baru secara eksplisit
+    if (e.key === 'Enter' && (e.shiftKey || e.altKey)) {
+      e.preventDefault(); // Mencegah perilaku default lainnya
+
+      const textarea = e.target;
+      const currentValue = editingMessage ? editText : message;
+      const selectionStart = textarea.selectionStart;
+
+      // Membuat nilai baru dengan baris baru di posisi kursor
+      const newValue = 
+        currentValue.substring(0, selectionStart) + 
+        '\n' + 
+        currentValue.substring(textarea.selectionEnd);
+
+      // Memperbarui state yang sesuai
+      if (editingMessage) {
+        setEditText(newValue);
+      } else {
+        setMessage(newValue);
+      }
+
+      // Atur posisi kursor setelah baris baru ditambahkan
+      setTimeout(() => {
+        textarea.selectionStart = textarea.selectionEnd = selectionStart + 1;
+        autoResize(textarea); // Panggil autoResize agar textarea melebar
+
+        // Pastikan textarea scroll ke bawah agar kursor selalu terlihat
+        textarea.scrollTop = textarea.scrollHeight;
+
+      }, 0);
+
+      return; // Hentikan eksekusi lebih lanjut
+    }
+
+    // 2. Tangani pengiriman pesan hanya dengan "Enter"
+    if (e.key === 'Enter') {
       e.preventDefault();
       if (editingMessage) {
         handleSaveEdit();
@@ -115,7 +160,6 @@ export const useMessageHandler = ({
         let messageStatusIds = [];
         let messageIds = [];
 
-        // Logika untuk multi-select
         if (isSelectionMode) {
           const messagesData = Array.from(selectedMessages).map(msgId => {
             const msg = flattenedMessages.find(m => m.message_id === msgId);
@@ -135,7 +179,6 @@ export const useMessageHandler = ({
             .map(d => d.message_status_id)
             .filter(Boolean);
 
-        // Logika untuk single delete
         } else if (messageToDelete) {
           messageIds = [messageToDelete.message_id];
           if (messageToDelete.message_status_id) {
