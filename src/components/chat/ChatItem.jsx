@@ -15,6 +15,14 @@ const ChatItem = ({
     unread_count,
     is_archived,
     is_pinned,
+    // Props untuk status pesan terakhir
+    is_last_message_mine,
+    last_message_status,
+    last_message_updated_at,
+    last_message_created_at,
+    last_message_is_starred,
+    last_message_is_pinned,
+    last_message_is_deleted,
     // API fields for starred messages
     message_id,
     content,
@@ -39,6 +47,65 @@ const ChatItem = ({
         if (!url) return assets.user;
         if (url.startsWith("http")) return url;
         return `${API_BASE_URL}/uploads/${url}`;
+    };
+
+    // Render status pesan terakhir (sama seperti di bubble)
+    // TEMPORARY: Hardcoded untuk testing, nanti akan diganti dengan data dari backend
+    const renderLastMessageStatus = () => {
+        // Simulasi: Tampilkan status di SEMUA chat untuk testing
+        const isMine = true; // Sementara tampilkan di semua chat
+        
+        if (!isMine && !is_last_message_mine) return null;
+
+        // Data dummy untuk testing
+        const wasEdited = last_message_updated_at && 
+            new Date(last_message_updated_at) > new Date(last_message_created_at);
+        
+        // Dummy status
+        const status = last_message_status || 'read';
+
+        return (
+            <div className="flex items-center gap-0.5 flex-shrink-0 mr-1">
+                {/* Label "diedit" jika pesan diedit */}
+                {(wasEdited || last_message_updated_at) && (
+                    <span className="text-[9px] md:text-[8px] opacity-70 mr-0.5">diedit</span>
+                )}
+
+                {/* Icon Starred - tidak tampil jika pesan dihapus */}
+                {last_message_is_starred && !last_message_is_deleted && (
+                    <img
+                        src={assets.StarFill2}
+                        alt="starred"
+                        className="w-3 h-3 md:w-2.5 md:h-2.5"
+                        style={{
+                            filter: "brightness(0) saturate(100%) invert(14%) sepia(71%) saturate(2034%) hue-rotate(269deg) brightness(92%) contrast(100%)",
+                        }}
+                    />
+                )}
+
+                {/* Icon Pinned - tidak tampil jika pesan dihapus */}
+                {last_message_is_pinned && !last_message_is_deleted && (
+                    <img
+                        src={assets.PinFill}
+                        alt="pinned"
+                        className="w-3 h-3 md:w-2.5 md:h-2.5"
+                        style={{
+                            filter: "brightness(0) saturate(100%) invert(14%) sepia(71%) saturate(2034%) hue-rotate(269deg) brightness(92%) contrast(100%)",
+                        }}
+                    />
+                )}
+
+                {/* Icon Centang (status baca) - SELALU TAMPIL untuk testing */}
+                <img
+                    src={assets.Ceklis}
+                    alt="sent"
+                    className="w-4 h-4 md:w-3.5 md:h-3.5"
+                    style={{
+                        filter: "brightness(0) saturate(100%) invert(48%) sepia(85%) saturate(1374%) hue-rotate(186deg) brightness(97%) contrast(96%)", // Biru
+                    }}
+                />
+            </div>
+        );
     };
 
     const highlightText = (text, query) => {
@@ -182,6 +249,9 @@ const ChatItem = ({
                             </h3>
 
                             <div className="flex items-center gap-x-1 min-w-0">
+                                {/* Render status pesan terakhir */}
+                                {renderLastMessageStatus()}
+                                
                                 <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight mt-0">
                                     {last_message}
                                 </p>
