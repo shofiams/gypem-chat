@@ -23,6 +23,9 @@ const ChatHeader = ({
   searchResults,
   currentSearchIndex,
   navigateSearchResults,
+  
+  // Props untuk online status (sementara default true)
+  isOnline = true
 }) => {
   const navigate = useNavigate();
 
@@ -70,13 +73,19 @@ const ChatHeader = ({
           <img src={assets.ArrowLeft} alt="Back" className="w-5 h-5" />
         </button>
 
-        <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-100">
-          <img
-            src={chatInfo?.avatar || assets.DefaultAvatar}
-            alt="profile"
-            crossOrigin='anonymous'
-            className={`w-full h-full object-cover`}
-          />
+        <div className="relative w-10 h-10 flex-shrink-0">
+          <div className="w-full h-full rounded-full overflow-hidden bg-gray-100">
+            <img
+              src={chatInfo?.avatar || assets.DefaultAvatar}
+              alt="profile"
+              crossOrigin='anonymous'
+              className="w-full h-full object-cover"
+            />
+          </div>
+          {/* Bubble kuning online indicator - sementara tampil di semua kontak */}
+          {isOnline && (
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white"></div>
+          )}
         </div>
 
         <div

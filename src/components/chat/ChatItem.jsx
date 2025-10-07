@@ -2,7 +2,6 @@ import React from 'react';
 import { assets } from '../../assets/assets';
 import { formatTime } from '../../api/roomService';
 import { escapeRegex } from '../../utils/regex';
-import { assets } from '../../assets/assets';
 
 const ChatItem = ({
     room_id,
@@ -12,6 +11,7 @@ const ChatItem = ({
     description,
     url_photo,
     last_message,
+    last_message_type,
     last_time,
     unread_count,
     is_archived,
@@ -39,7 +39,9 @@ const ChatItem = ({
     highlightQuery,
     onClick,
     isStarredItem = false,
-    chatName
+    chatName,
+    // Props untuk online status (sementara default true)
+    isOnline = true
 }) => {
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace("/api/", "");
@@ -48,6 +50,42 @@ const ChatItem = ({
         if (!url) return null;
         if (url.startsWith("http")) return url;
         return `${API_BASE_URL}/uploads/${url}`;
+    };
+
+    // Fungsi untuk render last message dengan icon
+    const renderLastMessageContent = () => {
+        const messageType = last_message_type || 'text';
+        
+        // Jika tipe image
+        if (messageType === 'image') {
+            return (
+                <div className="flex items-center gap-1">
+                    <img 
+                        src={assets.ImageIcon || assets.DefaultAvatar} 
+                        alt="image" 
+                        className="w-4 h-4 md:w-3.5 md:h-3.5"
+                    />
+                    <span>{last_message || 'Photo'}</span>
+                </div>
+            );
+        }
+        
+        // Jika tipe dokumen
+        if (messageType === 'dokumen') {
+            return (
+                <div className="flex items-center gap-1">
+                    <img 
+                        src={assets.DocumentIcon || assets.DefaultAvatar} 
+                        alt="document" 
+                        className="w-4 h-4 md:w-3.5 md:h-3.5"
+                    />
+                    <span>{last_message || 'Document'}</span>
+                </div>
+            );
+        }
+        
+        // Jika tipe text (default)
+        return <span>{last_message}</span>;
     };
 
     // Render status pesan terakhir (sama seperti di bubble)
@@ -225,13 +263,19 @@ const ChatItem = ({
           relative
         `}
             >
-            <div className="relative flex-shrink-0 w-12 h-12 md:w-10 md:h-10 rounded-full overflow-hidden">
-                <img
-                    src={url_photo ? getPhotoUrl(url_photo) : assets.DefaultAvatar}
-                    alt={name}
-                    className="w-full h-full object-cover"
-                    crossOrigin="anonymous"
-                />
+            <div className="relative flex-shrink-0 w-12 h-12 md:w-10 md:h-10">
+                <div className="w-full h-full rounded-full overflow-hidden">
+                    <img
+                        src={url_photo ? getPhotoUrl(url_photo) : assets.DefaultAvatar}
+                        alt={name}
+                        className="w-full h-full object-cover"
+                        crossOrigin="anonymous"
+                    />
+                </div>
+                {/* Bubble kuning online indicator - sementara tampil di semua kontak */}
+                {isOnline && (
+                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 md:w-3 md:h-3 bg-yellow-400 rounded-full border-2 border-white"></div>
+                )}
             </div>
 
                 <div className="flex-1 ml-4 md:ml-3 min-w-0">
@@ -245,8 +289,8 @@ const ChatItem = ({
                                 {/* Render status pesan terakhir */}
                                 {renderLastMessageStatus()}
                                 
-                                <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight mt-0">
-                                    {last_message}
+                                <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight mt-0 flex items-center">
+                                    {renderLastMessageContent()}
                                 </p>
                             </div>
                         </div>
