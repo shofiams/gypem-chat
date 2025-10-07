@@ -10,7 +10,6 @@ import {
 
 import { useRoomDetails } from "../../hooks/useRooms";
 import { useRoomMedia } from "../../hooks/useMessages";
-import logo from "../../assets/User.svg";
 import GroupOverview from "./GroupOverview";
 import GroupMembers from "./GroupMembers";
 import GroupMedia from "./GroupMedia";
@@ -169,7 +168,7 @@ export default function GroupPopup({ onClose, roomId }) {
     
     const fullLogoUrl = photoPath 
       ? `${API_BASE_URL}/uploads/${photoPath}`
-      : logo;
+      : null;
     return {
       logo: fullLogoUrl,
       name: roomDetails?.room?.description?.name || 'Group',

@@ -2,6 +2,7 @@ import React from 'react';
 import { assets } from '../../assets/assets';
 import { formatTime } from '../../api/roomService';
 import { escapeRegex } from '../../utils/regex';
+import { assets } from '../../assets/assets';
 
 const ChatItem = ({
     room_id,
@@ -44,7 +45,7 @@ const ChatItem = ({
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace("/api/", "");
 
     const getPhotoUrl = (url) => {
-        if (!url) return assets.user;
+        if (!url) return null;
         if (url.startsWith("http")) return url;
         return `${API_BASE_URL}/uploads/${url}`;
     };
@@ -224,22 +225,14 @@ const ChatItem = ({
           relative
         `}
             >
-                <div className="relative flex-shrink-0">
-                    <img
-                        src={getPhotoUrl(url_photo)}
-                        alt={name}
-                        className="w-12 h-12 md:w-10 md:h-10 rounded-full object-cover"
-                        crossOrigin="anonymous"
-                        onLoad={() => console.log("✅ Image loaded:", getPhotoUrl(url_photo))}
-                        onError={(e) => {
-                            console.error("❌ Image error:", getPhotoUrl(url_photo));
-                            console.error("Error details:", e);
-                            if (e.target.src !== assets.user) {
-                                e.target.src = assets.user;
-                            }
-                        }}
-                    />
-                </div>
+            <div className="relative flex-shrink-0 w-12 h-12 md:w-10 md:h-10 rounded-full overflow-hidden">
+                <img
+                    src={url_photo ? getPhotoUrl(url_photo) : assets.DefaultAvatar}
+                    alt={name}
+                    className="w-full h-full object-cover"
+                    crossOrigin="anonymous"
+                />
+            </div>
 
                 <div className="flex-1 ml-4 md:ml-3 min-w-0">
                     <div className="flex items-center justify-between">

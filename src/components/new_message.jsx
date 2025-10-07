@@ -3,10 +3,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import { FiArrowLeft } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import profileList from "../assets/user.svg";
 import { useAdmins } from "../hooks/useAdmins";
 import { useRoomOperations, useRooms } from "../hooks/useRooms";
 import { useChatContext } from "../api/use_chat_context";
+import { assets } from "../assets/assets"
 
 const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   const popupRef = useRef(null);
@@ -275,19 +275,14 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
                   : "hover:bg-gray-50 md:hover:bg-gray-100"
               }`}
             >
-              <img
-                src={
-                  contact.profilePhoto
-                    ? `${PHOTO_URL}uploads/${contact.profilePhoto}`
-                    : profileList
-                }
-                alt="avatar"
-                crossOrigin="anonymous"
-                className="w-8 h-8 rounded-full object-cover"
-                onError={(e) => {
-                  e.target.src = profileList;
-                }}
-              />
+             <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden">
+                <img
+                    src={contact.profilePhoto ? `${PHOTO_URL}uploads/${contact.profilePhoto}` : assets.DefaultAvatar}
+                    alt="avatar"
+                    crossOrigin="anonymous"
+                    className="w-full h-full object-cover"
+                />
+            </div>
               <div className="flex-1">
                 <span className="text-gray-900 text-lg font-medium block md:text-gray-800 md:text-sm md:font-normal md:inline">
                   {contact.name}

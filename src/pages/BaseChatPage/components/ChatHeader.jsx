@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { assets } from '../../../assets/assets';
-import groupPhoto from '../../../assets/User.svg';
+import { HiUserCircle } from "react-icons/hi2";
 
 const ChatHeader = ({
   // Props untuk header normal
@@ -69,12 +69,16 @@ const ChatHeader = ({
         >
           <img src={assets.ArrowLeft} alt="Back" className="w-5 h-5" />
         </button>
-        <img
-          src={chatInfo?.avatar || groupPhoto}
-          alt="profile"
-          crossOrigin='anonymous'
-          className="w-10 h-10 rounded-full object-cover"
-        />
+
+        <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-gray-100">
+          <img
+            src={chatInfo?.avatar || assets.DefaultAvatar}
+            alt="profile"
+            crossOrigin='anonymous'
+            className={`w-full h-full object-cover`}
+          />
+        </div>
+
         <div
           className={`flex-1 min-w-0 ${isGroupChat && onGroupHeaderClick ? 'cursor-pointer' : ''}`}
           onClick={isGroupChat ? onGroupHeaderClick : undefined}

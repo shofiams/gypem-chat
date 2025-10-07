@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X } from "react-feather";
+import { HiUserCircle } from "react-icons/hi2";
 
 export default function GroupOverview({
   groupLogo,
@@ -210,12 +211,19 @@ export default function GroupOverview({
             className="relative max-w-4xl max-h-[90vh] animate-scaleIn"
             onClick={(e) => e.stopPropagation()}
           >
-            <img
-              src={groupLogo}
-              alt={groupName}
-              crossOrigin="anonymous"
-              className="w-auto h-auto max-w-full max-h-[90vh] rounded-lg shadow-2xl object-contain"
-            />
+           <div className="w-28 h-28 rounded-full shadow-md overflow-hidden">
+            {groupLogo ? (
+                <img
+                    src={groupLogo}
+                    alt="Group Logo"
+                    crossOrigin="anonymous"
+                    className="w-full h-full object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => setShowImageLightbox(true)}
+                />
+            ) : (
+                <HiUserCircle className="w-full h-full text-gray-300" />
+            )}
+        </div>
           </div>
         </div>
       )}
