@@ -1,3 +1,5 @@
+// src/components/ChatBubblePeserta/hooks/useChatBubbleHandlers.js
+
 import { useEffect, useMemo } from "react";
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_FILE;
 
@@ -17,17 +19,17 @@ export const useChatBubbleHandlers = (props, state, stateSetters) => {
     onImageNavigation,
     images,
     imageIndex,
-    // --- TERIMA PROP YANG BENAR ---
     is_deleted_globally, 
     message_status,
     sender_name,
     isLastBubble,
     nextMessageSender,
     nextMessageTime,
-    showSenderName: showSenderNameProp,
-    isFirstFromSender,
+    showSenderName: showSenderNameProp, // Ini adalah 'izin' dari parent
+    isFirstFromSender, // Prop ini tidak terpakai, bisa dihapus jika mau
     previousMessageSender,
     onImageClick, 
+    isFirstMessageOfDay, // Prop kunci dari BaseChatPage
   } = props;
 
   const { isMobile, dropdownRef, buttonRef, longPressTimer } = state;
@@ -42,9 +44,7 @@ export const useChatBubbleHandlers = (props, state, stateSetters) => {
 
   const isSender = sender_type === 'peserta';
 
-  // --- UBAH LOGIKA DI SINI ---
   const hasContent = useMemo(() => {
-    // Jika sudah dihapus, langsung kembalikan false
     if (is_deleted_globally) {
       return false;
     }
@@ -83,19 +83,31 @@ export const useChatBubbleHandlers = (props, state, stateSetters) => {
     );
   };
 
+  // --- AWAL PERUBAHAN FINAL ---
+  // Fungsi ini sekarang menjadi satu-satunya penentu logika
   const shouldShowSenderName = () => {
+    // 1. Jangan tampilkan jika fitur ini tidak diaktifkan (misal: di chat personal)
     if (!showSenderNameProp) return false;
+    
+    // 2. Jangan tampilkan untuk bubble milik kita sendiri
     if (isSender) return false;
+    
+    // 3. Jangan tampilkan jika tidak ada nama pengirim
     if (!sender_name) return false;
-    if (isFirstFromSender !== undefined) {
-      return isFirstFromSender;
+
+    // 4. SELALU tampilkan jika ini adalah pesan pertama di hari yang baru
+    if (isFirstMessageOfDay) {
+      return true;
     }
+
+    // 5. Logika fallback: tampilkan jika pengirim sebelumnya berbeda
     return (
       !previousMessageSender ||
       previousMessageSender !== sender_name ||
       previousMessageSender === "You"
     );
   };
+  // --- AKHIR PERUBAHAN FINAL ---
 
   const shouldHaveTail = () => {
     return shouldShowTime();

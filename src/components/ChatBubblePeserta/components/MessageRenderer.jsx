@@ -36,8 +36,7 @@ const BubbleTail = ({ isSender, shouldHaveTail }) => {
 const MessageRenderer = (props) => {
   const {
     isSender,
-    // --- UBAH PROPS DI SINI ---
-    is_deleted_globally, // Gunakan prop ini dari data API
+    is_deleted_globally,
     content,
     searchQuery,
     highlightSearchTerm,
@@ -81,50 +80,77 @@ const MessageRenderer = (props) => {
         sender: reply_to_message.sender_name,
         message: reply_to_message.content,
         message_id: reply_to_message.reply_to_message_id,
+        attachment_type: reply_to_message.attachment?.file_type,
+        original_filename: reply_to_message.attachment?.original_filename,
       }
     : null;
 
   const renderReply = () => {
     if (!reply) return null;
 
-    const formatReplyMessage = (text) => {
-      if (!text) return null;
-      const lines = text.split("\n");
-      return lines.map((line, index) => (
-        <React.Fragment key={index}>
-          {line}
-          {index < lines.length - 1 && <br />}
-        </React.Fragment>
-      ));
-    };
+    let replyPreviewContent;
 
-    if (!isSender) {
-      return (
-        <div className="mb-1 p-1 border-l-4 border-[#4C0D68] bg-gray-50 text-xs text-gray-500 rounded break-all">
-          <div className="font-semibold text-[#4C0D68] break-words">
-            {reply.sender}
+    // PRIORITAS 1: Periksa lampiran terlebih dahulu.
+    if (reply.attachment_type) {
+      if (reply.attachment_type === 'image') {
+        replyPreviewContent = (
+          <div className="flex items-center gap-1.5 text-gray-500">
+            <img src={assets.ImageIcon} alt="image icon" className="w-3 h-3 flex-shrink-0" />
+            <span className="text-sm">Gambar</span>
           </div>
-          <div className="break-words">
-            {formatReplyMessage(reply.message)}
+        );
+      } else if (reply.attachment_type === 'dokumen') {
+        replyPreviewContent = (
+          <div className="flex items-center gap-1.5 text-gray-500 min-w-0">
+            <img 
+              src={assets.File} 
+              alt="file icon" 
+              className="w-4 h-4 flex-shrink-0" 
+              style={{ filter: 'grayscale(1) opacity(0.5)' }} 
+            />
+            <span className="text-sm truncate">{reply.original_filename || 'File'}</span>
           </div>
-        </div>
-      );
+        );
+      }
     }
 
+    // PRIORITAS 2: Jika tidak ada lampiran yang dikenali, baru gunakan teks (caption).
+    if (!replyPreviewContent) {
+        if (reply.message) {
+            const lines = reply.message.split("\n");
+            replyPreviewContent = lines.map((line, index) => (
+                <React.Fragment key={index}>
+                {line}
+                {index < lines.length - 1 && <br />}
+                </React.Fragment>
+            ));
+        } else {
+            // Fallback jika tidak ada lampiran dan tidak ada teks.
+             replyPreviewContent = <span className="text-sm italic">Pesan</span>
+        }
+    }
+
+    const replyContainerClasses = isSender
+      ? "mb-1 p-1 border-l-4 border-[#bd2cfc] bg-gray-50 text-xs text-gray-500 rounded break-all"
+      : "mb-1 p-1 border-l-4 border-[#4C0D68] bg-gray-50 text-xs text-gray-500 rounded break-all";
+      
+    const senderNameClasses = isSender
+      ? "font-semibold text-[#bd2cfc] break-all"
+      : "font-semibold text-[#4C0D68] break-words";
+
     return (
-      <div className="mb-1 p-1 border-l-4 border-[#bd2cfc] bg-gray-50 text-xs text-gray-500 rounded break-all">
-        <div className="font-semibold text-[#bd2cfc] break-all">
+      <div className={replyContainerClasses}>
+        <div className={senderNameClasses}>
           {reply.sender}
         </div>
-        <div className="break-all">
-          {formatReplyMessage(reply.message)}
+        <div className="break-words">
+          {replyPreviewContent}
         </div>
       </div>
     );
   };
 
   const renderMessageText = () => {
-    // --- UBAH KONDISI DI SINI ---
     if (is_deleted_globally) {
       return (
         <div
@@ -155,25 +181,20 @@ const MessageRenderer = (props) => {
       return null;
     }
 
-    // --- AWAL PERUBAHAN LOGIKA READ MORE ---
     const MAX_LINES = 15;
-    const MAX_CHARS = 500; // Menambahkan batas karakter
+    const MAX_CHARS = 500; 
 
-    // Logika untuk menentukan apakah tombol "Read more" harus ditampilkan
     const shouldShowReadMore = (text) =>
       (text && text.split("\n").length > MAX_LINES) ||
       (text && text.length > MAX_CHARS);
 
-    // Logika untuk memotong teks jika terlalu panjang
     const truncateText = (text) => {
       if (!text) return "";
 
       const lines = text.split("\n");
-      // Prioritaskan pemotongan berdasarkan baris
       if (lines.length > MAX_LINES) {
         return lines.slice(0, MAX_LINES).join("\n") + "...";
       }
-      // Jika tidak melebihi batas baris, periksa batas karakter (untuk kasus satu kata panjang)
       if (text.length > MAX_CHARS) {
         return text.substring(0, MAX_CHARS) + "...";
       }
@@ -183,7 +204,6 @@ const MessageRenderer = (props) => {
     const needsReadMore = shouldShowReadMore(content);
     const displayText =
       needsReadMore && !isExpanded ? truncateText(content) : content;
-    // --- AKHIR PERUBAHAN LOGIKA READ MORE ---
 
     const linkifyText = (text) => {
       if (!text) return text;
@@ -374,7 +394,7 @@ const MessageRenderer = (props) => {
               />
             )}
 
-            {!content && !is_deleted_globally && (
+            {isSender && !content && !is_deleted_globally && (
               <div className="absolute bottom-1 right-1 flex items-center gap-1 p-1 rounded bg-black/50">
                 <MessageStatus {...props} />
               </div>
