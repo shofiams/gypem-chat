@@ -37,6 +37,7 @@ export default function GroupMembers({
                 <img
                   src={imageSource}
                   alt={member.name}
+                  crossOrigin="anonymous"
                   className="w-9 h-9 rounded-full mr-3 object-cover border border-gray-300"
                   onError={() => {
                     // ✅ Hanya set error, tidak ada kondisi

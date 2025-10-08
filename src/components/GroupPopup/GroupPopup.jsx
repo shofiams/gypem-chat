@@ -133,11 +133,13 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess }) {
 
   const processedMembers = useMemo(() => {
     if (!roomDetails?.members) return [];
-    const API_BASE_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_FILE; 
     const mappedMembers = roomDetails.members.map(member => {
       let photoUrl = null;
       if (member.profile_photo) {
-        photoUrl = member.profile_photo.startsWith('http') ? member.profile_photo : `${API_BASE_URL}/uploads/${member.profile_photo}`;
+        photoUrl = member.profile_photo.startsWith('http://') || member.profile_photo.startsWith('https://') 
+          ? member.profile_photo 
+          : `${API_BASE_URL}/uploads/${member.profile_photo}`;
       }
       return {
         name: member.name,
@@ -153,17 +155,26 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess }) {
   }, [roomDetails]);
 
   const roomInfo = useMemo(() => {
-    const API_BASE_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
-    const photoPath = roomDetails?.room?.description?.url_photo;
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_FILE;
+
+    if (!roomDetails) {
+      return {
+        logo: logo,
+        name: 'Loading...',
+        description: 'Loading description...'
+      };
+    }
+
+    const photoPath = roomDetails.room?.description?.url_photo;
     const fullLogoUrl = photoPath ? `${API_BASE_URL}/uploads/${photoPath}` : logo;
+    
     return {
       logo: fullLogoUrl,
-      name: roomDetails?.room?.description?.name || 'Group',
-      description: roomDetails?.room?.description?.description || 'No description available'
+      name: roomDetails.room?.description?.name || 'Group',
+      description: roomDetails.room?.description?.description || 'No description available'
     };
   }, [roomDetails]);
 
-  // ✅ PERUBAHAN: Tambahkan handler untuk refresh data
   const handleRefreshData = () => {
     if (refetchMedia) {
       refetchMedia();
@@ -322,7 +333,6 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess }) {
                 isLeft={currentUserMemberInfo.isLeft}
               />
             )}
-            {/* (Sisa render tab tidak berubah) */}
              {activeTab === "members" && (
               <GroupMembers
                 members={processedMembers}
