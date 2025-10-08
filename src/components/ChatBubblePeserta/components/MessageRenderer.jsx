@@ -56,9 +56,7 @@ const MessageRenderer = (props) => {
     sender_name,
     shouldShowSenderName,
     shouldHaveTail,
-    // --- AWAL PERUBAHAN ---
-    onReplyClick, // Terima prop baru
-    // --- AKHIR PERUBAHAN ---
+    onReplyClick,
   } = props;
 
   const getFullUrl = (urlPath) => {
@@ -141,12 +139,10 @@ const MessageRenderer = (props) => {
       : "font-semibold text-[#4C0D68] break-words";
 
     return (
-      // --- AWAL PERUBAHAN ---
       <div 
         className={`${replyContainerClasses} cursor-pointer hover:bg-gray-100 transition-colors`}
         onClick={() => onReplyClick && onReplyClick(reply.message_id)}
       >
-      {/* --- AKHIR PERUBAHAN --- */}
         <div className={senderNameClasses}>
           {reply.sender}
         </div>
@@ -348,13 +344,15 @@ const MessageRenderer = (props) => {
 
       {!is_deleted_globally && renderReply()}
 
+      {/* --- AWAL PERUBAHAN --- */}
       {image && (
-        <div className={`w-64 ${isSender ? "" : ""}`}>
+        <div className="max-w-xs"> {/* 1. Ganti w-64 dengan max-w-xs */}
           <div
-            className={`relative overflow-hidden aspect-square ${
+            className={`relative overflow-hidden ${ // 2. Hapus aspect-square
               content && !is_deleted_globally ? "rounded-t-lg" : "rounded-lg"
             }`}
           >
+      {/* --- AKHIR PERUBAHAN --- */}
             {imageLoading && !imageLoadError && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
@@ -394,7 +392,7 @@ const MessageRenderer = (props) => {
                 src={image}
                 alt="chat-img"
                 crossOrigin="anonymous"
-                className="w-full h-full object-cover cursor-pointer"
+                className="w-full h-auto object-cover cursor-pointer block" // 3. Pastikan display block dan h-auto
                 onClick={handleImageClick}
                 onLoad={handleImageLoad}
                 onError={handleImageError}
@@ -410,7 +408,7 @@ const MessageRenderer = (props) => {
 
           {content && !is_deleted_globally && (
             <div
-              className={`p-1 rounded-b-lg ${
+              className={`p-2 rounded-b-lg ${ // 4. Beri padding yang konsisten
                 isSender ? "bg-[#4C0D68] text-white" : "bg-white text-black"
               }`}
             >
