@@ -1,3 +1,5 @@
+// src/components/ChatBubblePeserta/components/MessageRenderer.jsx
+
 import React from "react";
 import { assets } from "../../../assets/assets";
 import MessageStatus from "./MessageStatus";
@@ -54,6 +56,9 @@ const MessageRenderer = (props) => {
     sender_name,
     shouldShowSenderName,
     shouldHaveTail,
+    // --- AWAL PERUBAHAN ---
+    onReplyClick, // Terima prop baru
+    // --- AKHIR PERUBAHAN ---
   } = props;
 
   const getFullUrl = (urlPath) => {
@@ -90,7 +95,6 @@ const MessageRenderer = (props) => {
 
     let replyPreviewContent;
 
-    // PRIORITAS 1: Periksa lampiran terlebih dahulu.
     if (reply.attachment_type) {
       if (reply.attachment_type === 'image') {
         replyPreviewContent = (
@@ -114,7 +118,6 @@ const MessageRenderer = (props) => {
       }
     }
 
-    // PRIORITAS 2: Jika tidak ada lampiran yang dikenali, baru gunakan teks (caption).
     if (!replyPreviewContent) {
         if (reply.message) {
             const lines = reply.message.split("\n");
@@ -125,7 +128,6 @@ const MessageRenderer = (props) => {
                 </React.Fragment>
             ));
         } else {
-            // Fallback jika tidak ada lampiran dan tidak ada teks.
              replyPreviewContent = <span className="text-sm italic">Pesan</span>
         }
     }
@@ -139,7 +141,12 @@ const MessageRenderer = (props) => {
       : "font-semibold text-[#4C0D68] break-words";
 
     return (
-      <div className={replyContainerClasses}>
+      // --- AWAL PERUBAHAN ---
+      <div 
+        className={`${replyContainerClasses} cursor-pointer hover:bg-gray-100 transition-colors`}
+        onClick={() => onReplyClick && onReplyClick(reply.message_id)}
+      >
+      {/* --- AKHIR PERUBAHAN --- */}
         <div className={senderNameClasses}>
           {reply.sender}
         </div>

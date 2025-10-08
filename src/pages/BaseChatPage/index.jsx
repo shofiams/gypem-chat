@@ -222,6 +222,33 @@ const BaseChatPage = ({
     }
   };
 
+  // --- AWAL PERUBAHAN ---
+  // Fungsi untuk menggulir dan menyorot pesan yang direply
+  const handleReplyClick = (messageId) => {
+    const messageElement = messageRefs.current[messageId];
+    if (messageElement) {
+      messageElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+
+      // Efek sorotan sementara
+      messageElement.style.transition = 'background-color 0.5s ease-out';
+      messageElement.style.backgroundColor = 'rgba(255, 229, 100, 0.5)'; // Warna kuning sorotan
+      setTimeout(() => {
+        messageElement.style.backgroundColor = 'transparent';
+        // Hapus transisi setelah selesai agar tidak mengganggu interaksi lain
+        setTimeout(() => {
+            messageElement.style.transition = ''; 
+        }, 500);
+      }, 1500); // Durasi sorotan 1.5 detik
+    } else {
+        console.warn(`Pesan dengan ID ${messageId} tidak ditemukan.`);
+        // Mungkin tambahkan notifikasi untuk pengguna di sini
+    }
+  };
+  // --- AKHIR PERUBAHAN ---
+
   const handleStartSelection = (messageId) => {
     setIsSelectionMode(true);
     setSelectedMessages(new Set([messageId]));
@@ -332,22 +359,15 @@ const BaseChatPage = ({
   };
 
   const renderMessage = useCallback((msg, idx, arr) => {
-    // --- AWAL PERUBAHAN ---
-    // Jika pesan ini adalah balasan, cari pesan asli untuk melengkapi data attachment
     if (msg.reply_to_message && msg.reply_to_message.reply_to_message_id) {
-      // Cari pesan asli di dalam daftar semua pesan
       const originalMessage = flattenedMessages.find(
         (m) => m.message_id === msg.reply_to_message.reply_to_message_id
       );
 
-      // Jika pesan asli ditemukan dan memiliki attachment,
-      // tambahkan informasi attachment tersebut ke objek reply_to_message
-      // Ini memastikan MessageRenderer menerima data yang lengkap.
       if (originalMessage && originalMessage.attachment) {
         msg.reply_to_message.attachment = originalMessage.attachment;
       }
     }
-    // --- AKHIR PERUBAHAN ---
 
     const timeGroupingProps = getTimeGroupingProps(msg, idx, arr);
     const formattedTime = formatMessageTime(msg.created_at);
@@ -365,6 +385,9 @@ const BaseChatPage = ({
           onToggleDropdown={() => handleToggleDropdown(msg.message_id)}
           onCloseDropdown={() => setOpenDropdownId(null)}
           onReply={(replyData) => setReplyingMessage(replyData)}
+          // --- AWAL PERUBAHAN ---
+          onReplyClick={handleReplyClick} // Teruskan fungsi ke bubble
+          // --- AKHIR PERUBAHAN ---
           onImageClick={() => openImageViewer(msg.message_id)}
           onPin={async (messageStatusId) => {
             const result = await pinMessage(messageStatusId);
