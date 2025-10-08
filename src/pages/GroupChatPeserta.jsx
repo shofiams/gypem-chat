@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { getContrast, darken } from "color2k";
 import { useParams } from "react-router-dom";
 import BaseChatPage from "./BaseChatPage";
 import GroupPopup from "../components/GroupPopup/GroupPopup";
+import { useRoomDetails } from "../hooks/useRooms"; 
+import { authService } from "../api/auth"; 
 
 // Fungsi untuk generate hash dari string
 const hashString = (str) => {
@@ -84,9 +86,19 @@ const GroupChatPeserta = ({
   highlightMessageId = null, 
   onMessageHighlight = null 
 }) => {
+
   const { chatId: paramChatId } = useParams();
   const chatId = isEmbedded ? propChatId : paramChatId;
   const [isPopupOpen, setIsPopupOpen] = useState(false);
+  
+  const { roomDetails, refetch: refetchRoomDetails, loading  } = useRoomDetails(chatId);
+  const currentUser = useMemo(() => authService.getCurrentUser(), []);
+
+  const isMember = useMemo(() => {
+    if (!roomDetails?.members || !currentUser) return false;
+    const member = roomDetails.members.find(m => m.member_id === currentUser.user_id);
+    return member ? !member.is_left : false;
+  }, [roomDetails, currentUser]);
   
   const getSenderColor = (sender) => {
     return generateMemberColorWithColor2k(sender);
@@ -98,6 +110,23 @@ const GroupChatPeserta = ({
       style={{ backgroundColor: "#4C0D68" }}
     >
       Only admins can send messages.
+    </div>
+  );
+
+  // Footer untuk peserta yang sudah keluar dari grup
+  const notMemberFooter = (
+    <div
+      className="text-center text-gray-500 text-sm py-3 font-medium bg-gray-200 border-t"
+    >
+      You can't send messages to this group because you're no longer a member.
+    </div>
+  );
+
+  const loadingFooter = (
+    <div
+      className="text-center text-gray-400 text-sm py-3 font-medium bg-gray-50 border-t"
+    >
+      Loading...
     </div>
   );
 
@@ -117,11 +146,17 @@ const GroupChatPeserta = ({
         onClose={onClose}
         chatId={chatId}
         isGroupChat={true}
-        canSendMessages={false} // PENTING: ini yang menonaktifkan input
+        canSendMessages={false}
         showSenderNames={true}
         getSenderColor={getSenderColor}
-        customFooter={readOnlyFooter} // Footer yang menggantikan input
         customChatBubbleProps={customChatBubbleProps}
+        customFooter={
+          loading
+            ? loadingFooter
+            : isMember 
+              ? readOnlyFooter 
+              : notMemberFooter
+        }
         onGroupHeaderClick={() => setIsPopupOpen(true)}
         highlightMessageId={highlightMessageId}
         onMessageHighlight={onMessageHighlight}
@@ -131,6 +166,7 @@ const GroupChatPeserta = ({
         <GroupPopup
           onClose={() => setIsPopupOpen(false)}
           roomId={chatId}
+          onLeaveSuccess={refetchRoomDetails}
         />
       )}
     </>

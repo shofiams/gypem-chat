@@ -82,7 +82,7 @@ export const roomService = {
     }
   },
 
-  leaveRoom: async (roomMemberId) => {
+leaveRoom: async (roomMemberId) => {
     try {
       const res = await axiosInstance.delete(`/rooms/${roomMemberId}/leave`);
       return {
@@ -98,7 +98,7 @@ export const roomService = {
       };
     }
   },
-
+  
   // delete room
   deleteRooms: async (roomMemberIds) => {
     try {

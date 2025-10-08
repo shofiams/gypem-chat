@@ -118,7 +118,7 @@ export const useRoomOperations = () => {
     }
   }, []);
 
-  const leave = useCallback(async (roomMemberId) => {
+const leave = useCallback(async (roomMemberId) => {
     setLoading(true);
     setError(null);
 
