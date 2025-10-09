@@ -80,7 +80,10 @@ const MessageRenderer = (props) => {
 
   const reply = reply_to_message
     ? {
-        sender: reply_to_message.sender_name,
+        sender:
+          reply_to_message.sender_type === "peserta"// Logika ini sekarang akan bekerja
+            ? "You"
+            : reply_to_message.sender_name,
         message: reply_to_message.content,
         message_id: reply_to_message.reply_to_message_id,
         attachment_type: reply_to_message.attachment?.file_type,

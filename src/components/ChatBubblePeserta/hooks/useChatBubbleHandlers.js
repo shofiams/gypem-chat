@@ -221,6 +221,7 @@ export const useChatBubbleHandlers = (props, state, stateSetters) => {
         message_id: message_id,
         sender: isSender ? "You" : sender_name,
         message: content,
+        sender_type: sender_type,
         image:
           attachment?.file_type === "image" &&
           attachment.url &&

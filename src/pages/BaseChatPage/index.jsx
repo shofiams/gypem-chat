@@ -364,8 +364,14 @@ const BaseChatPage = ({
         (m) => m.message_id === msg.reply_to_message.reply_to_message_id
       );
 
-      if (originalMessage && originalMessage.attachment) {
-        msg.reply_to_message.attachment = originalMessage.attachment;
+      if (originalMessage) {
+        if (!msg.reply_to_message.sender_type) {
+          msg.reply_to_message.sender_type = originalMessage.sender_type;
+        }
+
+        if (originalMessage.attachment) {
+          msg.reply_to_message.attachment = originalMessage.attachment;
+        }
       }
     }
 
@@ -385,9 +391,7 @@ const BaseChatPage = ({
           onToggleDropdown={() => handleToggleDropdown(msg.message_id)}
           onCloseDropdown={() => setOpenDropdownId(null)}
           onReply={(replyData) => setReplyingMessage(replyData)}
-          // --- AWAL PERUBAHAN ---
-          onReplyClick={handleReplyClick} // Teruskan fungsi ke bubble
-          // --- AKHIR PERUBAHAN ---
+          onReplyClick={handleReplyClick} 
           onImageClick={() => openImageViewer(msg.message_id)}
           onPin={async (messageStatusId) => {
             const result = await pinMessage(messageStatusId);
