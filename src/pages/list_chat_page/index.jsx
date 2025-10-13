@@ -114,8 +114,9 @@ export default function ChatPage() {
         if (isStarPage) {
             const starredItem = chats.find(item => item.message_id === itemId);
             if (!starredItem) return;
-            if (currentIsMobile) {
-                navigate(`/chats/${starredItem.room_id}?highlight=${starredItem.message_id}`);
+           if (currentIsMobile) {
+                const path = starredItem.room_type === 'group' ? '/group/' : '/chats/';
+                navigate(`${path}${starredItem.room_id}?highlight=${starredItem.message_id}`);
             } else {
                 setActiveChat(starredItem.room_id);
                 setHighlightMessageId(starredItem.message_id);

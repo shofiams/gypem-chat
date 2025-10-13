@@ -185,6 +185,30 @@ const BaseChatPage = ({
   const messageRefs = useRef({});
 
   useEffect(() => {
+    // Cek jika ada prop highlightId dan pesan sudah dimuat
+    if (propHighlightMessageId && flattenedMessages.length > 0) {
+      const messageIdToScroll = parseInt(propHighlightMessageId, 10);
+      
+      // Pastikan pesan ada di daftar sebelum melakukan scroll
+      const messageExists = flattenedMessages.some(m => m.message_id === messageIdToScroll);
+
+      if (messageExists) {
+        // Panggil fungsi scroll setelah jeda singkat untuk memastikan DOM siap
+        setTimeout(() => {
+          scrollToMessage(messageIdToScroll);
+        }, 100);
+
+        // Jika ada callback onMessageHighlight, panggil setelah efek sorot selesai
+        if (onMessageHighlight) {
+          setTimeout(() => {
+            onMessageHighlight();
+          }, 2000); // Durasi sorotan + jeda
+        }
+      }
+    }
+  }, [propHighlightMessageId, flattenedMessages]);
+
+  useEffect(() => {
     if (clientSidePinnedMessages && currentPinnedIndex >= clientSidePinnedMessages.length) {
       setCurrentPinnedIndex(0);
     }
@@ -346,17 +370,30 @@ const BaseChatPage = ({
   };
   
     const scrollToMessage = (messageId) => {
-    if (messageRefs.current[messageId]) {
-      messageRefs.current[messageId].scrollIntoView({
+    const element = messageRefs.current[messageId];
+    if (element) {
+      // Gulir elemen ke tengah tampilan
+      element.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
-      setHighlightedMessageId(messageId);
-      if (!searchQuery) {
-        setTimeout(() => setHighlightedMessageId(null), 800);
-      }
+
+      // Beri efek sorotan (highlight)
+      element.style.transition = 'background-color 0.5s ease-out';
+      element.style.backgroundColor = 'rgba(255, 229, 100, 0.5)'; // Warna kuning sorotan
+
+      // Hapus efek sorotan setelah beberapa saat
+      const timeoutDuration = searchQuery ? 1500 : 1500; // Durasi highlight 1.5 detik
+
+      setTimeout(() => {
+          element.style.backgroundColor = 'transparent';
+          // Hapus transisi setelah selesai agar tidak mengganggu interaksi lain
+          setTimeout(() => {
+              if(element) element.style.transition = ''; 
+          }, 500);
+      }, timeoutDuration);
     }
-  };
+};
 
   const renderMessage = useCallback((msg, idx, arr) => {
     if (msg.reply_to_message && msg.reply_to_message.reply_to_message_id) {
