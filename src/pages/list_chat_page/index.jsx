@@ -56,7 +56,7 @@ export default function ChatPage() {
         return { data: filteredRooms, loading: roomsLoading, error: roomsError };
     };
 
-    const { data: chats } = getPageData();
+    const { data: chats, loading: pageLoading } = getPageData(); 
 
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chatId: null });
     const menuRef = useRef(null);
@@ -285,6 +285,7 @@ useEffect(() => {
                 )}
                 <ChatList
                     chats={getChatById ? chats.filter(chat => isGroupPage ? chat.room_type === 'group' : true) : chats}
+                    isLoading={pageLoading}
                     searchQuery={searchQuery}
                     searchResults={currentSearchResults}
                     isStarPage={isStarPage}

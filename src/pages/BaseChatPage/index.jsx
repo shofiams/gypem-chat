@@ -77,7 +77,7 @@ const BaseChatPage = ({
   const navigate = useNavigate();
   const actualChatId = isEmbedded ? propChatId : paramChatId;
 
-  const { data: contextMessages, refetch: refetchMessages } = useMessagesByRoom(actualChatId);
+  const { data: contextMessages, loading: messagesLoading, refetch: refetchMessages } = useMessagesByRoom(actualChatId);
   const { refetch: refetchPinnedMessages } = usePinnedMessagesByRoom(actualChatId);
   const { pinMessage, unpinMessage, starMessages, unstarMessages } = useMessageOperations();
   const chatInfo = useChatHeader(actualChatId, isGroupChat);
@@ -519,15 +519,16 @@ const BaseChatPage = ({
       )}
 
       <div className="flex-1 flex flex-col min-h-0 relative">
-        <MessageList
-            messages={flattenedMessages}
-            messagesContainerRef={messagesContainerRef}
-            renderMessage={renderMessage}
-            onBackgroundClick={() => {
-              setShowEmojiPicker(false);
-              setOpenDropdownId(null);
-            }} 
-        />
+          <MessageList
+        messages={flattenedMessages}
+        messagesContainerRef={messagesContainerRef}
+        renderMessage={renderMessage}
+        isLoading={messagesLoading} // Tambahkan prop ini
+        onBackgroundClick={() => {
+          setShowEmojiPicker(false);
+          setOpenDropdownId(null);
+        }} 
+    />
 
         {showScrollButton && !isSelectionMode && (
           <button

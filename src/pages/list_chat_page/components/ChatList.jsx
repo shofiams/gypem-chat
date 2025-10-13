@@ -79,6 +79,7 @@ const MessageItem = ({ item, highlightQuery, onClick }) => {
 const ChatList = ({ 
     chats, 
     searchQuery,
+    isLoading,
     searchResults,
     isStarPage,
     pageConfig,
@@ -89,7 +90,12 @@ const ChatList = ({
 
     return (
         <div className="flex-1 overflow-y-auto min-h-0 elegant-scrollbar">
-            {searchQuery.trim() ? (
+            {/* --- AWAL PERUBAHAN --- */}
+            {isLoading ? (
+                <div className="flex items-center justify-center p-10">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-400"></div>
+                </div>
+            ) : searchQuery.trim() ? (
                 <>
                     {isStarPage ? (
                         searchResults?.starredMessages?.length === 0 ? (
@@ -142,6 +148,7 @@ const ChatList = ({
                     renderChatItems(displayChats, { isStarredItem: isStarPage })
                 )
             )}
+            {/* --- AKHIR PERUBAHAN --- */}
         </div>
     );
 };
