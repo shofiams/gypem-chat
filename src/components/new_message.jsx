@@ -15,7 +15,7 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   const { createPrivateRoom, loading: creatingRoom } = useRoomOperations();
   
   const { 
-    rooms, 
+    rooms, // state rooms saat ini
     refetch: refetchRooms, 
     addOptimisticRoom, 
     updateOptimisticRoom, 
@@ -40,7 +40,6 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
     };
   }, [isOpen, onClose]);
 
-  // --- FUNGSI UTAMA DENGAN OPTIMISTIC UI + POLLING FALLBACK ---
   const handleContactClick = async (contact) => {
     if (processingContact === contact.id || creatingRoom) return;
 
@@ -48,30 +47,31 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
     const isMobile = window.innerWidth < 768;
 
     try {
-      // STEP 1: Refresh dan cek apakah chat sudah ada
       console.log('Checking for existing room...');
-      await refetchRooms();
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      const freshRooms = await refetchRooms(); 
 
-      const existingRoom = rooms.find(
-        (room) => room.name === `Admin${contact.id}` && room.room_type === "one_to_one"
+      // --- PERBAIKAN UTAMA DI SINI ---
+      // Mencari room berdasarkan nama kontak (case-insensitive)
+      const existingRoom = freshRooms.find(
+        (room) => room.name.toLowerCase() === contact.name.toLowerCase() && room.room_type === "one_to_one"
       );
 
       if (existingRoom) {
         const roomId = existingRoom.room_id || existingRoom.id;
-        console.log('Existing room found:', roomId);
+        console.log('Existing room found, navigating to:', roomId);
         
         onClose();
         if (isMobile) {
           navigate(`/chats/${roomId}`);
         } else {
-          setActiveChat(roomId);
+          // Menggunakan event custom untuk memberitahu komponen list chat
+          window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: roomId } }));
         }
         setProcessingContact(null);
-        return;
+        return; 
       }
 
-      // STEP 2: Buat optimistic room untuk instant feedback
+      console.log('No existing room found. Creating a new one...');
       const optimisticId = `optimistic_${Date.now()}`;
       const optimisticRoom = {
         optimisticId,
@@ -84,30 +84,24 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
         room_type: "one_to_one",
       };
 
-      // STEP 3: Tambahkan ke UI secara instant
       addOptimisticRoom(optimisticRoom);
       onClose();
 
       if (isMobile) {
         navigate(`/chats/${optimisticId}`);
       } else {
-        setActiveChat(optimisticId);
+         window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: optimisticId } }));
       }
 
-      // STEP 4: Panggil API untuk membuat room sebenarnya
-      console.log('Creating new room for contact:', contact.id);
       const result = await createPrivateRoom(contact.id);
 
       if (result.success && result.data) {
-        console.log('Room created successfully:', result.data);
-        
-        // Trigger refresh event
+        console.log('Room created successfully via API:', result.data);
         if (onChatCreated) {
           await onChatCreated();
         }
         window.dispatchEvent(new CustomEvent("chatListRefresh"));
 
-        // STEP 5: Polling untuk menemukan room yang baru dibuat
         let newRoom = null;
         let attempts = 0;
         const maxAttempts = 10;
@@ -115,98 +109,55 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
 
         while (!newRoom && attempts < maxAttempts) {
           attempts++;
-          console.log(`Polling attempt ${attempts}/${maxAttempts}...`);
-          
-          const freshData = await refetchRooms();
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
-          
-          const currentRooms = freshData || rooms;
-          
-          // Cari room dengan nama yang sesuai
-          newRoom = currentRooms.find((room) => {
-            const isCorrectName = room.name === `Admin${contact.id}`;
-            const isCorrectType = room.room_type === "one_to_one";
-            const isNotOptimistic = !room.optimisticId;
-            
-            return isCorrectName && isCorrectType && isNotOptimistic;
-          });
-          
-          // Di percobaan terakhir, gunakan data dari result jika ada
-          if (!newRoom && attempts === maxAttempts && result.data.room_id) {
-            newRoom = result.data;
-            console.log('Using room data from API response:', newRoom);
-          }
+          const currentRoomsData = await refetchRooms();
+          // Mencari room baru berdasarkan nama kontak
+          newRoom = currentRoomsData.find(
+            (room) => room.name.toLowerCase() === contact.name.toLowerCase() && room.room_type === "one_to_one" && !room.optimisticId
+          );
+          if (!newRoom) await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
-
-        // STEP 6: Update optimistic room dengan data real
+        
         if (newRoom) {
           const roomId = newRoom.room_id || newRoom.id;
-          console.log('Successfully found room:', roomId);
-          
           updateOptimisticRoom(optimisticId, newRoom);
-          
-          // Update navigation jika diperlukan
           if (isMobile) {
             navigate(`/chats/${roomId}`, { replace: true });
           } else {
-            setActiveChat(currentId => currentId === optimisticId ? roomId : currentId);
+             window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: roomId } }));
           }
         } else {
-          // STEP 7: Fallback - gunakan data dari API response
-          console.warn('Room not found after polling, using API response data');
-          
+          console.warn('Polling timeout, using API response data');
           if (result.data.room_id) {
-            updateOptimisticRoom(optimisticId, result.data);
-            
-            if (isMobile) {
-              navigate(`/chats/${result.data.room_id}`, { replace: true });
-            } else {
-              setActiveChat(result.data.room_id);
-            }
+              updateOptimisticRoom(optimisticId, result.data);
+              if (isMobile) {
+                  navigate(`/chats/${result.data.room_id}`, { replace: true });
+              } else {
+                  window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: result.data.room_id } }));
+              }
           } else {
-            // Jika benar-benar gagal, hapus optimistic room
-            console.error('Failed to get room data');
-            removeOptimisticRoom(optimisticId);
-            
-            if (isMobile) {
-              navigate('/chats', { replace: true });
-            } else {
-              setActiveChat(null);
-            }
-            
-            alert('Chat created but failed to load. Please refresh the page.');
+              console.error('Failed to get room data from polling and API response.');
+              removeOptimisticRoom(optimisticId);
+              if (isMobile) navigate('/chats', { replace: true }); else window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: null } }));
+              alert('Chat created but failed to load. Please refresh.');
           }
         }
       } else {
-        // STEP 8: Handle API error
         console.error("Failed to create room:", result.error);
         alert(result.error || "Failed to create chat. Please try again.");
-        
         removeOptimisticRoom(optimisticId);
-        
-        if (isMobile) {
-          navigate('/chats', { replace: true });
-        } else {
-          setActiveChat(null);
-        }
+        if (isMobile) navigate('/chats', { replace: true }); else window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: null } }));
       }
     } catch (error) {
       console.error("Error in handleContactClick:", error);
       alert("An unexpected error occurred. Please try again.");
-      
-      // Cleanup jika ada error
       const optimisticId = `optimistic_${Date.now()}`;
       removeOptimisticRoom(optimisticId);
-      
-      if (isMobile) {
-        navigate('/chats', { replace: true });
-      } else {
-        setActiveChat(null);
-      }
+      if (isMobile) navigate('/chats', { replace: true }); else window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: null } }));
     } finally {
       setProcessingContact(null);
     }
   };
+
 
   if (!isOpen) return null;
 
