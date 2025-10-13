@@ -71,11 +71,15 @@ export const useRooms = () => {
 
 export const useRoomDetails = (roomId) => {
   const [roomDetails, setRoomDetails] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(!!roomId);
   const [error, setError] = useState(null);
 
   const fetchRoomDetails = useCallback(async () => {
-    if (!roomId) return;
+    // Jika tidak ada roomId, jangan lakukan apa-apa dan pastikan loading false.
+    if (!roomId) {
+      setLoading(false);
+      return;
+    }
 
     setLoading(true);
     setError(null);
@@ -101,6 +105,7 @@ export const useRoomDetails = (roomId) => {
   }, [roomId]);
 
   useEffect(() => {
+    // Panggil fetch hanya jika ada roomId.
     if (roomId) {
       fetchRoomDetails();
     }
@@ -140,7 +145,7 @@ export const useRoomOperations = () => {
     }
   }, []);
 
-  const leave = useCallback(async (roomMemberId) => {
+const leave = useCallback(async (roomMemberId) => {
     setLoading(true);
     setError(null);
 

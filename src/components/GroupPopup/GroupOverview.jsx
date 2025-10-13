@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { X } from "react-feather";
-import { HiUserCircle } from "react-icons/hi2";
+import { useRoomOperations } from "../../hooks/useRooms";
 
 export default function GroupOverview({
   groupLogo,
@@ -8,15 +8,15 @@ export default function GroupOverview({
   seeMore,
   setSeeMore,
   descriptionText,
-  handleExit,
-  exitText,
-  setExitText,
+  onActionSuccess,
+  currentUserRoomMemberId,
+  isLeft,
 }) {
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [exitLoading, setExitLoading] = useState(false);
-  const [deleteLoading, setDeleteLoading] = useState(false);
   const [showImageLightbox, setShowImageLightbox] = useState(false);
+
+  const { leave, deleteRooms, loading } = useRoomOperations();
 
   const exitPopupRef = useRef(null);
   const deletePopupRef = useRef(null);
@@ -25,10 +25,10 @@ export default function GroupOverview({
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (showExitConfirm && exitPopupRef.current && !exitPopupRef.current.contains(e.target)) {
-        handleConfirmExit();
+        setShowExitConfirm(false);
       }
       if (showDeleteConfirm && deletePopupRef.current && !deletePopupRef.current.contains(e.target)) {
-        handleConfirmDelete();
+        setShowDeleteConfirm(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -47,26 +47,35 @@ export default function GroupOverview({
   }, [showImageLightbox]);
 
   const handleConfirmExit = async () => {
-    setExitLoading(true);
+
+    if (!currentUserRoomMemberId) {
+      console.error("Exit failed: currentUserRoomMemberId is null or undefined.");
+      alert("Error: Tidak dapat menemukan ID keanggotaan Anda.");
+      return;
+    }
+
+    const result = await leave(currentUserRoomMemberId);
     setShowExitConfirm(false);
-    try {
-      await new Promise((res) => setTimeout(res, 800));
-      setExitText("Delete Group");
-    } finally {
-      setExitLoading(false);
+
+    if (result.success) {
+      onActionSuccess();
+    } else {
+      alert(result.error || "Gagal keluar dari grup.");
     }
   };
 
   const handleConfirmDelete = async () => {
-    setDeleteLoading(true);
+    if (!currentUserRoomMemberId) return;
+    const result = await deleteRooms([currentUserRoomMemberId]);
     setShowDeleteConfirm(false);
-    try {
-      await new Promise((res) => setTimeout(res, 800));
-      await Promise.resolve(handleExit());
-    } finally {
-      setDeleteLoading(false);
+    if (result.success) {
+      onActionSuccess(true);
+    } else {
+      alert(result.error || "Gagal menghapus grup.");
     }
   };
+
+  const exitText = isLeft ? "Delete Group" : "Exit Group";
 
   return (
     <div>
@@ -104,16 +113,16 @@ export default function GroupOverview({
       <div className="mt-6 relative flex justify-center">
         <button
           onClick={() => {
-            if (exitText === "Exit Group") {
-              setShowExitConfirm(true);
-            } else {
+            if (isLeft) {
               setShowDeleteConfirm(true);
+            } else {
+              setShowExitConfirm(true);
             }
           }}
           className="w-full bg-gray-50 text-red-500 rounded-full px-4 py-2 font-semibold flex justify-center items-center hover:bg-red-50 transition"
-          disabled={exitLoading || deleteLoading}
+          disabled={loading}
         >
-          {(exitLoading || deleteLoading) ? (
+          {loading ? (
             <>
               <span className="animate-spin border-2 border-red-500 border-t-transparent rounded-full w-4 h-4 mr-2"></span>
               Loading...
@@ -133,24 +142,17 @@ export default function GroupOverview({
             <div className="flex justify-center gap-3">
               <button
                 onClick={() => setShowExitConfirm(false)}
-                className="px-4 py-2 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium"
-                disabled={exitLoading}
+                className="px-4 py-2 rounded-full bg-gray-200 hover:bg-gray-300"
+                disabled={loading}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmExit}
-                className="px-4 py-2 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center justify-center gap-2"
-                disabled={exitLoading}
+                className="px-4 py-2 rounded-full bg-red-500 hover:bg-red-600 text-white"
+                disabled={loading}
               >
-                {exitLoading ? (
-                  <>
-                    <span className="animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4"></span>
-                    Keluar...
-                  </>
-                ) : (
-                  "Exit"
-                )}
+                {loading ? "Exiting..." : "Exit"}
               </button>
             </div>
           </div>
@@ -166,24 +168,17 @@ export default function GroupOverview({
             <div className="flex justify-center gap-3">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 rounded-full bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium"
-                disabled={deleteLoading}
+                className="px-4 py-2 rounded-full bg-gray-200 hover:bg-gray-300"
+                disabled={loading}
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmDelete}
-                className="px-4 py-2 rounded-full bg-red-500 hover:bg-red-600 text-white font-medium flex items-center justify-center gap-2"
-                disabled={deleteLoading}
+                className="px-4 py-2 rounded-full bg-red-500 hover:bg-red-600 text-white"
+                disabled={loading}
               >
-                {deleteLoading ? (
-                  <>
-                    <span className="animate-spin border-2 border-white border-t-transparent rounded-full w-4 h-4"></span>
-                    Hapus...
-                  </>
-                ) : (
-                  "Delete"
-                )}
+                {loading ? "Deleting..." : "Delete"}
               </button>
             </div>
           </div>
@@ -238,12 +233,8 @@ export default function GroupOverview({
             from { opacity: 0; transform: scale(0.9); }
             to { opacity: 1; transform: scale(1); }
           }
-          .animate-fadeIn {
-            animation: fadeIn 0.2s ease-out;
-          }
-          .animate-scaleIn {
-            animation: scaleIn 0.3s ease-out;
-          }
+          .animate-fadeIn { animation: fadeIn 0.2s ease-out; }
+          .animate-scaleIn { animation: scaleIn 0.3s ease-out; }
         `}
       </style>
     </div>

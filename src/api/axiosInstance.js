@@ -11,7 +11,8 @@ const axiosInstance = axios.create({
 
 // Add token from env or localStorage
 axiosInstance.interceptors.request.use((config) => {
-  const token = import.meta.env.VITE_API_TOKEN || localStorage.getItem("token");
+  // const token = import.meta.env.VITE_API_TOKEN || localStorage.getItem("token");
+  const token = localStorage.getItem("token");
 
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
