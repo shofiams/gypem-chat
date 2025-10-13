@@ -38,10 +38,20 @@ export default function ChatPage() {
     const { searchResults, performSearch, clearSearch: clearGlobalSearch } = useGlobalSearch();
     const { searchResults: starredSearchResults, performSearch: performStarredSearch, clearSearch: clearStarredSearch } = useStarredMessagesSearch();
 
-    const getPageData = () => {
+     const getPageData = () => {
         if (isStarPage) {
-            return { data: starredMessages || [], loading: starredLoading, error: starredError };
+            // Logika baru: Perkaya data starredMessages dengan room_type dari allRooms
+            const augmentedStarredMessages = (starredMessages || []).map(msg => {
+                const room = (allRooms || []).find(r => r.room_id === msg.room_id);
+                return {
+                    ...msg,
+                    // Tambahkan room_type, default ke 'one_to_one' jika tidak ditemukan
+                    room_type: room ? room.room_type : 'one_to_one' 
+                };
+            });
+            return { data: augmentedStarredMessages, loading: starredLoading, error: starredError };
         }
+        // Logika lama (tidak berubah)
         const filteredRooms = isGroupPage ? allRooms?.filter(room => room.room_type === 'group') || [] : allRooms || [];
         return { data: filteredRooms, loading: roomsLoading, error: roomsError };
     };
@@ -230,7 +240,7 @@ useEffect(() => {
         return () => window.removeEventListener('chatListRefresh', handleChatListRefresh);
     }, [isStarPage, refetchRooms, refetchStarred]);
 
-    const renderChatItems = (items, options = {}) => {
+   const renderChatItems = (items, options = {}) => {
         const { onContextMenu = handleContextMenu, isStarredItem = false } = options;
         if (!items || items.length === 0) return null;
         return (
@@ -244,7 +254,7 @@ useEffect(() => {
                         isSelected={!isMobile && activeChatId === chat.room_id}
                         highlightQuery={searchQuery}
                         isStarredItem={isStarredItem}
-                        chatName={isStarredItem ? `Room ${chat.room_id}` : chat.name}
+                        chatName={isStarredItem ? chat.room_name : chat.name}
                     />
                 ))}
             </div>
