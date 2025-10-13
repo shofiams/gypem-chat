@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { HiUserCircle } from "react-icons/hi2";
+import { assets } from "../../assets/assets";
 
 export default function GroupMembers({
   members,
@@ -21,7 +21,7 @@ export default function GroupMembers({
             const hasImageError = imageErrors[memberKey];
             
             // ✅ PERBAIKAN: Logika yang lebih sederhana dan stabil
-            let imageSource = defaultAvatar; // Default pertama
+            let imageSource = assets.DefaultAvatar; // Default pertama
             
             if (!hasImageError && member.photo) {
               // Hanya gunakan member.photo jika belum error dan ada photo-nya
