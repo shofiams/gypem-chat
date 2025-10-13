@@ -15,7 +15,6 @@ export const useRooms = () => {
 
       if (result.success) {
         setRooms(result.data);
-        // PERBAIKAN: Return data untuk digunakan langsung
         return result.data;
       } else {
         setError(result.message);
@@ -31,6 +30,29 @@ export const useRooms = () => {
     }
   }, []);
 
+  // Tambah room optimistic ke list
+  const addOptimisticRoom = useCallback((optimisticRoom) => {
+    setRooms(currentRooms => [optimisticRoom, ...currentRooms]);
+  }, []);
+
+  // Update room optimistic dengan data server
+  const updateOptimisticRoom = useCallback((optimisticId, serverData) => {
+    setRooms(currentRooms =>
+      currentRooms.map(room =>
+        room.optimisticId === optimisticId
+          ? { ...serverData, optimisticId: undefined } // Hapus optimisticId setelah update
+          : room
+      )
+    );
+  }, []);
+
+  // Hapus room optimistic jika gagal
+   const removeOptimisticRoom = useCallback((optimisticId) => {
+    setRooms(currentRooms =>
+      currentRooms.filter(room => room.optimisticId !== optimisticId)
+    );
+  }, []);
+
   useEffect(() => {
     fetchRooms();
   }, [fetchRooms]);
@@ -39,8 +61,11 @@ export const useRooms = () => {
     rooms,
     loading,
     error,
-    refetch: fetchRooms, // Sekarang mengembalikan data
-    retry: fetchRooms,
+    refetch: fetchRooms,
+    // --- EXPORT FUNGSI BARU ---
+    addOptimisticRoom,
+    updateOptimisticRoom,
+    removeOptimisticRoom,
   };
 };
 
@@ -94,7 +119,6 @@ export const useRoomDetails = (roomId) => {
   };
 };
 
-// Hook for room operations (create, delete)
 export const useRoomOperations = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -107,9 +131,7 @@ export const useRoomOperations = () => {
       const result = await roomService.createPrivateRoom(targetAdminId);
 
       if (result.success) {
-        // PERBAIKAN: Tambahkan delay kecil untuk memberi waktu backend memproses
-        await new Promise(resolve => setTimeout(resolve, 100));
-        return { success: true, message: result.message };
+        return { success: true, data: result.data, message: result.message };
       } else {
         setError(result.message);
         return { success: false, error: result.message };
@@ -153,8 +175,6 @@ const leave = useCallback(async (roomMemberId) => {
       const result = await roomService.deleteRooms(roomMemberIds);
 
       if (result.success) {
-        // PERBAIKAN: Tambahkan delay untuk memberi waktu backend memproses penghapusan
-        await new Promise(resolve => setTimeout(resolve, 100));
         return { success: true, message: result.message };
       } else {
         setError(result.message);

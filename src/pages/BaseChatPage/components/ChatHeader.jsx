@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { assets } from '../../../assets/assets';
-import groupPhoto from '../../../assets/User.svg';
+import { HiUserCircle } from "react-icons/hi2";
 
 const ChatHeader = ({
   // Props untuk header normal
@@ -23,6 +23,9 @@ const ChatHeader = ({
   searchResults,
   currentSearchIndex,
   navigateSearchResults,
+  
+  // Props untuk online status (sementara default true)
+  isOnline = true
 }) => {
   const navigate = useNavigate();
 
@@ -69,12 +72,22 @@ const ChatHeader = ({
         >
           <img src={assets.ArrowLeft} alt="Back" className="w-5 h-5" />
         </button>
-        <img
-          src={chatInfo?.avatar || groupPhoto}
-          alt="profile"
-          crossOrigin='anonymous'
-          className="w-10 h-10 rounded-full object-cover"
-        />
+
+        <div className="relative w-10 h-10 flex-shrink-0">
+          <div className="w-full h-full rounded-full overflow-hidden bg-gray-100">
+            <img
+              src={chatInfo?.avatar || assets.DefaultAvatar}
+              alt="profile"
+              crossOrigin='anonymous'
+              className="w-full h-full object-cover"
+            />
+          </div>
+          {/* Bubble kuning online indicator - sementara tampil di semua kontak */}
+          {isOnline && (
+            <div className="absolute bottom-0 right-0 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white"></div>
+          )}
+        </div>
+
         <div
           className={`flex-1 min-w-0 ${isGroupChat && onGroupHeaderClick ? 'cursor-pointer' : ''}`}
           onClick={isGroupChat ? onGroupHeaderClick : undefined}

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import defaultAvatar from "../../assets/User.svg";
+import { HiUserCircle } from "react-icons/hi2";
 
 export default function GroupMembers({
   members,

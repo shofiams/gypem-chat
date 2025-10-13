@@ -1,22 +1,29 @@
+// src/components/new_message.jsx
+
 import React, { useEffect, useRef, useState } from "react";
 import { FiArrowLeft } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
-import profileList from "../assets/user.svg";
 import { useAdmins } from "../hooks/useAdmins";
-import { useRoomOperations } from "../hooks/useRooms";
-import { useRooms } from "../hooks/useRooms";
+import { useRoomOperations, useRooms } from "../hooks/useRooms";
 import { useChatContext } from "../api/use_chat_context";
+import { assets } from "../assets/assets"
 
 const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   const popupRef = useRef(null);
   const navigate = useNavigate();
   const { data: admins, loading, error } = useAdmins();
   const { createPrivateRoom, loading: creatingRoom } = useRoomOperations();
-  const { rooms, refetch: refetchRooms } = useRooms();
+  
+  const { 
+    rooms, // state rooms saat ini
+    refetch: refetchRooms, 
+    addOptimisticRoom, 
+    updateOptimisticRoom, 
+    removeOptimisticRoom 
+  } = useRooms();
   const { setActiveChat } = useChatContext();
 
   const [processingContact, setProcessingContact] = useState(null);
-
   const PHOTO_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
 
   useEffect(() => {
@@ -37,160 +44,120 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
     if (processingContact === contact.id || creatingRoom) return;
 
     setProcessingContact(contact.id);
+    const isMobile = window.innerWidth < 768;
 
     try {
-      const isMobile = window.innerWidth < 768;
+      console.log('Checking for existing room...');
+      const freshRooms = await refetchRooms(); 
 
-      // PERBAIKAN 1: Refresh rooms dan tunggu hasil terbaru
-      console.log('Refreshing rooms before check...');
-      await refetchRooms();
-      await new Promise((resolve) => setTimeout(resolve, 200));
-
-      // PERBAIKAN 2: Gunakan closure untuk mendapatkan data rooms terbaru
-      const checkExistingRoom = async () => {
-        const freshRoomsData = await refetchRooms();
-        const currentRooms = freshRoomsData || rooms;
-        
-          return currentRooms.find(
-        (room) => room.name.toLowerCase() === `Admin${contact.id}`.toLowerCase() && room.room_type === "one_to_one"
+      // --- PERBAIKAN UTAMA DI SINI ---
+      // Mencari room berdasarkan nama kontak (case-insensitive)
+      const existingRoom = freshRooms.find(
+        (room) => room.name.toLowerCase() === contact.name.toLowerCase() && room.room_type === "one_to_one"
       );
-      };
-
-      const existingRoom = await checkExistingRoom();
 
       if (existingRoom) {
         const roomId = existingRoom.room_id || existingRoom.id;
-        
-        console.log('Existing room found:', roomId);
+        console.log('Existing room found, navigating to:', roomId);
         
         onClose();
-        
         if (isMobile) {
           navigate(`/chats/${roomId}`);
         } else {
-          if (window.location.pathname !== "/chats") {
-            navigate("/chats");
-            await new Promise((resolve) => setTimeout(resolve, 300));
-          }
-          
-          setActiveChat(roomId);
+          // Menggunakan event custom untuk memberitahu komponen list chat
+          window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: roomId } }));
         }
-        
         setProcessingContact(null);
-        return;
+        return; 
       }
 
-      // PERBAIKAN 3: Buat room baru dengan error handling yang lebih baik
-      console.log('Creating new room for contact:', contact.id);
+      console.log('No existing room found. Creating a new one...');
+      const optimisticId = `optimistic_${Date.now()}`;
+      const optimisticRoom = {
+        optimisticId,
+        room_id: optimisticId,
+        name: contact.name,
+        url_photo: contact.profilePhoto,
+        last_message: "Creating chat...",
+        last_time: new Date().toISOString(),
+        unread_count: 0,
+        room_type: "one_to_one",
+      };
+
+      addOptimisticRoom(optimisticRoom);
+      onClose();
+
+      if (isMobile) {
+        navigate(`/chats/${optimisticId}`);
+      } else {
+         window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: optimisticId } }));
+      }
+
       const result = await createPrivateRoom(contact.id);
 
-      if (result.success) {
-        console.log('Room created successfully');
-        
+      if (result.success && result.data) {
+        console.log('Room created successfully via API:', result.data);
         if (onChatCreated) {
           await onChatCreated();
         }
-
-        // PERBAIKAN 4: Trigger refresh dengan delay yang cukup
         window.dispatchEvent(new CustomEvent("chatListRefresh"));
-        await new Promise((resolve) => setTimeout(resolve, 300));
 
-        // PERBAIKAN 5: Polling dengan strategi yang lebih agresif
         let newRoom = null;
         let attempts = 0;
-        const maxAttempts = 8; // Tingkatkan jumlah percobaan
-        const delayMs = 250; // Kurangi delay antar percobaan
+        const maxAttempts = 10;
+        const delayMs = 200;
 
         while (!newRoom && attempts < maxAttempts) {
           attempts++;
-          console.log(`Attempt ${attempts}/${maxAttempts}: Searching for new room...`);
-          
-          // Force refresh dan ambil data terbaru
-          const freshData = await refetchRooms();
-          await new Promise((resolve) => setTimeout(resolve, delayMs));
-          
-          // Cari room dengan berbagai kemungkinan
-          const currentRooms = freshData || rooms;
-          
-          // Coba berbagai cara pencarian
-          newRoom = currentRooms.find((room) => {
-            const isCorrectName = room.name === `Admin${contact.id}`;
-            const isCorrectType = room.room_type === "one_to_one";
-            
-            // Log untuk debugging
-            if (isCorrectName) {
-              console.log('Found room with matching name:', room);
-            }
-            
-            return isCorrectName && isCorrectType;
-          });
-          
-          // Jika belum ketemu, coba cari yang paling baru dibuat
-          if (!newRoom && attempts === maxAttempts) {
-            console.log('Last attempt: Looking for most recent room...');
-            const sortedRooms = [...currentRooms].sort((a, b) => {
-              const dateA = new Date(a.created_at || a.updated_at || 0);
-              const dateB = new Date(b.created_at || b.updated_at || 0);
-              return dateB - dateA;
-            });
-            
-            // Ambil room terbaru yang sesuai dengan admin
-            newRoom = sortedRooms.find(room => 
-              room.name === `Admin${contact.id}` && 
-              room.room_type === "one_to_one"
-            );
-          }
-          
-          if (newRoom) {
-            console.log('Room found:', newRoom);
-            break;
-          }
+          const currentRoomsData = await refetchRooms();
+          // Mencari room baru berdasarkan nama kontak
+          newRoom = currentRoomsData.find(
+            (room) => room.name.toLowerCase() === contact.name.toLowerCase() && room.room_type === "one_to_one" && !room.optimisticId
+          );
+          if (!newRoom) await new Promise((resolve) => setTimeout(resolve, delayMs));
         }
         
         if (newRoom) {
           const roomId = newRoom.room_id || newRoom.id;
-          console.log('Navigating to room:', roomId);
-
-          onClose();
-
+          updateOptimisticRoom(optimisticId, newRoom);
           if (isMobile) {
-            navigate(`/chats/${roomId}`);
+            navigate(`/chats/${roomId}`, { replace: true });
           } else {
-            if (window.location.pathname !== "/chats") {
-              navigate("/chats");
-              await new Promise((resolve) => setTimeout(resolve, 300));
-            }
-            
-            // PERBAIKAN 6: Set active chat dengan delay
-            setTimeout(() => {
-              setActiveChat(roomId);
-            }, 100);
+             window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: roomId } }));
           }
         } else {
-          console.error('Room not found after', maxAttempts, 'attempts');
-          console.log('Contact ID:', contact.id);
-          console.log('Expected room name:', `Admin${contact.id}`);
-          console.log('Available rooms:', rooms.map(r => ({
-            id: r.room_id,
-            name: r.name,
-            type: r.room_type
-          })));
-          
-          // PERBAIKAN 7: Tetap tutup popup dan trigger refresh final
-          onClose();
-          window.dispatchEvent(new CustomEvent("chatListRefresh"));
+          console.warn('Polling timeout, using API response data');
+          if (result.data.room_id) {
+              updateOptimisticRoom(optimisticId, result.data);
+              if (isMobile) {
+                  navigate(`/chats/${result.data.room_id}`, { replace: true });
+              } else {
+                  window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: result.data.room_id } }));
+              }
+          } else {
+              console.error('Failed to get room data from polling and API response.');
+              removeOptimisticRoom(optimisticId);
+              if (isMobile) navigate('/chats', { replace: true }); else window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: null } }));
+              alert('Chat created but failed to load. Please refresh.');
+          }
         }
       } else {
-        console.error("Failed to create private room:", result.error);
+        console.error("Failed to create room:", result.error);
         alert(result.error || "Failed to create chat. Please try again.");
+        removeOptimisticRoom(optimisticId);
+        if (isMobile) navigate('/chats', { replace: true }); else window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: null } }));
       }
     } catch (error) {
-      console.error("Error creating private room:", error);
-      alert("An error occurred. Please try again.");
+      console.error("Error in handleContactClick:", error);
+      alert("An unexpected error occurred. Please try again.");
+      const optimisticId = `optimistic_${Date.now()}`;
+      removeOptimisticRoom(optimisticId);
+      if (isMobile) navigate('/chats', { replace: true }); else window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: null } }));
     } finally {
       setProcessingContact(null);
     }
   };
+
 
   if (!isOpen) return null;
 
@@ -207,11 +174,7 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
       ref={popupRef}
       className={`
         bg-white rounded-lg shadow-lg border border-gray-200 z-50
-
-        /* Desktop */
         md:absolute md:top-20 md:left-16 md:w-[230px] md:h-[330px] md:translate-x-1 md:translate-y-36
-
-        /* Mobile */
         max-md:fixed max-md:top-0 max-md:left-0 max-md:right-0 max-md:bottom-0 
         max-md:w-full max-md:h-full max-md:rounded-none
       `}
@@ -232,15 +195,13 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
           </h2>
         </div>
       </div>
-
-      {/* Teks sebelum list - Mobile First */}
+      
       <div className="px-4 py-3 md:py-2">
         <p className="text-base text-gray-400 md:text-xs md:text-gray-500">
           Daftar kontak GyChat
         </p>
       </div>
 
-      {/* Contact list - Mobile First */}
       <div className="overflow-y-auto scrollbar-hide h-[calc(100%-110px)] bg-white md:h-[240px] md:bg-transparent">
         {loading ? (
           <div className="flex items-center justify-center p-4">
@@ -265,19 +226,14 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
                   : "hover:bg-gray-50 md:hover:bg-gray-100"
               }`}
             >
-              <img
-                src={
-                  contact.profilePhoto
-                    ? `${PHOTO_URL}uploads/${contact.profilePhoto}`
-                    : profileList
-                }
-                alt="avatar"
-                crossOrigin="anonymous"
-                className="w-8 h-8 rounded-full object-cover"
-                onError={(e) => {
-                  e.target.src = profileList;
-                }}
-              />
+             <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden">
+                <img
+                    src={contact.profilePhoto ? `${PHOTO_URL}uploads/${contact.profilePhoto}` : assets.DefaultAvatar}
+                    alt="avatar"
+                    crossOrigin="anonymous"
+                    className="w-full h-full object-cover"
+                />
+            </div>
               <div className="flex-1">
                 <span className="text-gray-900 text-lg font-medium block md:text-gray-800 md:text-sm md:font-normal md:inline">
                   {contact.name}

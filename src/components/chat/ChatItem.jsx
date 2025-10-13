@@ -11,10 +11,19 @@ const ChatItem = ({
     description,
     url_photo,
     last_message,
+    last_message_type,
     last_time,
     unread_count,
     is_archived,
     is_pinned,
+    // Props untuk status pesan terakhir
+    is_last_message_mine,
+    last_message_status,
+    last_message_updated_at,
+    last_message_created_at,
+    last_message_is_starred,
+    last_message_is_pinned,
+    last_message_is_deleted,
     // API fields for starred messages
     message_id,
     content,
@@ -30,15 +39,112 @@ const ChatItem = ({
     highlightQuery,
     onClick,
     isStarredItem = false,
-    chatName
+    chatName,
+    // Props untuk online status (sementara default true)
+    isOnline = true
 }) => {
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace("/api/", "");
 
     const getPhotoUrl = (url) => {
-        if (!url) return assets.user;
+        if (!url) return null;
         if (url.startsWith("http")) return url;
         return `${API_BASE_URL}/uploads/${url}`;
+    };
+
+    // Fungsi untuk render last message dengan icon
+    const renderLastMessageContent = () => {
+        const messageType = last_message_type || 'text';
+        
+        // Jika tipe image
+        if (messageType === 'image') {
+            return (
+                <div className="flex items-center gap-1">
+                    <img 
+                        src={assets.ImageIcon || assets.DefaultAvatar} 
+                        alt="image" 
+                        className="w-4 h-4 md:w-3.5 md:h-3.5"
+                    />
+                    <span>{last_message || 'Photo'}</span>
+                </div>
+            );
+        }
+        
+        // Jika tipe dokumen
+        if (messageType === 'dokumen') {
+            return (
+                <div className="flex items-center gap-1">
+                    <img 
+                        src={assets.DocumentIcon || assets.DefaultAvatar} 
+                        alt="document" 
+                        className="w-4 h-4 md:w-3.5 md:h-3.5"
+                    />
+                    <span>{last_message || 'Document'}</span>
+                </div>
+            );
+        }
+        
+        // Jika tipe text (default)
+        return <span>{last_message}</span>;
+    };
+
+    // Render status pesan terakhir (sama seperti di bubble)
+    // TEMPORARY: Hardcoded untuk testing, nanti akan diganti dengan data dari backend
+    const renderLastMessageStatus = () => {
+        // Simulasi: Tampilkan status di SEMUA chat untuk testing
+        const isMine = true; // Sementara tampilkan di semua chat
+        
+        if (!isMine && !is_last_message_mine) return null;
+
+        // Data dummy untuk testing
+        const wasEdited = last_message_updated_at && 
+            new Date(last_message_updated_at) > new Date(last_message_created_at);
+        
+        // Dummy status
+        const status = last_message_status || 'read';
+
+        return (
+            <div className="flex items-center gap-0.5 flex-shrink-0 mr-1">
+                {/* Label "diedit" jika pesan diedit */}
+                {(wasEdited || last_message_updated_at) && (
+                    <span className="text-[9px] md:text-[8px] opacity-70 mr-0.5">diedit</span>
+                )}
+
+                {/* Icon Starred - tidak tampil jika pesan dihapus */}
+                {last_message_is_starred && !last_message_is_deleted && (
+                    <img
+                        src={assets.StarFill2}
+                        alt="starred"
+                        className="w-3 h-3 md:w-2.5 md:h-2.5"
+                        style={{
+                            filter: "brightness(0) saturate(100%) invert(14%) sepia(71%) saturate(2034%) hue-rotate(269deg) brightness(92%) contrast(100%)",
+                        }}
+                    />
+                )}
+
+                {/* Icon Pinned - tidak tampil jika pesan dihapus */}
+                {last_message_is_pinned && !last_message_is_deleted && (
+                    <img
+                        src={assets.PinFill}
+                        alt="pinned"
+                        className="w-3 h-3 md:w-2.5 md:h-2.5"
+                        style={{
+                            filter: "brightness(0) saturate(100%) invert(14%) sepia(71%) saturate(2034%) hue-rotate(269deg) brightness(92%) contrast(100%)",
+                        }}
+                    />
+                )}
+
+                {/* Icon Centang (status baca) - SELALU TAMPIL untuk testing */}
+                <img
+                    src={assets.Ceklis}
+                    alt="sent"
+                    className="w-4 h-4 md:w-3.5 md:h-3.5"
+                    style={{
+                        filter: "brightness(0) saturate(100%) invert(48%) sepia(85%) saturate(1374%) hue-rotate(186deg) brightness(97%) contrast(96%)", // Biru
+                    }}
+                />
+            </div>
+        );
     };
 
     const highlightText = (text, query) => {
@@ -157,22 +263,20 @@ const ChatItem = ({
           relative
         `}
             >
-                <div className="relative flex-shrink-0">
+            <div className="relative flex-shrink-0 w-12 h-12 md:w-10 md:h-10">
+                <div className="w-full h-full rounded-full overflow-hidden">
                     <img
-                        src={getPhotoUrl(url_photo)}
+                        src={url_photo ? getPhotoUrl(url_photo) : assets.DefaultAvatar}
                         alt={name}
-                        className="w-12 h-12 md:w-10 md:h-10 rounded-full object-cover"
+                        className="w-full h-full object-cover"
                         crossOrigin="anonymous"
-                        onLoad={() => console.log("✅ Image loaded:", getPhotoUrl(url_photo))}
-                        onError={(e) => {
-                            console.error("❌ Image error:", getPhotoUrl(url_photo));
-                            console.error("Error details:", e);
-                            if (e.target.src !== assets.user) {
-                                e.target.src = assets.user;
-                            }
-                        }}
                     />
                 </div>
+                {/* Bubble kuning online indicator - sementara tampil di semua kontak */}
+                {isOnline && (
+                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 md:w-3 md:h-3 bg-yellow-400 rounded-full border-2 border-white"></div>
+                )}
+            </div>
 
                 <div className="flex-1 ml-4 md:ml-3 min-w-0">
                     <div className="flex items-center justify-between">
@@ -182,8 +286,11 @@ const ChatItem = ({
                             </h3>
 
                             <div className="flex items-center gap-x-1 min-w-0">
-                                <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight mt-0">
-                                    {last_message}
+                                {/* Render status pesan terakhir */}
+                                {renderLastMessageStatus()}
+                                
+                                <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight mt-0 flex items-center">
+                                    {renderLastMessageContent()}
                                 </p>
                             </div>
                         </div>
