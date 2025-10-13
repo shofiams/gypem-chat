@@ -41,6 +41,10 @@ const getTimeGroupingProps = (currentMsg, currentIndex, allMessages) => {
   const currentTime = formatMessageTime(currentMsg.created_at);
   const nextTime = nextMsg ? formatMessageTime(nextMsg.created_at) : null;
 
+  const currentMessageDate = new Date(currentMsg.created_at).toDateString();
+  const previousMessageDate = previousMsg ? new Date(previousMsg.created_at).toDateString() : null;
+  const isFirstMessageOfDay = !previousMsg || currentMessageDate !== previousMessageDate;
+
   const isLastInTimeGroup = !nextMsg ||
     nextSender !== currentSender ||
     nextTime !== currentTime;
@@ -50,6 +54,7 @@ const getTimeGroupingProps = (currentMsg, currentIndex, allMessages) => {
     nextMessageTime: nextTime,
     nextMessageSender: nextSender,
     previousMessageSender: previousSender,
+    isFirstMessageOfDay: isFirstMessageOfDay,
   };
 };
 
@@ -130,7 +135,7 @@ const BaseChatPage = ({
       flattenedMessages: flattenedMessages,
       inputRef,
       selectedDeleteOption, setSelectedDeleteOption,
-      scrollToBottom, // <-- Teruskan fungsi scroll ke handler
+      scrollToBottom, 
   });
 
    useEffect(() => {
@@ -216,6 +221,33 @@ const BaseChatPage = ({
       }, 1500);
     }
   };
+
+  // --- AWAL PERUBAHAN ---
+  // Fungsi untuk menggulir dan menyorot pesan yang direply
+  const handleReplyClick = (messageId) => {
+    const messageElement = messageRefs.current[messageId];
+    if (messageElement) {
+      messageElement.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+
+      // Efek sorotan sementara
+      messageElement.style.transition = 'background-color 0.5s ease-out';
+      messageElement.style.backgroundColor = 'rgba(255, 229, 100, 0.5)'; // Warna kuning sorotan
+      setTimeout(() => {
+        messageElement.style.backgroundColor = 'transparent';
+        // Hapus transisi setelah selesai agar tidak mengganggu interaksi lain
+        setTimeout(() => {
+            messageElement.style.transition = ''; 
+        }, 500);
+      }, 1500); // Durasi sorotan 1.5 detik
+    } else {
+        console.warn(`Pesan dengan ID ${messageId} tidak ditemukan.`);
+        // Mungkin tambahkan notifikasi untuk pengguna di sini
+    }
+  };
+  // --- AKHIR PERUBAHAN ---
 
   const handleStartSelection = (messageId) => {
     setIsSelectionMode(true);
@@ -327,6 +359,22 @@ const BaseChatPage = ({
   };
 
   const renderMessage = useCallback((msg, idx, arr) => {
+    if (msg.reply_to_message && msg.reply_to_message.reply_to_message_id) {
+      const originalMessage = flattenedMessages.find(
+        (m) => m.message_id === msg.reply_to_message.reply_to_message_id
+      );
+
+      if (originalMessage) {
+        if (!msg.reply_to_message.sender_type) {
+          msg.reply_to_message.sender_type = originalMessage.sender_type;
+        }
+
+        if (originalMessage.attachment) {
+          msg.reply_to_message.attachment = originalMessage.attachment;
+        }
+      }
+    }
+
     const timeGroupingProps = getTimeGroupingProps(msg, idx, arr);
     const formattedTime = formatMessageTime(msg.created_at);
     
@@ -343,6 +391,7 @@ const BaseChatPage = ({
           onToggleDropdown={() => handleToggleDropdown(msg.message_id)}
           onCloseDropdown={() => setOpenDropdownId(null)}
           onReply={(replyData) => setReplyingMessage(replyData)}
+          onReplyClick={handleReplyClick} 
           onImageClick={() => openImageViewer(msg.message_id)}
           onPin={async (messageStatusId) => {
             const result = await pinMessage(messageStatusId);
@@ -386,7 +435,7 @@ const BaseChatPage = ({
           onToggleSelection={() => handleToggleSelection(msg.message_id)}
           isPinned={msg.message_status?.is_pinned}
           isStarred={msg.message_status?.is_starred}
-          showSenderName={showSenderNames && msg.sender_type !== 'peserta' && (idx === 0 || arr[idx - 1].sender_name !== msg.sender_name)}
+          showSenderName={showSenderNames}
           getSenderColor={getSenderColor}
           isLastBubble={idx === arr.length - 1}
           searchQuery={searchQuery}
@@ -445,7 +494,7 @@ const BaseChatPage = ({
 
         {showScrollButton && !isSelectionMode && (
           <button
-            onClick={() => scrollToBottom('smooth')} // <-- Panggil dengan 'smooth'
+            onClick={() => scrollToBottom('smooth')} 
             className="absolute bottom-24 right-5 z-40 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg"
           >
             <img src={assets.ArrowDownThin} alt="Scroll to bottom" className="w-6 h-6" />
@@ -488,7 +537,7 @@ const BaseChatPage = ({
             if (result.success) {
                 setReplyingMessage(null);
                 refetchMessages();
-                setTimeout(() => scrollToBottom('auto'), 100); // <-- Scroll instan setelah kirim file
+                setTimeout(() => scrollToBottom('auto'), 100);
             }
         }}
         fileButtonRef={fileButtonRef}

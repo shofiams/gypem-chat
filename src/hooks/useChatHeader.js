@@ -3,7 +3,7 @@ import { useRoomDetails, useRooms } from './useRooms';
 
 export const useChatHeader = (chatId, isGroupChat) => {
   // =================================================================
-  // PERBAIKAN: Panggil semua hooks di level atas tanpa kondisi.
+  // Panggil semua hooks di level atas tanpa kondisi.
   // =================================================================
   const { rooms, loading: roomsLoading } = useRooms();
   const { roomDetails, loading: roomDetailsLoading, error } = useRoomDetails(chatId);
@@ -35,35 +35,44 @@ export const useChatHeader = (chatId, isGroupChat) => {
       if (roomDetailsLoading) return { name: 'Loading...', subtitle: '', isGroup: true };
       if (error) return { name: 'Error', subtitle: 'Gagal memuat detail', isGroup: true };
 
-      // ✅ KODE BARU (DENGAN SORTING YANG SAMA SEPERTI GroupMembers)
-if (roomDetails) {
-  const { room, members } = roomDetails;
-  
-  // Mapping members dengan field yang benar
-  const mappedMembers = members?.map(member => ({
-    name: member.name,
-    isAdmin: member.member_type === 'admin'
-  })) || [];
+      if (roomDetails) {
+        const { room, members } = roomDetails;
 
-  // Sorting: Admin dulu, lalu alfabetis (SAMA seperti di GroupMembers.jsx)
-  const sortedMembers = mappedMembers.sort((a, b) => {
-    if (a.isAdmin && !b.isAdmin) return -1;
-    if (!a.isAdmin && b.isAdmin) return 1;
-    return a.name.localeCompare(b.name, 'id', { sensitivity: 'base' });
-  });
+        // Mapping members dengan field yang benar
+        const mappedMembers = members?.map(member => ({
+          name: member.name,
+          isAdmin: member.member_type === 'admin'
+        })) || [];
 
-  // Ambil nama-nama yang sudah tersortir
-  const memberNames = sortedMembers.map(m => m.name);
+        // Sorting: Admin dulu, lalu alfabetis (SAMA seperti di GroupMembers.jsx)
+        const sortedMembers = mappedMembers.sort((a, b) => {
+          if (a.isAdmin && !b.isAdmin) return -1;
+          if (!a.isAdmin && b.isAdmin) return 1;
+          return a.name.localeCompare(b.name, 'id', { sensitivity: 'base' });
+        });
 
-  return {
-    name: room?.description?.name || 'Group Chat',
-    avatar: room?.description?.url_photo ? `${API_BASE_URL}/uploads/${room.description.url_photo}` : null,
-    subtitle: memberNames.slice(0, 5).join(', '), // Maksimal 5 nama
-    isOnline: false,
-    isGroup: true,
-    memberCount: members?.length || 0,
-  };
-}
+        // Ambil nama-nama yang sudah tersortir
+        const memberNames = sortedMembers.map(m => m.name);
+        const totalMembers = memberNames.length;
+
+        let subtitle = '';
+        if (totalMembers > 0) {
+            const namesToShow = memberNames.slice(0, 5);
+            subtitle = namesToShow.join(', ');
+            if (totalMembers > 5) {
+                subtitle += ', ...';
+            }
+        }
+
+        return {
+          name: room?.description?.name || 'Group Chat',
+          avatar: room?.description?.url_photo ? `${API_BASE_URL}/uploads/${room.description.url_photo}` : null,
+          subtitle: subtitle,
+          isOnline: false,
+          isGroup: true,
+          memberCount: members?.length || 0,
+        };
+      }
     }
 
     // Fallback jika data belum ada
