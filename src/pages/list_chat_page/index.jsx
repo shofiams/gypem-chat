@@ -1,3 +1,4 @@
+// src/pages/list_chat_page/index.jsx
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useRooms, useRoomOperations } from '../../hooks/useRooms';
@@ -24,7 +25,6 @@ export default function ChatPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [highlightMessageId, setHighlightMessageId] = useState(null);
-    //const [activeChatId, setActiveChatId] = useState(null);
     const { activeChatId, setActiveChat, clearActiveChat } = useChatContext();
     const [isDeleting, setIsDeleting] = useState(false);
     const { refetch: refetchAdmins } = useAdmins({ manual: true });
@@ -90,8 +90,6 @@ export default function ChatPage() {
         return isStarPage ? { starredMessages: starredSearchResults } : searchResults;
     }, [searchQuery, isStarPage, searchResults, starredSearchResults]);
     
-    //const setActiveChat = (chatId) => setActiveChatId(chatId);
-    //const clearActiveChat = () => setActiveChatId(null);
     const getChatById = (chatId) => chats.find(chat => chat.room_id === chatId);
     const clearSearch = useCallback(() => {
         setSearchQuery('');
@@ -178,22 +176,21 @@ export default function ChatPage() {
         };
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, [isMobile, location.pathname]);
+    }, [isMobile, location.pathname, setActiveChat, clearActiveChat]);
 
-    // Tambahkan useEffect ini di index.jsx sekitar baris 178-183
-useEffect(() => {
-    const handleSetActiveChat = (event) => {
-        const { chatId } = event.detail;
-        console.log('setActiveChat event received, chatId:', chatId); // untuk debugging
-        setActiveChat(chatId);
-    };
-    
-    window.addEventListener('setActiveChat', handleSetActiveChat);
-    
-    return () => {
-        window.removeEventListener('setActiveChat', handleSetActiveChat);
-    };
-}, [setActiveChat]);
+    useEffect(() => {
+        const handleSetActiveChat = (event) => {
+            const { chatId } = event.detail;
+            console.log('setActiveChat event received, chatId:', chatId);
+            setActiveChat(chatId);
+        };
+        
+        window.addEventListener('setActiveChat', handleSetActiveChat);
+        
+        return () => {
+            window.removeEventListener('setActiveChat', handleSetActiveChat);
+        };
+    }, [setActiveChat]);
 
     useEffect(() => {
         const handleKeydown = (e) => {
@@ -220,7 +217,7 @@ useEffect(() => {
             document.removeEventListener('keydown', handleKeydown);
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [activeChatId, isMobile, isStarPage, contextMenu, confirmOpen]);
+    }, [activeChatId, isMobile, isStarPage, contextMenu, confirmOpen, clearActiveChat]);
     
     useEffect(() => {
         const handleChatListRefresh = () => {
@@ -245,6 +242,8 @@ useEffect(() => {
                         highlightQuery={searchQuery}
                         isStarredItem={isStarredItem}
                         chatName={isStarredItem ? `Room ${chat.room_id}` : chat.name}
+                        // PERBAIKAN DI SINI: Teruskan admin_id
+                        admin_id={chat.admin_id}
                     />
                 ))}
             </div>

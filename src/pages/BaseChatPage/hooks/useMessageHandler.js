@@ -1,4 +1,7 @@
+// src/pages/BaseChatPage/hooks/useMessageHandler.js
+
 import { useCallback } from 'react';
+import { useChatContext } from '../../../api/use_chat_context';
 import { useMessageOperations } from '../../../hooks/useMessages';
 
 export const useMessageHandler = ({
@@ -16,9 +19,10 @@ export const useMessageHandler = ({
   flattenedMessages,
   inputRef,
   selectedDeleteOption, setSelectedDeleteOption,
-  scrollToBottom, // <-- Terima prop baru
+  scrollToBottom,
 }) => {
-  const { sendMessage, updateMessage, deleteMessagesForMe, deleteMessagesGlobally } = useMessageOperations();
+  const { socket } = useChatContext();
+  const { updateMessage, deleteMessagesForMe, deleteMessagesGlobally } = useMessageOperations();
 
   const autoResize = (textarea) => {
     if (!textarea) return;
@@ -32,38 +36,43 @@ export const useMessageHandler = ({
     textarea.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
   };
 
-  const handleSend = async () => {
-    if (!message.trim()) return;
-    const messageData = {
+  const handleSend = () => {
+    if (!message.trim() || !socket) return;
+
+    const payload = {
+      room_id: actualChatId,
       content: message.trim(),
       reply_to_message_id: replyingMessage ? replyingMessage.message_id : null,
     };
-    const result = await sendMessage(actualChatId, messageData);
-    if (result.success) {
-      setMessage("");
-      setReplyingMessage(null);
-      refetchMessages();
 
-      // --- PERUBAIKAN UTAMA DI SINI ---
-      // Panggil scroll ke bawah SECARA LANGSUNG setelah mengirim pesan.
-      // Timeout memastikan scroll terjadi setelah pesan baru di-render.
-      setTimeout(() => {
-        if (scrollToBottom) {
-          scrollToBottom('auto'); // 'auto' untuk scroll instan
-        }
-      }, 100);
+    console.log("Emitting sendMessage with payload:", payload);
 
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.style.height = 'auto';
-          inputRef.current.style.height = '24px';
-          inputRef.current.style.overflowY = 'hidden';
-        }
-      }, 10);
+    socket.emit('sendMessage', payload, (response) => {
+      if (response && response.status === 'ok') {
+        console.log('Message sent successfully via socket, response:', response);
+        refetchMessages();
+      } else {
+        console.error("Failed to send message via socket:", response ? response.message : 'No response');
+        alert("Gagal mengirim pesan: " + (response ? response.message : 'Tidak ada respons dari server'));
+      }
+    });
 
-    } else {
-      console.error("Failed to send message:", result.error);
-    }
+    setMessage("");
+    setReplyingMessage(null);
+
+    setTimeout(() => {
+      if (scrollToBottom) {
+        scrollToBottom('auto');
+      }
+    }, 100);
+
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.style.height = 'auto';
+        inputRef.current.style.height = '24px';
+        inputRef.current.style.overflowY = 'hidden';
+      }
+    }, 10);
   };
 
   const handleSaveEdit = async () => {
@@ -84,6 +93,7 @@ export const useMessageHandler = ({
 
     } else {
       console.error("Failed to update message:", result.error);
+      alert("Gagal mengedit pesan: " + (result.error || 'Unknown error'));
     }
   };
 
@@ -110,41 +120,33 @@ export const useMessageHandler = ({
   };
 
   const handleKeyDown = (e) => {
-    // 1. Tangani penambahan baris baru secara eksplisit
     if (e.key === 'Enter' && (e.shiftKey || e.altKey)) {
-      e.preventDefault(); // Mencegah perilaku default lainnya
+      e.preventDefault();
 
       const textarea = e.target;
       const currentValue = editingMessage ? editText : message;
       const selectionStart = textarea.selectionStart;
 
-      // Membuat nilai baru dengan baris baru di posisi kursor
       const newValue = 
         currentValue.substring(0, selectionStart) + 
         '\n' + 
         currentValue.substring(textarea.selectionEnd);
 
-      // Memperbarui state yang sesuai
       if (editingMessage) {
         setEditText(newValue);
       } else {
         setMessage(newValue);
       }
 
-      // Atur posisi kursor setelah baris baru ditambahkan
       setTimeout(() => {
         textarea.selectionStart = textarea.selectionEnd = selectionStart + 1;
-        autoResize(textarea); // Panggil autoResize agar textarea melebar
-
-        // Pastikan textarea scroll ke bawah agar kursor selalu terlihat
+        autoResize(textarea);
         textarea.scrollTop = textarea.scrollHeight;
-
       }, 0);
 
-      return; // Hentikan eksekusi lebih lanjut
+      return;
     }
 
-    // 2. Tangani pengiriman pesan hanya dengan "Enter"
     if (e.key === 'Enter') {
       e.preventDefault();
       if (editingMessage) {
@@ -174,11 +176,7 @@ export const useMessageHandler = ({
           }).filter(Boolean); 
 
           messageIds = messagesData.map(d => d.message_id);
-
-          messageStatusIds = messagesData
-            .map(d => d.message_status_id)
-            .filter(Boolean);
-
+          messageStatusIds = messagesData.map(d => d.message_status_id).filter(Boolean);
         } else if (messageToDelete) {
           messageIds = [messageToDelete.message_id];
           if (messageToDelete.message_status_id) {

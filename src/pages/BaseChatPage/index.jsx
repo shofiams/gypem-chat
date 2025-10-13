@@ -1,5 +1,3 @@
-// src/pages/BaseChatPage/index.jsx
-
 import React, { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useChatHeader } from "../../hooks/useChatHeader";
@@ -7,8 +5,6 @@ import { useMessagesByRoom, usePinnedMessagesByRoom, useMessageOperations } from
 import { messageService } from "../../api/messageService";
 import FileUploadPopup from "../../components/FileUploadPopup";
 import ChatBubblePeserta from "../../components/ChatBubblePeserta"; 
-
-// --- Import Hooks & Komponen Modular ---
 import { useChatState } from "./hooks/useChatState";
 import { useMessageHandler } from "./hooks/useMessageHandler";
 import { useScrollManager } from "./hooks/useScrollManager";
@@ -138,6 +134,22 @@ const BaseChatPage = ({
       scrollToBottom, 
   });
 
+  // EFEK UNTUK REFETCH PESAN KETIKA ADA PESAN BARU MASUK
+  useEffect(() => {
+    const handleMessagesUpdate = (event) => {
+      // Hanya refetch jika event ini untuk chat yang sedang aktif
+      if (event.detail.roomId === actualChatId) {
+        console.log(`Refetching messages for room ${actualChatId} due to messagesUpdated event.`);
+        refetchMessages();
+      }
+    };
+
+    window.addEventListener('messagesUpdated', handleMessagesUpdate);
+    return () => {
+      window.removeEventListener('messagesUpdated', handleMessagesUpdate);
+    };
+  }, [actualChatId, refetchMessages]); // <-- Dependencies
+
    useEffect(() => {
     if (setIsSelectionMode) setIsSelectionMode(false);
     if (setSelectedMessages) setSelectedMessages(new Set());
@@ -222,8 +234,6 @@ const BaseChatPage = ({
     }
   };
 
-  // --- AWAL PERUBAHAN ---
-  // Fungsi untuk menggulir dan menyorot pesan yang direply
   const handleReplyClick = (messageId) => {
     const messageElement = messageRefs.current[messageId];
     if (messageElement) {

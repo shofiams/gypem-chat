@@ -1,7 +1,7 @@
-import React, { useState, useCallback } from 'react';
+// src/api/chat_context.jsx
+import React, { useState, useCallback, useEffect } from 'react';
 import { INITIAL_CHATS, INITIAL_MESSAGES, STARRED_MESSAGES, PINNED_MESSAGES } from './chat_constant';
 import { ChatContext } from './use_chat_context';
-
 
 export const ChatProvider = ({ children }) => {
   const [chats, setChats] = useState(INITIAL_CHATS);
@@ -9,18 +9,89 @@ export const ChatProvider = ({ children }) => {
   const [starredMessages, setStarredMessages] = useState(STARRED_MESSAGES);
   const [pinnedMessages, setPinnedMessages] = useState(PINNED_MESSAGES);
   const [activeChatId, setActiveChatId] = useState(null);
+  const [socket, setSocket] = useState(null);
+  const [onlineUsers, setOnlineUsers] = useState(new Map());
 
-  // Get all chats
+  // EFEK UNTUK MENDENGARKAN SEMUA EVENT DARI SOCKET
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleNewMessage = (newMessage) => {
+      console.log('Received newMessage event:', newMessage);
+      window.dispatchEvent(new CustomEvent('chatListRefresh'));
+      if (newMessage.room_id === activeChatId) {
+         window.dispatchEvent(new CustomEvent('messagesUpdated', { detail: { roomId: newMessage.room_id } }));
+      }
+    };
+
+    const handleMessageEdited = (editedMessage) => {
+      console.log('Received messageEdited event:', editedMessage);
+      window.dispatchEvent(new CustomEvent('chatListRefresh'));
+      if (editedMessage.room_id === activeChatId) {
+         window.dispatchEvent(new CustomEvent('messagesUpdated', { detail: { roomId: editedMessage.room_id } }));
+      }
+    };
+
+    const handleMessageDeleted = (deletedData) => {
+      console.log('Received messageDeleted event:', deletedData);
+      window.dispatchEvent(new CustomEvent('chatListRefresh'));
+      if (deletedData.room_id === activeChatId) {
+        window.dispatchEvent(new CustomEvent('messagesUpdated', { detail: { roomId: deletedData.room_id } }));
+      }
+    };
+
+    const handleInitialOnlineUsers = (users) => {
+        console.log('Received initialOnlineUsers:', users);
+        setOnlineUsers(prev => {
+            const newMap = new Map(); // Selalu mulai dari map baru agar bersih
+            users.forEach(user => {
+                const key = `${user.type}-${user.id}`;
+                newMap.set(key, user);
+            });
+            return newMap;
+        });
+    };
+
+    const handleUserStatusUpdate = (user) => {
+        console.log('Received userStatusUpdate:', user);
+        setOnlineUsers(prev => {
+            const newMap = new Map(prev);
+            const key = `${user.type}-${user.id}`;
+            if (user.is_online) {
+                newMap.set(key, user);
+            } else {
+                newMap.delete(key);
+            }
+            return newMap;
+        });
+    };
+
+    // Mulai mendengarkan semua event
+    socket.on('newMessage', handleNewMessage);
+    socket.on('messageEdited', handleMessageEdited);
+    socket.on('messageDeleted', handleMessageDeleted);
+    socket.on('initialOnlineUsers', handleInitialOnlineUsers);
+    socket.on('userStatusUpdate', handleUserStatusUpdate);
+
+    // Fungsi cleanup: berhenti mendengarkan saat komponen unmount atau socket berubah
+    return () => {
+      socket.off('newMessage', handleNewMessage);
+      socket.off('messageEdited', handleMessageEdited);
+      socket.off('messageDeleted', handleMessageDeleted);
+      socket.off('initialOnlineUsers', handleInitialOnlineUsers);
+      socket.off('userStatusUpdate', handleUserStatusUpdate);
+    };
+  }, [socket, activeChatId]);
+
+
   const getAllChats = useCallback(() => {
     return chats;
   }, [chats]);
 
-  // Get specific chat by ID
   const getChatById = useCallback((chatId) => {
     return chats.find(chat => chat.id === parseInt(chatId));
   }, [chats]);
 
-  // Get messages for specific chat
   const getChatMessages = useCallback((chatId) => {
     const messages = chatMessages[parseInt(chatId)] || [];
 
@@ -32,7 +103,6 @@ export const ChatProvider = ({ children }) => {
     }));
   }, [chatMessages, pinnedMessages]);
 
-  // Add new message to specific chat
   const addMessage = useCallback((chatId, message) => {
     const id = parseInt(chatId);
     setChatMessages(prev => ({
@@ -40,7 +110,6 @@ export const ChatProvider = ({ children }) => {
       [id]: [...(prev[id] || []), { ...message, id: Date.now() }]
     }));
 
-    // Update last message in chat list
     setChats(prev => prev.map(chat => 
       chat.id === id 
         ? { 
@@ -54,7 +123,6 @@ export const ChatProvider = ({ children }) => {
     ));
   }, []);
 
-  // Get all starred messages for star page
   const getStarredMessages = useCallback(() => {
     return Object.keys(starredMessages)
       .map((starredId) => {
@@ -78,7 +146,6 @@ export const ChatProvider = ({ children }) => {
       .filter(Boolean);
   }, [starredMessages, chats, chatMessages]);
 
-  // Add/remove starred message
   const toggleStarMessage = useCallback((chatId, messageId) => {
     const chatIdNum = parseInt(chatId);
     const isCurrentlyStarred = Object.values(starredMessages).some(star => 
@@ -91,12 +158,10 @@ export const ChatProvider = ({ children }) => {
       );
       
       if (starKey) {
-        // Remove star
         const newStarred = { ...prev };
         delete newStarred[starKey];
         return newStarred;
       } else {
-        // Add star
         const newId = Math.max(...Object.keys(prev).map(k => parseInt(k)), 0) + 1;
         return {
           ...prev,
@@ -113,14 +178,12 @@ export const ChatProvider = ({ children }) => {
     }));
   }, [starredMessages]);
 
-  // Check if message is starred
   const isMessageStarred = useCallback((chatId, messageId) => {
     return Object.values(starredMessages).some(star => 
       star.chatId === parseInt(chatId) && star.messageId === messageId
     );
   }, [starredMessages]);
 
-  // Get all pinned messages
   const getPinnedMessage = useCallback(() => {
     return Object.keys(pinnedMessages)
       .map((pinnedId) => {
@@ -144,14 +207,12 @@ export const ChatProvider = ({ children }) => {
       .filter(Boolean);
   }, [pinnedMessages, chats, chatMessages]);
 
-  // Check if message is pinned
   const isMessagePinned = useCallback((chatId, messageId) => {
     return Object.values(pinnedMessages).some(pin => 
       pin.chatId === parseInt(chatId) && pin.messageId === messageId
     );
   }, [pinnedMessages]);
 
-  // Add/remove pinned message
   const togglePinMessage = useCallback((chatId, messageId) => {
     const chatIdNum = parseInt(chatId);
     const isCurrentlyPinned = Object.values(pinnedMessages).some(pin => 
@@ -164,12 +225,10 @@ export const ChatProvider = ({ children }) => {
       );
       
       if (pinKey) {
-        // Remove pin
         const newPinned = { ...prev };
         delete newPinned[pinKey];
         return newPinned;
       } else {
-        // Add pin
         const newId = Math.max(...Object.keys(prev).map(k => parseInt(k)), 0) + 1;
         return {
           ...prev,
@@ -186,7 +245,6 @@ export const ChatProvider = ({ children }) => {
     }));
   }, [pinnedMessages]);
 
-  // Search All Messages in all chats/rooms
   const searchAllMessages = useCallback((query) => {
     if (!query.trim()) return { oneToOneChats: [], groupChats: [], messages: [] };
     
@@ -208,7 +266,6 @@ export const ChatProvider = ({ children }) => {
         }
       }
       
-      // Check ALL messages in this chat (including last message)
       const messagesInChat = chatMessages[chat.id] || [];
       messagesInChat.forEach(message => {
         const searchText = (message.message || message.file?.name || '').toLowerCase();
@@ -234,7 +291,6 @@ export const ChatProvider = ({ children }) => {
     return { oneToOneChats, groupChats, messages };
   }, [chats, chatMessages]);
 
-  // Delete message from specific chat
   const deleteMessage = useCallback((chatId, messageId) => {
     const id = parseInt(chatId);
     setChatMessages(prev => ({
@@ -243,7 +299,6 @@ export const ChatProvider = ({ children }) => {
     }));
   }, []);
 
-  // Update message in specific chat
   const updateMessage = useCallback((chatId, messageId, updates) => {
     const id = parseInt(chatId);
     setChatMessages(prev => ({
@@ -254,7 +309,6 @@ export const ChatProvider = ({ children }) => {
     }));
   }, []);
 
-  // add new chat - Updated to support API data
   const createNewChat = (chatData) => {
     const newChatId = Math.max(...chats.map(c => c.id), 0) + 1;
     
@@ -272,7 +326,6 @@ export const ChatProvider = ({ children }) => {
       showCentangAbu: false,
       type: "one-to-one", 
       ...chatData,
-      // Ensure API data is preserved
       roomId: chatData.roomId,
       roomMemberId: chatData.roomMemberId,
       adminId: chatData.adminId
@@ -280,7 +333,6 @@ export const ChatProvider = ({ children }) => {
     
     setChats(prevChats => [...prevChats, newChat]);
     
-    // Initialize empty messages array for new chat
     setChatMessages(prev => ({
       ...prev,
       [newChatId]: []
@@ -289,7 +341,6 @@ export const ChatProvider = ({ children }) => {
     return newChatId;
   };
 
-  // Delete entire chat
   const deleteChat = useCallback((chatId) => {
     const id = parseInt(chatId);
     setChats(prev => prev.filter(chat => chat.id !== id));
@@ -300,7 +351,6 @@ export const ChatProvider = ({ children }) => {
     });
   }, []);
 
-  // Mark chat as read
   const markChatAsRead = useCallback((chatId) => {
     const id = parseInt(chatId);
     setChats(prev => prev.map(chat => 
@@ -308,7 +358,6 @@ export const ChatProvider = ({ children }) => {
     ));
   }, []);
 
-  // Update chat online status (for real-time updates)
   const updateChatOnlineStatus = useCallback((chatId, isOnline) => {
     const id = parseInt(chatId);
     setChats(prev => prev.map(chat => 
@@ -316,22 +365,18 @@ export const ChatProvider = ({ children }) => {
     ));
   }, []);
 
-  // Set active chat
   const setActiveChat = useCallback((chatId) => {
     setActiveChatId(chatId);
   }, []);
 
-  // Clear active chat
   const clearActiveChat = useCallback(() => {
     setActiveChatId(null);
   }, []);
 
-  // NEW: Find chat by adminId (untuk cek existing chat)
   const getChatByAdminId = useCallback((adminId) => {
     return chats.find(chat => chat.adminId === adminId && chat.type !== 'group');
   }, [chats]);
 
-  // NEW: Update chat with API room data
   const updateChatWithRoomData = useCallback((chatId, roomData) => {
     const id = parseInt(chatId);
     setChats(prev => prev.map(chat => 
@@ -339,42 +384,35 @@ export const ChatProvider = ({ children }) => {
         ...chat, 
         roomId: roomData.room_id,
         roomMemberId: roomData.room_member_id,
-        // Update other relevant API fields if needed
       } : chat
     ));
   }, []);
 
   const value = {
-    // Data
     chats,
     chatMessages,
     activeChatId,
-    
-    // Chat operations
+    socket,
+    setSocket,
+    onlineUsers,
     getAllChats,
     getChatById,
-    getChatByAdminId, // NEW
+    getChatByAdminId,
     createNewChat,
     deleteChat,
     markChatAsRead,
     updateChatOnlineStatus,
-    updateChatWithRoomData, // NEW
+    updateChatWithRoomData,
     setActiveChat,
     clearActiveChat,
-    
-    // Message operations
     searchAllMessages,
     getChatMessages,
     addMessage,
     deleteMessage,
     updateMessage,
-
-    // Starred messages operations
     getStarredMessages,
     toggleStarMessage,
     isMessageStarred,
-
-    // Pinned messages operations
     getPinnedMessage,
     togglePinMessage,
     isMessagePinned,
