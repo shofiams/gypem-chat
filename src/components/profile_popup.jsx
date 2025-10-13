@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { FaUserCircle } from "react-icons/fa";
+import { HiUserCircle } from "react-icons/hi2"; // Mengganti FaUserCircle
 
 export default function ProfilePopup({
   isOpen,
@@ -136,15 +136,17 @@ export default function ProfilePopup({
         {/* Desktop */}
         <div className="md:flex w-full max-md:hidden overflow-hidden rounded-xl">
           <div className="w-[180px] bg-[#f5f5f5] flex items-center justify-center gap-4 px-4">
-            {isDefaultProfile ? (
-              <FaUserCircle className="w-12 h-12 text-gray-400" />
-            ) : (
-              <img
-                src={profileImage}
-                alt="Profile"
-                className="w-12 h-12 rounded-full object-cover"
-              />
-            )}
+            <div className="w-12 h-12 rounded-full overflow-hidden">
+                {isDefaultProfile ? (
+                  <HiUserCircle className="w-full h-full text-gray-400" />
+                ) : (
+                  <img
+                    src={profileImage}
+                    alt="Profile"
+                    className="w-full h-full object-cover"
+                  />
+                )}
+            </div>
             <span className="text-gray-900 text-base font-medium">Profile</span>
           </div>
 
@@ -152,54 +154,53 @@ export default function ProfilePopup({
 
           <div className="flex-1 p-6 relative bg-white overflow-y-auto profile-scroll">
             <div className="relative flex flex-col items-center">
-              <div className="relative">
+              <div className="relative w-24 h-24 rounded-full overflow-hidden">
                 {isDefaultProfile ? (
-                  <FaUserCircle className="w-24 h-24 text-gray-300" />
+                  <HiUserCircle className="w-full h-full text-gray-300" />
                 ) : (
                   <img
                     src={profileImage}
                     alt="Preview"
-                    className="w-24 h-24 rounded-full object-cover cursor-pointer"
+                    className="w-full h-full object-cover cursor-pointer"
                     onClick={handleImageClick}
                   />
                 )}
-
-                {showEditOptionsDesktop && (
-                  <div
-                    ref={editRefDesktop}
-                    className="absolute top-16 left-24 bg-white shadow-lg rounded-2xl w-[140px] border border-gray-200 overflow-hidden"
-                    style={{ zIndex: 9999 }}
-                  >
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        triggerFileInput();
-                      }}
-                      className="block w-full text-center py-3 text-black cursor-pointer hover:bg-gray-50"
-                    >
-                      Change image
-                    </button>
-
-                    {!isDefaultProfile && (
-                      <>
-                        <hr className="border-gray-200" />
-                        <button
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            removeImage();
-                          }}
-                          className="block w-full text-center py-3 text-red-500 hover:bg-red-50"
-                        >
-                          Remove image
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
               </div>
 
+              {showEditOptionsDesktop && (
+                <div
+                  ref={editRefDesktop}
+                  className="absolute top-16 left-24 bg-white shadow-lg rounded-2xl w-[140px] border border-gray-200 overflow-hidden"
+                  style={{ zIndex: 9999 }}
+                >
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      triggerFileInput();
+                    }}
+                    className="block w-full text-center py-3 text-black cursor-pointer hover:bg-gray-50"
+                  >
+                    Change image
+                  </button>
+                  {!isDefaultProfile && (
+                    <>
+                      <hr className="border-gray-200" />
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          removeImage();
+                        }}
+                        className="block w-full text-center py-3 text-red-500 hover:bg-red-50"
+                      >
+                        Remove image
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
+              
               <p
                 className="text-yellow-500 mt-2 cursor-pointer text-center"
                 onClick={() =>
@@ -245,54 +246,53 @@ export default function ProfilePopup({
         {/* Mobile */}
         <div className="md:hidden w-full h-full bg-white overflow-y-auto profile-scroll flex flex-col">
           <div className="flex flex-col place-items-center py-14">
-            <div className="relative">
-              {isDefaultProfile ? (
-                <FaUserCircle className="w-28 h-28 text-gray-300" />
-              ) : (
-                <img
-                  src={profileImage}
-                  alt="Profile"
-                  className="w-28 h-28 rounded-full object-cover cursor-pointer"
-                  onClick={handleImageClick}
-                />
-              )}
-
-              {showEditOptionsMobile && (
-                <div
-                  ref={editRefMobile}
-                  className="absolute top-1 left-0 transform -translate-x-3 translate-y-36 bg-white shadow-lg rounded-2xl w-[140px] border border-gray-200 overflow-hidden"
-                  style={{ zIndex: 9999 }}
-                >
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      triggerFileInput();
-                    }}
-                    className="block w-full text-center py-3 text-black cursor-pointer hover:bg-gray-50"
-                  >
-                    Change image
-                  </button>
-
-                  {!isDefaultProfile && (
-                    <>
-                      <hr className="border-gray-200" />
-                      <button
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          removeImage();
-                        }}
-                        className="block w-full text-center py-3 text-red-500 hover:bg-red-50"
-                      >
-                        Remove image
-                      </button>
-                    </>
-                  )}
-                </div>
-              )}
+            <div className="relative w-28 h-28 rounded-full overflow-hidden">
+                {isDefaultProfile ? (
+                  <HiUserCircle className="w-full h-full text-gray-300" />
+                ) : (
+                  <img
+                    src={profileImage}
+                    alt="Profile"
+                    className="w-full h-full object-cover cursor-pointer"
+                    onClick={handleImageClick}
+                  />
+                )}
             </div>
 
+            {showEditOptionsMobile && (
+              <div
+                ref={editRefMobile}
+                className="absolute top-1 left-0 transform -translate-x-3 translate-y-36 bg-white shadow-lg rounded-2xl w-[140px] border border-gray-200 overflow-hidden"
+                style={{ zIndex: 9999 }}
+              >
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    triggerFileInput();
+                  }}
+                  className="block w-full text-center py-3 text-black cursor-pointer hover:bg-gray-50"
+                >
+                  Change image
+                </button>
+                {!isDefaultProfile && (
+                  <>
+                    <hr className="border-gray-200" />
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        removeImage();
+                      }}
+                      className="block w-full text-center py-3 text-red-500 hover:bg-red-50"
+                    >
+                      Remove image
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+            
             <div className="mt-2">
               <p
                 className="text-yellow-500 font-medium cursor-pointer"

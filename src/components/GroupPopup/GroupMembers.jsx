@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import defaultAvatar from "../../assets/User.svg";
+import { HiUserCircle } from "react-icons/hi2";
 
 export default function GroupMembers({
   members,
@@ -34,18 +34,20 @@ export default function GroupMembers({
                 className="flex items-center px-4 py-3 border-b border-gray-300 last:border-none"
               >
                 {/* Foto anggota */}
-                <img
-                  src={imageSource}
-                  alt={member.name}
-                  className="w-9 h-9 rounded-full mr-3 object-cover border border-gray-300"
-                  onError={() => {
-                    // ✅ Hanya set error, tidak ada kondisi
-                    setImageErrors(prev => ({
-                      ...prev,
-                      [memberKey]: true
-                    }));
-                  }}
-                />
+                 <div className="w-9 h-9 rounded-full mr-3 object-cover border border-gray-300 overflow-hidden flex-shrink-0">
+                        {member.photo && !hasImageError ? (
+                            <img
+                                src={member.photo}
+                                alt={member.name}
+                                className="w-full h-full object-cover"
+                                onError={() => {
+                                    setImageErrors(prev => ({ ...prev, [memberKey]: true }));
+                                }}
+                            />
+                        ) : (
+                            <HiUserCircle className="w-full h-full text-gray-400" />
+                        )}
+                    </div>
                 
                 {/* Nama anggota */}
                 <span className="flex-1">{member.name}</span>

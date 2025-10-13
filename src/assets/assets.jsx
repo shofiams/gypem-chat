@@ -42,6 +42,9 @@ import ArrowUp from "../assets/arrow-up.svg";
 import ArrowDown from "../assets/arrow-down.svg";
 import CancelClose from "../assets/cancel-close.svg";
 import ArrowDownThin from "../assets/arrow-down-thin.svg";
+import DefaultAvatar from "../assets/DefaultAvatar.svg"
+import ImageIcon from "../assets/ImageIcon.svg"
+import DocumentIcon from "../assets/DocumentIcon.svg"
 
 
 
@@ -89,5 +92,8 @@ export const assets = {
     ArrowUp,
     ArrowDown,
     CancelClose,
-    ArrowDownThin
+    ArrowDownThin,
+    DefaultAvatar,
+    ImageIcon,
+    DocumentIcon
 }

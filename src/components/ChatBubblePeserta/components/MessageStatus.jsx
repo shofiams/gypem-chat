@@ -48,7 +48,15 @@ const MessageStatus = (props) => {
         />
       )}
       {isSender && (
-        <img src={assets.Ceklis} alt="sent" className="w-3 h-3" />
+        <img
+          src={assets.Ceklis}
+          alt="sent"
+          className="w-3 h-3"
+          style={{
+            filter:
+              "brightness(0) saturate(100%) invert(48%) sepia(85%) saturate(1374%) hue-rotate(186deg) brightness(97%) contrast(96%)",
+          }}
+        />
       )}
     </div>
   );
