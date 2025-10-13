@@ -11,7 +11,7 @@ import {
 import { useRoomDetails } from "../../hooks/useRooms";
 import { useRoomMedia } from "../../hooks/useMessages";
 import { authService } from "../../api/auth";
-import logo from "../../assets/User.svg";
+import logo from "../../assets/DefaultAvatar.svg";
 import GroupOverview from "./GroupOverview";
 import GroupMembers from "./GroupMembers";
 import GroupMedia from "./GroupMedia";
@@ -131,10 +131,12 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
-  const processedMembers = useMemo(() => {
+ const processedMembers = useMemo(() => {
     if (!roomDetails?.members) return [];
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_FILE; 
-    const mappedMembers = roomDetails.members.map(member => {
+    const activeMembers = roomDetails.members.filter(member => !member.is_left);
+    
+    const mappedMembers = activeMembers.map(member => {
       let photoUrl = null;
       if (member.profile_photo) {
         photoUrl = member.profile_photo.startsWith('http://') || member.profile_photo.startsWith('https://') 
