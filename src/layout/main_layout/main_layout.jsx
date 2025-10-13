@@ -118,6 +118,22 @@ const MainLayout = () => {
   }, [navigate, setActiveChat, clearActiveChat, location.pathname]);
 
   useEffect(() => {
+  const handleSetActiveChatEvent = (event) => {
+    const { chatId } = event.detail;
+    console.log('MainLayout: setActiveChat event received, chatId:', chatId);
+    if (chatId) {
+      setActiveChat(chatId);
+    }
+  };
+  
+  window.addEventListener('setActiveChat', handleSetActiveChatEvent);
+  
+  return () => {
+    window.removeEventListener('setActiveChat', handleSetActiveChatEvent);
+  };
+}, [setActiveChat]);
+
+  useEffect(() => {
     const handleOutsideClick = (e) => {
       if (window.innerWidth < 768 || !isSidebarOpen || !sidebarRef.current) return;
       if (!sidebarRef.current.contains(e.target)) setIsSidebarOpen(false);
