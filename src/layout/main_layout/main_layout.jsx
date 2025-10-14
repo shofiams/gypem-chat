@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useChatContext } from '../../api/use_chat_context';
 import { useRooms } from '../../hooks/useRooms';
 import { useStarredMessages } from '../../hooks/useStarredMessages';
+import { getSocket, disconnectSocket } from '../../api/socketService';
 
 // Import komponen yang sudah dimodularisasi
 import DesktopSidebar from '../main_layout/components/DekstopSidebar';
@@ -20,7 +21,8 @@ const MainLayout = () => {
   const [isProfilePopupOpen, setIsProfilePopupOpen] = useState(false);
   const [profileImage, setProfileImage] = useState("");
   
-  const { clearActiveChat, setActiveChat } = useChatContext();
+  // const { clearActiveChat, setActiveChat } = useChatContext();
+  const { clearActiveChat, setActiveChat, setSocket } = useChatContext();
   const navigate = useNavigate();
   const location = useLocation();
   const sidebarRef = useRef(null);
@@ -145,6 +147,30 @@ const MainLayout = () => {
       window.removeEventListener('touchstart', handleOutsideClick);
     };
   }, [isSidebarOpen]);
+
+  // EFEK UNTUK MANAJEMEN KONEKSI SOCKET
+  useEffect(() => {
+    const isChatFeature = location.pathname.startsWith('/chats') || location.pathname.startsWith('/group');
+  
+    if (isChatFeature) {
+      // Jika berada di fitur chat, buat koneksi
+      console.log("Navigated to a chat page, connecting socket...");
+      const socketInstance = getSocket();
+      setSocket(socketInstance);
+    } else {
+      // Jika di luar fitur chat, putuskan koneksi
+      console.log("Navigated away from chat pages, disconnecting socket...");
+      disconnectSocket();
+      setSocket(null);
+    }
+  
+    // Fungsi cleanup ini akan berjalan saat MainLayout di-unmount (misalnya saat logout)
+    return () => {
+      console.log("MainLayout is unmounting. Ensuring socket is disconnected.");
+      disconnectSocket();
+      setSocket(null);
+    };
+  }, [location.pathname, setSocket]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">

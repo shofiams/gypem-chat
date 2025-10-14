@@ -147,7 +147,7 @@ const FileUploadPopup = ({ isOpen, onClose, onSend, fileButtonRef }) => {
               className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
             >
               <img src={assets.Image} alt="Images" className="w-6 h-6" />
-              <span className="text-sm font-medium text-gray-800">Images</span>
+              <span className="text-sm font-medium text-gray-800">Photo</span>
             </button>
             <button
               onClick={handleDocumentSelect}

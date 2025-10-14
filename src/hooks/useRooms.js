@@ -1,3 +1,4 @@
+// src/hooks/useRooms.js
 import { useState, useEffect, useCallback } from "react";
 import { roomService } from "../api/roomService";
 
@@ -14,8 +15,23 @@ export const useRooms = () => {
       const result = await roomService.fetchRooms();
 
       if (result.success) {
-        setRooms(result.data);
-        return result.data;
+        // --- PERBAIKAN DI SINI ---
+        // Olah data untuk menambahkan 'admin_id' ke level atas
+        const processedRooms = result.data.map(room => {
+          if (room.room_type === 'one_to_one' && room.members) {
+            const adminMember = room.members.find(member => member.member_type === 'admin');
+            if (adminMember) {
+              return { ...room, admin_id: adminMember.member_id };
+            }
+          }
+          return room;
+        });
+        
+        console.log("Processed rooms with admin_id:", processedRooms);
+        setRooms(processedRooms);
+        return processedRooms;
+        // --- AKHIR PERBAIKAN ---
+
       } else {
         setError(result.message);
         setRooms([]);
@@ -30,24 +46,21 @@ export const useRooms = () => {
     }
   }, []);
 
-  // Tambah room optimistic ke list
   const addOptimisticRoom = useCallback((optimisticRoom) => {
     setRooms(currentRooms => [optimisticRoom, ...currentRooms]);
   }, []);
 
-  // Update room optimistic dengan data server
   const updateOptimisticRoom = useCallback((optimisticId, serverData) => {
     setRooms(currentRooms =>
       currentRooms.map(room =>
         room.optimisticId === optimisticId
-          ? { ...serverData, optimisticId: undefined } // Hapus optimisticId setelah update
+          ? { ...serverData, optimisticId: undefined }
           : room
       )
     );
   }, []);
 
-  // Hapus room optimistic jika gagal
-   const removeOptimisticRoom = useCallback((optimisticId) => {
+  const removeOptimisticRoom = useCallback((optimisticId) => {
     setRooms(currentRooms =>
       currentRooms.filter(room => room.optimisticId !== optimisticId)
     );
@@ -62,7 +75,6 @@ export const useRooms = () => {
     loading,
     error,
     refetch: fetchRooms,
-    // --- EXPORT FUNGSI BARU ---
     addOptimisticRoom,
     updateOptimisticRoom,
     removeOptimisticRoom,
@@ -75,7 +87,6 @@ export const useRoomDetails = (roomId) => {
   const [error, setError] = useState(null);
 
   const fetchRoomDetails = useCallback(async () => {
-    // Jika tidak ada roomId, jangan lakukan apa-apa dan pastikan loading false.
     if (!roomId) {
       setLoading(false);
       return;
@@ -105,7 +116,6 @@ export const useRoomDetails = (roomId) => {
   }, [roomId]);
 
   useEffect(() => {
-    // Panggil fetch hanya jika ada roomId.
     if (roomId) {
       fetchRoomDetails();
     }
@@ -145,7 +155,7 @@ export const useRoomOperations = () => {
     }
   }, []);
 
-const leave = useCallback(async (roomMemberId) => {
+  const leave = useCallback(async (roomMemberId) => {
     setLoading(true);
     setError(null);
 
