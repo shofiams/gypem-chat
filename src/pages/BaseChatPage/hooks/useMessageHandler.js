@@ -1,6 +1,5 @@
 // src/pages/BaseChatPage/hooks/useMessageHandler.js
-
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { useChatContext } from '../../../api/use_chat_context';
 import { useMessageOperations } from '../../../hooks/useMessages';
 
@@ -23,6 +22,9 @@ export const useMessageHandler = ({
 }) => {
   const { socket } = useChatContext();
   const { updateMessage, deleteMessagesForMe, deleteMessagesGlobally } = useMessageOperations();
+  
+  const typingTimeoutRef = useRef(null);
+  const isTypingRef = useRef(false);
 
   const autoResize = (textarea) => {
     if (!textarea) return;
@@ -40,19 +42,15 @@ export const useMessageHandler = ({
     if (!message.trim() || !socket) return;
 
     const payload = {
-      room_id: actualChatId,
+      room_id: parseInt(actualChatId),
       content: message.trim(),
       reply_to_message_id: replyingMessage ? replyingMessage.message_id : null,
     };
 
-    console.log("Emitting sendMessage with payload:", payload);
-
     socket.emit('sendMessage', payload, (response) => {
       if (response && response.status === 'ok') {
-        console.log('Message sent successfully via socket, response:', response);
         refetchMessages();
       } else {
-        console.error("Failed to send message via socket:", response ? response.message : 'No response');
         alert("Gagal mengirim pesan: " + (response ? response.message : 'Tidak ada respons dari server'));
       }
     });
@@ -61,9 +59,7 @@ export const useMessageHandler = ({
     setReplyingMessage(null);
 
     setTimeout(() => {
-      if (scrollToBottom) {
-        scrollToBottom('auto');
-      }
+      if (scrollToBottom) scrollToBottom('auto');
     }, 100);
 
     setTimeout(() => {
@@ -82,7 +78,6 @@ export const useMessageHandler = ({
       setEditingMessage(null);
       setEditText("");
       refetchMessages();
-
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.style.height = 'auto';
@@ -90,9 +85,7 @@ export const useMessageHandler = ({
           inputRef.current.style.overflowY = 'hidden';
         }
       }, 10);
-
     } else {
-      console.error("Failed to update message:", result.error);
       alert("Gagal mengedit pesan: " + (result.error || 'Unknown error'));
     }
   };
@@ -105,6 +98,20 @@ export const useMessageHandler = ({
       setMessage(value);
     }
     setTimeout(() => autoResize(e.target), 0);
+
+    if (!socket || !actualChatId) return;
+
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      socket.emit('typingStart', { roomId: parseInt(actualChatId) });
+    }
+
+    clearTimeout(typingTimeoutRef.current);
+
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      socket.emit('typingStop', { roomId: parseInt(actualChatId) });
+    }, 2000);
   };
 
   const handleCancelEdit = () => {
@@ -122,31 +129,25 @@ export const useMessageHandler = ({
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && (e.shiftKey || e.altKey)) {
       e.preventDefault();
-
       const textarea = e.target;
       const currentValue = editingMessage ? editText : message;
       const selectionStart = textarea.selectionStart;
-
       const newValue = 
         currentValue.substring(0, selectionStart) + 
         '\n' + 
         currentValue.substring(textarea.selectionEnd);
-
       if (editingMessage) {
         setEditText(newValue);
       } else {
         setMessage(newValue);
       }
-
       setTimeout(() => {
         textarea.selectionStart = textarea.selectionEnd = selectionStart + 1;
         autoResize(textarea);
         textarea.scrollTop = textarea.scrollHeight;
       }, 0);
-
       return;
     }
-
     if (e.key === 'Enter') {
       e.preventDefault();
       if (editingMessage) {
@@ -158,81 +159,64 @@ export const useMessageHandler = ({
   };
   
   const handleFinalDelete = useCallback(async () => {
-      try {
-        let messageStatusIds = [];
-        let messageIds = [];
+    try {
+      let messageStatusIds = [];
+      let messageIds = [];
 
-        if (isSelectionMode) {
-          const messagesData = Array.from(selectedMessages).map(msgId => {
-            const msg = flattenedMessages.find(m => m.message_id === msgId);
-            if (!msg) {
-              console.warn(`Message with ID ${msgId} not found in the current chat's flattenedMessages.`);
-              return null;
-            }
-            return {
-              message_id: msg.message_id,
-              message_status_id: msg.message_status?.message_status_id,
-            };
-          }).filter(Boolean); 
-
-          messageIds = messagesData.map(d => d.message_id);
-          messageStatusIds = messagesData.map(d => d.message_status_id).filter(Boolean);
-        } else if (messageToDelete) {
-          messageIds = [messageToDelete.message_id];
-          if (messageToDelete.message_status_id) {
-            messageStatusIds = [messageToDelete.message_status_id];
+      if (isSelectionMode) {
+        const messagesData = Array.from(selectedMessages).map(msgId => {
+          const msg = flattenedMessages.find(m => m.message_id === msgId);
+          if (!msg) {
+            console.warn(`Message with ID ${msgId} not found.`);
+            return null;
           }
-        }
-
-        if (selectedDeleteOption === 'everyone' && messageIds.length === 0) {
-          alert('Error: Tidak ada ID pesan yang valid untuk dihapus.');
-          return;
-        }
-        if (selectedDeleteOption === 'me' && messageStatusIds.length === 0) {
-          alert('Error: Tidak dapat menemukan status pesan untuk dihapus. Cek konsol untuk info lebih lanjut.');
-          console.error("Debug Info:", { messageToDelete, selectedMessages: Array.from(selectedMessages) });
-          return;
-        }
-        
-        const result = selectedDeleteOption === 'everyone'
-          ? await deleteMessagesGlobally(messageIds)
-          : await deleteMessagesForMe(messageStatusIds);
-
-        if (result.success) {
-          refetchMessages();
-          if (refetchPinnedMessages) {
-            refetchPinnedMessages();
-          }
-        } else {
-          alert('Gagal menghapus pesan: ' + (result.error || 'Unknown error'));
-        }
-      } catch (error) {
-        alert('Gagal menghapus pesan: ' + error.message);
-      } finally {
-        setShowDeleteModal(false);
-        setMessageToDelete(null);
-        setSelectedDeleteOption('me');
-        if (isSelectionMode) {
-          setIsSelectionMode(false);
-          setSelectedMessages(new Set());
+          return {
+            message_id: msg.message_id,
+            message_status_id: msg.message_status?.message_status_id,
+          };
+        }).filter(Boolean); 
+        messageIds = messagesData.map(d => d.message_id);
+        messageStatusIds = messagesData.map(d => d.message_status_id).filter(Boolean);
+      } else if (messageToDelete) {
+        messageIds = [messageToDelete.message_id];
+        if (messageToDelete.message_status_id) {
+          messageStatusIds = [messageToDelete.message_status_id];
         }
       }
-    }, [
-      isSelectionMode,
-      selectedMessages,
-      messageToDelete,
-      selectedDeleteOption,
-      flattenedMessages,
-      deleteMessagesGlobally,
-      deleteMessagesForMe,
-      refetchMessages,
-      refetchPinnedMessages,
-      setShowDeleteModal,
-      setMessageToDelete,
-      setSelectedDeleteOption,
-      setIsSelectionMode,
-      setSelectedMessages,
-    ]);
+      if (selectedDeleteOption === 'everyone' && messageIds.length === 0) {
+        alert('Error: Tidak ada ID pesan yang valid untuk dihapus.');
+        return;
+      }
+      if (selectedDeleteOption === 'me' && messageStatusIds.length === 0) {
+        alert('Error: Tidak dapat menemukan status pesan untuk dihapus.');
+        return;
+      }
+      const result = selectedDeleteOption === 'everyone'
+        ? await deleteMessagesGlobally(messageIds)
+        : await deleteMessagesForMe(messageStatusIds);
+      if (result.success) {
+        refetchMessages();
+        if (refetchPinnedMessages) refetchPinnedMessages();
+      } else {
+        alert('Gagal menghapus pesan: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      alert('Gagal menghapus pesan: ' + error.message);
+    } finally {
+      setShowDeleteModal(false);
+      setMessageToDelete(null);
+      setSelectedDeleteOption('me');
+      if (isSelectionMode) {
+        setIsSelectionMode(false);
+        setSelectedMessages(new Set());
+      }
+    }
+  }, [
+    isSelectionMode, selectedMessages, messageToDelete, selectedDeleteOption,
+    flattenedMessages, deleteMessagesGlobally, deleteMessagesForMe, refetchMessages,
+    refetchPinnedMessages, setShowDeleteModal, setMessageToDelete, setSelectedDeleteOption,
+    setIsSelectionMode, setSelectedMessages,
+  ]);
 
   return {
     handleSend,

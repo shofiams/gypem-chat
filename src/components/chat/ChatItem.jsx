@@ -42,10 +42,13 @@ const ChatItem = ({
     admin_id,
 }) => {
 
-    const { onlineUsers } = useChatContext();
+    const { onlineUsers, typingUsers } = useChatContext();
 
     const onlineUserKey = `admin-${admin_id}`;
     const isOnline = room_type === 'one_to_one' && onlineUsers.has(onlineUserKey);
+
+    const usersTypingInRoom = typingUsers.get(room_id);
+    const isSomeoneTyping = usersTypingInRoom && usersTypingInRoom.length > 0;
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace("/api/", "");
 
@@ -56,6 +59,10 @@ const ChatItem = ({
     };
 
     const renderLastMessageContent = () => {
+        if (isSomeoneTyping) {
+            return <span className="text-purple-600">mengetik...</span>;
+        }
+
         const messageType = last_message_type || 'text';
         
         if (messageType === 'image') {
@@ -88,7 +95,7 @@ const ChatItem = ({
     };
 
     const renderLastMessageStatus = () => {
-        if (!is_last_message_mine) return null;
+        if (!is_last_message_mine || isSomeoneTyping) return null;
         
         const wasEdited = last_message_updated_at && 
             new Date(last_message_updated_at) > new Date(last_message_created_at);
@@ -278,7 +285,7 @@ const ChatItem = ({
 
                         <div className="flex flex-col items-end ml-3 shrink-0">
                             <span className="text-xs md:text-[10px] text-gray-400 leading-tight">{displayTime}</span>
-                            {unread_count > 0 && (
+                            {unread_count > 0 && !isSomeoneTyping && (
                                 <span
                                     className="bg-purple-800 text-white text-xs md:text-[9px] rounded-full w-5 h-5 md:w-4 md:h-4 flex items-center justify-center leading-none mt-1"
                                     aria-label={`${unread_count} unread`}

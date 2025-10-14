@@ -6,10 +6,12 @@ import { useChatContext } from '../api/use_chat_context';
 export const useChatHeader = (chatId, isGroupChat) => {
   const { rooms, loading: roomsLoading } = useRooms();
   const { roomDetails, loading: roomDetailsLoading, error } = useRoomDetails(chatId);
-  const { onlineUsers } = useChatContext();
+  const { onlineUsers, typingUsers } = useChatContext();
 
   const headerData = useMemo(() => {
     const API_BASE_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
+    
+    const usersTypingInRoom = typingUsers.get(parseInt(chatId));
 
     if (!isGroupChat) {
       if (roomsLoading) return { name: 'Loading...', subtitle: '', isGroup: false };
@@ -20,10 +22,15 @@ export const useChatHeader = (chatId, isGroupChat) => {
         const onlineUserKey = `admin-${chatFromList.admin_id}`;
         const isOnline = onlineUsers.has(onlineUserKey);
 
+        let subtitle = isOnline ? 'Online' : 'Offline';
+        if (usersTypingInRoom && usersTypingInRoom.length > 0) {
+          subtitle = 'mengetik...';
+        }
+
         return {
           name: chatFromList.name,
           avatar: chatFromList.url_photo ? `${API_BASE_URL}/uploads/${chatFromList.url_photo}` : null,
-          subtitle: isOnline ? 'Online' : 'Offline',
+          subtitle: subtitle,
           isOnline: isOnline,
           isGroup: false,
         };
@@ -36,25 +43,19 @@ export const useChatHeader = (chatId, isGroupChat) => {
 
       if (roomDetails) {
         const { room, members } = roomDetails;
-        const mappedMembers = members?.map(member => ({
-          name: member.name,
-          isAdmin: member.member_type === 'admin'
-        })) || [];
-        const sortedMembers = mappedMembers.sort((a, b) => {
-          if (a.isAdmin && !b.isAdmin) return -1;
-          if (!a.isAdmin && b.isAdmin) return 1;
-          return a.name.localeCompare(b.name, 'id', { sensitivity: 'base' });
-        });
-        const memberNames = sortedMembers.map(m => m.name);
-        const totalMembers = memberNames.length;
-        let subtitle = '';
-        if (totalMembers > 0) {
-            const namesToShow = memberNames.slice(0, 5);
-            subtitle = namesToShow.join(', ');
-            if (totalMembers > 5) {
-                subtitle += ', ...';
-            }
+        let subtitle;
+        
+        if (usersTypingInRoom && usersTypingInRoom.length > 0) {
+          const names = usersTypingInRoom.map(u => u.name).join(', ');
+          subtitle = `${names} sedang mengetik...`;
+        } else {
+          const memberNames = (members?.map(m => m.name) || []).slice(0, 5);
+          subtitle = memberNames.join(', ');
+          if (members?.length > 5) {
+            subtitle += ', ...';
+          }
         }
+
         return {
           name: room?.description?.name || 'Group Chat',
           avatar: room?.description?.url_photo ? `${API_BASE_URL}/uploads/${room.description.url_photo}` : null,
@@ -73,7 +74,7 @@ export const useChatHeader = (chatId, isGroupChat) => {
       isOnline: false,
       isGroup: isGroupChat
     };
-  }, [chatId, isGroupChat, roomDetails, roomDetailsLoading, error, rooms, roomsLoading, onlineUsers]);
+  }, [chatId, isGroupChat, roomDetails, roomDetailsLoading, error, rooms, roomsLoading, onlineUsers, typingUsers]);
 
   return headerData;
 };

@@ -11,11 +11,13 @@ export const ChatProvider = ({ children }) => {
   const [activeChatId, setActiveChatId] = useState(null);
   const [socket, setSocket] = useState(null);
   const [onlineUsers, setOnlineUsers] = useState(new Map());
+  const [typingUsers, setTypingUsers] = useState(new Map()); // <-- State baru untuk typing
 
   // EFEK UNTUK MENDENGARKAN SEMUA EVENT DARI SOCKET
   useEffect(() => {
     if (!socket) return;
 
+    // --- EVENT UNTUK PESAN ---
     const handleNewMessage = (newMessage) => {
       console.log('Received newMessage event:', newMessage);
       window.dispatchEvent(new CustomEvent('chatListRefresh'));
@@ -40,10 +42,11 @@ export const ChatProvider = ({ children }) => {
       }
     };
 
+    // --- EVENT UNTUK STATUS ONLINE ---
     const handleInitialOnlineUsers = (users) => {
         console.log('Received initialOnlineUsers:', users);
         setOnlineUsers(prev => {
-            const newMap = new Map(); // Selalu mulai dari map baru agar bersih
+            const newMap = new Map();
             users.forEach(user => {
                 const key = `${user.type}-${user.id}`;
                 newMap.set(key, user);
@@ -66,20 +69,33 @@ export const ChatProvider = ({ children }) => {
         });
     };
 
+    // --- EVENT UNTUK STATUS MENGETIK ---
+    const handleTypingUpdate = (data) => {
+      console.log('Received typingUpdate:', data);
+      const { roomId, users } = data;
+      setTypingUsers(prev => {
+        const newMap = new Map(prev);
+        newMap.set(roomId, users);
+        return newMap;
+      });
+    };
+
     // Mulai mendengarkan semua event
     socket.on('newMessage', handleNewMessage);
     socket.on('messageEdited', handleMessageEdited);
     socket.on('messageDeleted', handleMessageDeleted);
     socket.on('initialOnlineUsers', handleInitialOnlineUsers);
     socket.on('userStatusUpdate', handleUserStatusUpdate);
+    socket.on('typingUpdate', handleTypingUpdate); // <-- Tambahkan listener baru
 
-    // Fungsi cleanup: berhenti mendengarkan saat komponen unmount atau socket berubah
+    // Fungsi cleanup
     return () => {
       socket.off('newMessage', handleNewMessage);
       socket.off('messageEdited', handleMessageEdited);
       socket.off('messageDeleted', handleMessageDeleted);
       socket.off('initialOnlineUsers', handleInitialOnlineUsers);
       socket.off('userStatusUpdate', handleUserStatusUpdate);
+      socket.off('typingUpdate', handleTypingUpdate); // <-- Hapus listener saat cleanup
     };
   }, [socket, activeChatId]);
 
@@ -395,6 +411,7 @@ export const ChatProvider = ({ children }) => {
     socket,
     setSocket,
     onlineUsers,
+    typingUsers, // <-- Sediakan state typing ke context
     getAllChats,
     getChatById,
     getChatByAdminId,
