@@ -25,6 +25,22 @@ const Toggle = (props) => {
 
   if (!dropdownOpen) return null;
 
+  const getDropdownHeight = () => {
+    if (groupChatMode) {
+      return 130;
+    }
+    if (isSender && !!content) {
+      return 240;
+    }
+    return 205;
+  };
+
+  const dropdownHeight = getDropdownHeight();
+  
+  const gapBelow = 5; // Jarak untuk dropdown yang muncul ke Bawah (tetap)
+
+  const gapAbove = 30; 
+
   return (
     <div
       className="fixed inset-0 z-[9999]"
@@ -40,12 +56,13 @@ const Toggle = (props) => {
               ? `${
                   buttonRef.current?.getBoundingClientRect().top +
                   window.scrollY -
-                  (groupChatMode ? 130 : 240)
+                  dropdownHeight - // Mengurangi tinggi dropdown
+                  gapAbove         // Menggunakan jarak untuk di ATAS
                 }px`
               : `${
                   buttonRef.current?.getBoundingClientRect().bottom +
                   window.scrollY +
-                  5
+                  gapBelow         // Menggunakan jarak untuk di BAWAH
                 }px`,
           left: isSender
             ? `${
