@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { getContrast, darken } from "color2k";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import BaseChatPage from "./BaseChatPage";
 import GroupPopup from "../components/GroupPopup/GroupPopup";
-import { useRoomDetails } from "../hooks/useRooms"; 
-import { authService } from "../api/auth"; 
+import { useRoomDetails } from "../hooks/useRooms";
+import { authService } from "../api/auth";
 
-// Fungsi untuk generate hash dari string
+// ... (fungsi helper hashString, hslToHex, generateMemberColorWithColor2k tidak berubah) ...
 const hashString = (str) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -16,8 +16,6 @@ const hashString = (str) => {
   }
   return Math.abs(hash);
 };
-
-// Convert HSL ke HEX
 const hslToHex = (h, s, l) => {
   l /= 100;
   const a = s * Math.min(l, 1 - l) / 100;
@@ -28,69 +26,51 @@ const hslToHex = (h, s, l) => {
   };
   return `#${f(0)}${f(8)}${f(4)}`;
 };
-
-// Generate warna dengan color2k
 const generateMemberColorWithColor2k = (memberName) => {
   if (!memberName) return "#4C0D68";
-  
   const hash = hashString(memberName);
-  
-  // Golden angle untuk distribusi optimal
   const goldenAngle = 137.508;
   let hue = (hash * goldenAngle) % 360;
-  
-  // Hindari range warna bermasalah
   const problematicRanges = [
-    [45, 75],   // Yellow
-    [75, 110],  // Yellow-green
+    [45, 75],
+    [75, 110],
   ];
-  
   for (const [start, end] of problematicRanges) {
     if (hue >= start && hue <= end) {
       hue = (hue + (end - start + 15)) % 360;
     }
   }
-  
-  // Base values
-  const saturation = 80 + (hash % 20); // 70-90%
-  const lightness = 45 + (hash % 15);  // 45-60%
-  
-  // Generate initial color
+  const saturation = 80 + (hash % 20);
+  const lightness = 45 + (hash % 15);
   let color = hslToHex(hue, saturation, lightness);
-  
-  // Check contrast with color2k
   let contrast = getContrast(color, '#ffffff');
-  
-  // Improve contrast iteratively
   let attempts = 0;
   while (contrast < 4.5 && attempts < 10) {
     if (contrast < 3) {
-      // Sangat rendah, darken significantly
       color = darken(color, 0.3);
     } else {
-      // Sedikit rendah, darken gradually
       color = darken(color, 0.15);
     }
-    
     contrast = getContrast(color, '#ffffff');
     attempts++;
   }
-  
   return color;
 };
 
-const GroupChatPeserta = ({ 
-  isEmbedded = false, 
-  onClose, 
-  chatId: propChatId, 
-  highlightMessageId = null, 
-  onMessageHighlight = null 
+const GroupChatPeserta = ({
+  isEmbedded = false,
+  onClose,
+  chatId: propChatId,
+  highlightMessageId = null,
+  onMessageHighlight = null,
+  onNavigateOnDesktop // <-- TERIMA PROPERTI BARU
 }) => {
 
   const { chatId: paramChatId } = useParams();
+  const navigate = useNavigate();
   const chatId = isEmbedded ? propChatId : paramChatId;
   const [isPopupOpen, setIsPopupOpen] = useState(false);
-  
+
   const { roomDetails, refetch: refetchRoomDetails, loading  } = useRoomDetails(chatId);
   const currentUser = useMemo(() => authService.getCurrentUser(), []);
 
@@ -99,9 +79,27 @@ const GroupChatPeserta = ({
     const member = roomDetails.members.find(m => m.member_id === currentUser.user_id);
     return member ? !member.is_left : false;
   }, [roomDetails, currentUser]);
-  
+
   const getSenderColor = (sender) => {
     return generateMemberColorWithColor2k(sender);
+  };
+
+  // --- FUNGSI DIPERBARUI ---
+  const handleNavigateToMessage = (messageId) => {
+    if (!chatId || !messageId) return;
+
+    const isMobile = window.innerWidth < 768;
+    setIsPopupOpen(false); // Selalu tutup popup
+
+    if (isMobile) {
+      // Di mobile, navigasi ke halaman chat
+      navigate(`/group/${chatId}?highlight=${messageId}`);
+    } else {
+      // Di desktop, panggil callback untuk menyorot pesan
+      if (onNavigateOnDesktop) {
+        onNavigateOnDesktop(messageId);
+      }
+    }
   };
 
   const readOnlyFooter = (
@@ -113,7 +111,6 @@ const GroupChatPeserta = ({
     </div>
   );
 
-  // Footer untuk peserta yang sudah keluar dari grup
   const notMemberFooter = (
     <div
       className="text-center text-gray-500 text-sm py-3 font-medium bg-gray-200 border-t"
@@ -153,8 +150,8 @@ const GroupChatPeserta = ({
         customFooter={
           loading
             ? loadingFooter
-            : isMember 
-              ? readOnlyFooter 
+            : isMember
+              ? readOnlyFooter
               : notMemberFooter
         }
         onGroupHeaderClick={() => setIsPopupOpen(true)}
@@ -167,6 +164,7 @@ const GroupChatPeserta = ({
           onClose={() => setIsPopupOpen(false)}
           roomId={chatId}
           onLeaveSuccess={refetchRoomDetails}
+          onNavigateToMessage={handleNavigateToMessage}
         />
       )}
     </>

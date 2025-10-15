@@ -14,6 +14,10 @@ const RightPanel = ({
     setHighlightMessageId 
 }) => {
   if (activeChat) {
+    const handleMessageHighlight = () => {
+      setHighlightMessageId(null);
+    };
+
     if (activeChat.room_type === 'group') {
       return (
         <GroupChatPeserta
@@ -23,8 +27,11 @@ const RightPanel = ({
             clearActiveChat();
             if (isStarPage) setHighlightMessageId(null);
           }}
-          highlightMessageId={isStarPage ? highlightMessageId : highlightId}
-          onMessageHighlight={isStarPage ? () => setHighlightMessageId(null) : null}
+          // Logika baru: Prioritaskan highlight dari state (desktop nav) atau dari URL
+          highlightMessageId={highlightMessageId || highlightId}
+          // Selalu teruskan fungsi callback untuk membersihkan state
+          onMessageHighlight={handleMessageHighlight}
+          onNavigateOnDesktop={(messageId) => setHighlightMessageId(messageId)}
         />
       );
     } else {
@@ -36,8 +43,10 @@ const RightPanel = ({
             clearActiveChat();
             if (isStarPage) setHighlightMessageId(null);
           }}
-          highlightMessageId={isStarPage ? highlightMessageId : highlightId}
-          onMessageHighlight={isStarPage ? () => setHighlightMessageId(null) : null}
+          // Terapkan logika yang sama di sini
+          highlightMessageId={highlightMessageId || highlightId}
+          onMessageHighlight={handleMessageHighlight}
+          onNavigateOnDesktop={(messageId) => setHighlightMessageId(messageId)}
         />
       );
     }

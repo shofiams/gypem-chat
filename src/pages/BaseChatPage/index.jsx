@@ -190,6 +190,51 @@ const BaseChatPage = ({
     }
   }, [clientSidePinnedMessages, currentPinnedIndex]);
 
+  // --- AWAL PERUBAHAN ---
+  const scrollToMessage = (messageId) => {
+    if (messageRefs.current[messageId]) {
+      const element = messageRefs.current[messageId];
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      // Efek sorotan visual dengan warna kuning
+      element.style.transition = 'background-color 0.5s ease-out';
+      element.style.backgroundColor = 'rgba(255, 229, 100, 0.5)';
+      setTimeout(() => {
+        element.style.backgroundColor = 'transparent';
+      }, 1500); // Durasi sorotan 1.5 detik
+    }
+  };
+
+  // useEffect yang disempurnakan untuk menangani sorotan dari properti
+  useEffect(() => {
+    if (propHighlightMessageId && flattenedMessages.length > 0) {
+      const messageExists = flattenedMessages.some(m => m.message_id == propHighlightMessageId);
+      if (messageExists) {
+        // Beri jeda singkat untuk memastikan DOM sudah siap
+        const scrollTimer = setTimeout(() => {
+          scrollToMessage(propHighlightMessageId);
+        }, 100);
+
+        // Jadwalkan pembersihan state di komponen induk setelah efek selesai
+        const clearParentStateTimer = setTimeout(() => {
+          if (onMessageHighlight) {
+            onMessageHighlight();
+          }
+        }, 2000); // 2 detik, lebih lama dari durasi highlight
+
+        // Fungsi cleanup untuk mencegah memory leak
+        return () => {
+          clearTimeout(scrollTimer);
+          clearTimeout(clearParentStateTimer);
+        };
+      }
+    }
+  }, [propHighlightMessageId, flattenedMessages]);
+  // --- AKHIR PERUBAHAN ---
+
+
   const navigatePinnedMessage = (direction) => {
     if (!clientSidePinnedMessages || clientSidePinnedMessages.length <= 1) return;
 
@@ -209,45 +254,18 @@ const BaseChatPage = ({
     const currentPin = clientSidePinnedMessages[validIndex];
 
     if (currentPin && messageRefs.current[currentPin.message_id]) {
-      messageRefs.current[currentPin.message_id].scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      const element = messageRefs.current[currentPin.message_id];
-      element.style.transition = 'background-color 0.5s';
-      element.style.backgroundColor = 'rgba(255, 229, 100, 0.5)';
-      setTimeout(() => {
-        element.style.backgroundColor = 'transparent';
-      }, 1500);
+      scrollToMessage(currentPin.message_id);
     }
   };
 
-  // --- AWAL PERUBAHAN ---
-  // Fungsi untuk menggulir dan menyorot pesan yang direply
   const handleReplyClick = (messageId) => {
     const messageElement = messageRefs.current[messageId];
     if (messageElement) {
-      messageElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-
-      // Efek sorotan sementara
-      messageElement.style.transition = 'background-color 0.5s ease-out';
-      messageElement.style.backgroundColor = 'rgba(255, 229, 100, 0.5)'; // Warna kuning sorotan
-      setTimeout(() => {
-        messageElement.style.backgroundColor = 'transparent';
-        // Hapus transisi setelah selesai agar tidak mengganggu interaksi lain
-        setTimeout(() => {
-            messageElement.style.transition = ''; 
-        }, 500);
-      }, 1500); // Durasi sorotan 1.5 detik
+      scrollToMessage(messageId);
     } else {
         console.warn(`Pesan dengan ID ${messageId} tidak ditemukan.`);
-        // Mungkin tambahkan notifikasi untuk pengguna di sini
     }
   };
-  // --- AKHIR PERUBAHAN ---
 
   const handleStartSelection = (messageId) => {
     setIsSelectionMode(true);
@@ -288,7 +306,6 @@ const BaseChatPage = ({
   const handleSearch = useCallback((query) => {
     if (searchHighlightTimer.current) {
       clearTimeout(searchHighlightTimer.current);
-      searchHighlightTimer.current = null;
     }
 
     setSearchQuery(query);
@@ -313,7 +330,6 @@ const BaseChatPage = ({
       
       searchHighlightTimer.current = setTimeout(() => {
         setHighlightedMessageId(null);
-        searchHighlightTimer.current = null;
       }, 1500);
     } else {
       setCurrentSearchIndex(-1);
@@ -326,7 +342,6 @@ const BaseChatPage = ({
     
     if (searchHighlightTimer.current) {
       clearTimeout(searchHighlightTimer.current);
-      searchHighlightTimer.current = null;
     }
     
     let newIndex;
@@ -341,21 +356,7 @@ const BaseChatPage = ({
     
     searchHighlightTimer.current = setTimeout(() => {
       setHighlightedMessageId(null);
-      searchHighlightTimer.current = null;
     }, 1500);
-  };
-  
-    const scrollToMessage = (messageId) => {
-    if (messageRefs.current[messageId]) {
-      messageRefs.current[messageId].scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      setHighlightedMessageId(messageId);
-      if (!searchQuery) {
-        setTimeout(() => setHighlightedMessageId(null), 800);
-      }
-    }
   };
 
   const renderMessage = useCallback((msg, idx, arr) => {

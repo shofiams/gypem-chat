@@ -1,5 +1,5 @@
-import React, { useState } from "react"; // MODIFIKASI: Import useState
-import { FiExternalLink, FiLink, FiCheck } from "react-icons/fi"; // MODIFIKASI: Import FiCheck
+import React, { useState } from "react";
+import { FiExternalLink, FiLink, FiCheck, FiMessageSquare } from "react-icons/fi"; // MODIFIKASI: Import FiCheck & FiMessageSquare
 
 // Daftar ekstensi file yang TIDAK kita anggap sebagai 'link web'
 const excludedExtensions = new Set([
@@ -10,7 +10,7 @@ const excludedExtensions = new Set([
   'zip', 'rar', '7z', 'tar', 'gz'
 ]);
 
-export default function GroupLinks({ links }) {
+export default function GroupLinks({ links, onNavigateToMessage }) { // Terima prop
   // BARU: State untuk melacak URL yang baru saja disalin
   const [copiedUrl, setCopiedUrl] = useState(null);
 
@@ -43,7 +43,7 @@ export default function GroupLinks({ links }) {
     const url = linkObj.url || linkObj;
     return isValidWebLink(url);
   }) : [];
-  
+
   // --- FUNGSI HELPER (TIDAK BERUBAH) ---
   const formatUrl = (url) => {
     try {
@@ -100,7 +100,7 @@ export default function GroupLinks({ links }) {
         {filteredLinks.map((linkObj, idx) => {
           const url = linkObj.url || linkObj;
           const sender = linkObj.sender;
-          
+
           return (
             <div key={`${idx}-${url}`} className="bg-gray-50 rounded-lg p-3 shadow-sm hover:bg-gray-100 transition group">
               <div className="flex items-start justify-between">
@@ -119,7 +119,10 @@ export default function GroupLinks({ links }) {
                   </div>
                 </div>
                 {/* MODIFIKASI: Logika untuk tombol copy dan open */}
-                <div className="flex items-center space-x-2 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <button onClick={(e) => { e.stopPropagation(); if (onNavigateToMessage) onNavigateToMessage(linkObj.messageId); }} className="p-1 hover:bg-gray-200 rounded transition-colors" title="Go to message">
+                    <FiMessageSquare className="w-4 h-4 text-gray-600" />
+                  </button>
                   {copiedUrl === url ? (
                     <div className="flex items-center space-x-1 text-green-600">
                       <FiCheck className="w-4 h-4" />

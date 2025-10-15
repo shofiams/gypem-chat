@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { FiMessageSquare } from "react-icons/fi"; // Import ikon
 
 // Icon components sebagai pengganti react-icons
 const ImageIcon = ({ className = "w-6 h-6" }) => (
@@ -9,7 +10,7 @@ const ImageIcon = ({ className = "w-6 h-6" }) => (
   </svg>
 );
 
-export default function GroupMedia({ mediaList = [] }) {
+export default function GroupMedia({ mediaList = [], onNavigateToMessage }) { // Terima prop
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageLoadError, setImageLoadError] = useState({});
@@ -51,15 +52,15 @@ export default function GroupMedia({ mediaList = [] }) {
       const fullUrl = photoList[currentIndex].url;
       const response = await fetch(fullUrl, { mode: 'cors' });
       if (!response.ok) throw new Error('Network response was not ok');
-      
+
       const blob = await response.blob();
       const blobUrl = window.URL.createObjectURL(blob);
-      
+
       const link = document.createElement("a");
       link.href = blobUrl;
       const fileName = fullUrl.substring(fullUrl.lastIndexOf('/') + 1) || `photo-${currentIndex + 1}.jpg`;
       link.download = fileName;
-      
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -87,7 +88,7 @@ export default function GroupMedia({ mediaList = [] }) {
 
   const renderPhotoItem = (photo, index) => {
     const photoUrl = photo.url;
-    
+
     return (
       <div
         key={photo.messageId || index}
@@ -107,12 +108,12 @@ export default function GroupMedia({ mediaList = [] }) {
             if (fallback) fallback.style.display = 'flex';
           }}
         />
-        
+
         <div className="fallback w-full h-full bg-gray-200 flex-col items-center justify-center text-gray-500 hidden text-center p-1">
           <ImageIcon className="w-8 h-8 mb-2 opacity-50" />
           <span className="text-xs leading-tight">Failed to load image</span>
         </div>
-        
+
         {photo.sender && (
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity">
             <span className="text-white text-xs truncate block">{photo.sender}</span>
@@ -144,13 +145,21 @@ export default function GroupMedia({ mediaList = [] }) {
       {/* Lightbox Modal */}
       {lightboxOpen && photoList[currentIndex] && (
         <div
-  className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[9999]"
-  style={{ padding: "5%" }}
-  onClick={closeLightbox}
->
+            className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[9999]"
+            style={{ padding: "5%" }}
+            onClick={closeLightbox}
+        >
 
           {/* Bar kanan atas */}
           <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
+            {/* --- Tombol Navigasi Baru --- */}
+            <button
+              onClick={(e) => { e.stopPropagation(); if (onNavigateToMessage) onNavigateToMessage(photoList[currentIndex].messageId); }}
+              className="bg-black bg-opacity-50 hover:bg-opacity-70 text-white w-10 h-10 flex items-center justify-center rounded-full transition-all outline-none"
+              title="Go to message"
+            >
+              <FiMessageSquare size={20} />
+            </button>
             <button
               onClick={(e) => { e.stopPropagation(); downloadPhoto(); }}
               className="bg-black bg-opacity-50 hover:bg-opacity-70 text-white w-10 h-10 flex items-center justify-center rounded-full transition-all outline-none"
