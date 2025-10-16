@@ -83,7 +83,6 @@ export const useChatBubbleHandlers = (props, state, stateSetters) => {
     );
   };
 
-  // --- AWAL PERUBAHAN FINAL ---
   // Fungsi ini sekarang menjadi satu-satunya penentu logika
   const shouldShowSenderName = () => {
     // 1. Jangan tampilkan jika fitur ini tidak diaktifkan (misal: di chat personal)
@@ -107,7 +106,6 @@ export const useChatBubbleHandlers = (props, state, stateSetters) => {
       previousMessageSender === "You"
     );
   };
-  // --- AKHIR PERUBAHAN FINAL ---
 
   const shouldHaveTail = () => {
     return shouldShowTime();

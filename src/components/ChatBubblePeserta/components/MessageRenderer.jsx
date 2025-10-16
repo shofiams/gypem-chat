@@ -347,7 +347,6 @@ const MessageRenderer = (props) => {
 
       {!is_deleted_globally && renderReply()}
 
-      {/* --- AWAL PERUBAHAN --- */}
       {image && (
         <div className="max-w-xs"> {/* 1. Ganti w-64 dengan max-w-xs */}
           <div
@@ -355,7 +354,6 @@ const MessageRenderer = (props) => {
               content && !is_deleted_globally ? "rounded-t-lg" : "rounded-lg"
             }`}
           >
-      {/* --- AKHIR PERUBAHAN --- */}
             {imageLoading && !imageLoadError && (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
