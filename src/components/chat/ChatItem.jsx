@@ -94,7 +94,10 @@ const ChatItem = ({
         return <span>{last_message}</span>;
     };
 
+    // FUNGSI INI SUDAH BENAR
     const renderLastMessageStatus = () => {
+        // Jangan tampilkan status apa pun jika ada yang mengetik
+        // atau jika pesan terakhir bukan milik kita
         if (!is_last_message_mine || isSomeoneTyping) return null;
         
         const wasEdited = last_message_updated_at && 
@@ -128,12 +131,14 @@ const ChatItem = ({
                     />
                 )}
 
+                {/* CEKLIS INI AKAN TAMPIL KARENA KONDISI DI ATAS TERPENUHI */}
                 <img
                     src={assets.Ceklis}
                     alt="sent"
                     className="w-4 h-4 md:w-3.5 md:h-3.5"
                     style={{
-                        filter: "brightness(0) saturate(100%) invert(48%) sepia(85%) saturate(1374%) hue-rotate(186deg) brightness(97%) contrast(96%)",
+                        // Ganti filter ini sesuai dengan status (sent, delivered, read) jika perlu
+                        filter: "brightness(0) saturate(100%) invert(48%) sepia(85%) saturate(1374%) hue-rotate(186deg) brightness(97%) contrast(96%)", // Biru
                     }}
                 />
             </div>
@@ -148,7 +153,7 @@ const ChatItem = ({
         const tokens = q.split(/\s+/).filter(Boolean).map(t => t.toLowerCase());
         if (tokens.length === 0) return text;
 
-        const pattern = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+        const pattern = tokens.map(escapeRegex).join('|');
         const regex = new RegExp(`(${pattern})`, 'gi');
 
         const parts = String(text).split(regex);
@@ -244,28 +249,28 @@ const ChatItem = ({
         >
             <div
                 className={`
-          flex items-center px-4 py-3 cursor-pointer min-h-[70px] 
-          md:px-3 md:py-2 md:min-h-[52px]
-          ${isSelected ? 'bg-[#efe6f3]' : 'hover:bg-gray-100'}
-          transition-colors duration-150
-          rounded-lg
-          mx-2
-          relative
-        `}
+                    flex items-center px-4 py-3 cursor-pointer min-h-[70px] 
+                    md:px-3 md:py-2 md:min-h-[52px]
+                    ${isSelected ? 'bg-[#efe6f3]' : 'hover:bg-gray-100'}
+                    transition-colors duration-150
+                    rounded-lg
+                    mx-2
+                    relative
+                `}
             >
-            <div className="relative flex-shrink-0 w-12 h-12 md:w-10 md:h-10">
-                <div className="w-full h-full rounded-full overflow-hidden">
-                    <img
-                        src={url_photo ? getPhotoUrl(url_photo) : assets.DefaultAvatar}
-                        alt={name}
-                        className="w-full h-full object-cover"
-                        crossOrigin="anonymous"
-                    />
+                <div className="relative flex-shrink-0 w-12 h-12 md:w-10 md:h-10">
+                    <div className="w-full h-full rounded-full overflow-hidden">
+                        <img
+                            src={url_photo ? getPhotoUrl(url_photo) : assets.DefaultAvatar}
+                            alt={name}
+                            className="w-full h-full object-cover"
+                            crossOrigin="anonymous"
+                        />
+                    </div>
+                    {isOnline && (
+                        <div className="absolute bottom-0 right-0 w-3.5 h-3.5 md:w-3 md:h-3 bg-yellow-400 rounded-full border-2 border-white"></div>
+                    )}
                 </div>
-                {isOnline && (
-                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 md:w-3 md:h-3 bg-yellow-400 rounded-full border-2 border-white"></div>
-                )}
-            </div>
 
                 <div className="flex-1 ml-4 md:ml-3 min-w-0">
                     <div className="flex items-center justify-between">

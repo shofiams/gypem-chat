@@ -1,6 +1,11 @@
 // src/hooks/useRooms.js
 import { useState, useEffect, useCallback } from "react";
 import { roomService } from "../api/roomService";
+// --- AWAL PERUBAHAN ---
+// 1. Import service yang kita butuhkan
+import { messageService } from "../api/messageService";
+import { authService } from "../api/auth";
+// --- AKHIR PERUBAHAN ---
 
 export const useRooms = () => {
   const [rooms, setRooms] = useState([]);
@@ -15,22 +20,60 @@ export const useRooms = () => {
       const result = await roomService.fetchRooms();
 
       if (result.success) {
-        // --- PERBAIKAN DI SINI ---
-        // Olah data untuk menambahkan 'admin_id' ke level atas
-        const processedRooms = result.data.map(room => {
-          if (room.room_type === 'one_to_one' && room.members) {
-            const adminMember = room.members.find(member => member.member_type === 'admin');
-            if (adminMember) {
-              return { ...room, admin_id: adminMember.member_id };
+        // --- AWAL PERUBAHAN ---
+        // 2. Ambil data pengguna yang sedang login untuk perbandingan
+        const currentUser = authService.getCurrentUser();
+        const currentUserId = currentUser?.user_id || null;
+
+        // 3. Proses setiap room untuk mendapatkan info pesan terakhir
+        const processedRooms = await Promise.all(
+          result.data.map(async (room) => {
+            // Dapatkan detail pesan dari room ini
+            const messagesResult = await messageService.fetchMessagesByRoom(room.room_id);
+            
+            let lastMessageDetails = {};
+
+            // Jika pesan ada, ambil yang terakhir
+            if (messagesResult.success && messagesResult.data && messagesResult.data.length > 0) {
+              const allMessages = messagesResult.data.flat();
+              const lastMessage = allMessages[allMessages.length - 1];
+              
+              if (lastMessage) {
+                // Tentukan apakah pesan terakhir adalah milik kita
+                const isMine = lastMessage.sender_type === 'peserta';
+                
+                // Kumpulkan semua properti detail pesan terakhir
+                lastMessageDetails = {
+                  last_message: lastMessage.content,
+                  last_message_type: lastMessage.attachment ? lastMessage.attachment.file_type : 'text',
+                  last_time: lastMessage.created_at,
+                  is_last_message_mine: isMine,
+                  last_message_status: lastMessage.message_status?.status || 'sent',
+                  last_message_updated_at: lastMessage.updated_at,
+                  last_message_created_at: lastMessage.created_at,
+                  last_message_is_starred: lastMessage.message_status?.is_starred || false,
+                  last_message_is_pinned: lastMessage.message_status?.is_pinned || false,
+                  last_message_is_deleted: lastMessage.message_status?.is_deleted_for_me || lastMessage.is_deleted_globally,
+                };
+              }
             }
-          }
-          return room;
-        });
+
+            // Gabungkan data room asli dengan detail pesan terakhir
+            return {
+              ...room,
+              ...lastMessageDetails,
+              // Tambahkan 'admin_id' untuk status online (logika ini sudah ada sebelumnya)
+              admin_id: room.room_type === 'one_to_one'
+                ? room.members?.find(m => m.member_type === 'admin')?.member_id
+                : null
+            };
+          })
+        );
         
-        console.log("Processed rooms with admin_id:", processedRooms);
+        console.log("Processed rooms with last message details:", processedRooms);
         setRooms(processedRooms);
         return processedRooms;
-        // --- AKHIR PERBAIKAN ---
+        // --- AKHIR PERUBAHAN ---
 
       } else {
         setError(result.message);
@@ -81,6 +124,7 @@ export const useRooms = () => {
   };
 };
 
+// ... (sisa kode di file ini tidak perlu diubah)
 export const useRoomDetails = (roomId) => {
   const [roomDetails, setRoomDetails] = useState(null);
   const [loading, setLoading] = useState(!!roomId);

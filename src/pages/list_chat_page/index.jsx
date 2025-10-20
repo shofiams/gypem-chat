@@ -1,5 +1,5 @@
 // src/pages/list_chat_page/index.jsx
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'; // 1. useMemo diimpor
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useRooms, useRoomOperations } from '../../hooks/useRooms';
 import { useStarredMessages, useStarredMessagesSearch } from '../../hooks/useStarredMessages';
@@ -57,6 +57,29 @@ export default function ChatPage() {
     };
 
     const { data: chats, loading: pageLoading } = getPageData(); 
+
+    // --- AWAL PERUBAHAN ---
+    // 2. Tambahkan useMemo untuk mengurutkan data 'chats'
+    const sortedChats = useMemo(() => {
+      if (!chats || chats.length === 0) return [];
+
+      // Buat salinan array sebelum di-sort untuk menghindari mutasi state asli
+      return [...chats].sort((a, b) => {
+        // Gunakan 'last_time' untuk list chat (rooms)
+        // Gunakan 'created_at' untuk list starred messages
+        const timeA = a.last_time || a.created_at;
+        const timeB = b.last_time || b.created_at;
+
+        // Fallback jika tidak ada timestamp
+        const dateA = timeA ? new Date(timeA) : new Date(0);
+        const dateB = timeB ? new Date(timeB) : new Date(0);
+        
+        // Urutkan dari yang terbaru (descending)
+        return dateB - dateA;
+      });
+    }, [chats]); // Dependensi: 'chats' dari getPageData
+    // --- AKHIR PERUBAHAN ---
+
 
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chatId: null });
     const menuRef = useRef(null);
@@ -281,7 +304,10 @@ export default function ChatPage() {
                     </div>
                 )}
                 <ChatList
-                    chats={getChatById ? chats.filter(chat => isGroupPage ? chat.room_type === 'group' : true) : chats}
+                    // --- AWAL PERUBAHAN ---
+                    // 3. Gunakan 'sortedChats' yang sudah diurutkan, bukan 'chats'
+                    chats={sortedChats}
+                    // --- AKHIR PERUBAHAN ---
                     isLoading={pageLoading}
                     searchQuery={searchQuery}
                     searchResults={currentSearchResults}
