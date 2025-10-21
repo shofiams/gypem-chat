@@ -115,6 +115,26 @@ export const useRooms = () => {
     fetchRooms();
   }, [fetchRooms]);
 
+  useEffect(() => {
+    const handleUnreadCountUpdated = (event) => {
+      const { roomId, unreadCount } = event.detail;
+      
+      setRooms(prevRooms => 
+        prevRooms.map(room => 
+          room.room_id === roomId 
+            ? { ...room, unread_count: unreadCount } 
+            : room
+        )
+      );
+    };
+
+    window.addEventListener('unreadCountUpdated', handleUnreadCountUpdated);
+
+    return () => {
+      window.removeEventListener('unreadCountUpdated', handleUnreadCountUpdated);
+    };
+  }, []);
+
   return {
     rooms,
     loading,

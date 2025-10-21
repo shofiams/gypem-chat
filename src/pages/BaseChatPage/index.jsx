@@ -15,6 +15,7 @@ import ChatFooter from "./components/ChatFooter";
 import DeleteMessageModal from "./components/DeleteMessageModal";
 import { assets } from "../../assets/assets";
 import ImageViewerModal from "../../components/ChatBubblePeserta/components/ImageViewerModal";
+import { useChatContext } from "../../api/use_chat_context";
 
 const formatMessageTime = (created_at) => {
   if (!created_at) return "";
@@ -77,6 +78,7 @@ const BaseChatPage = ({
   const { refetch: refetchPinnedMessages } = usePinnedMessagesByRoom(actualChatId);
   const { pinMessage, unpinMessage, starMessages, unstarMessages } = useMessageOperations();
   const chatInfo = useChatHeader(actualChatId, isGroupChat);
+  const { socket } = useChatContext();
   
   const [openDropdownId, setOpenDropdownId] = useState(null);
 
@@ -110,6 +112,32 @@ const BaseChatPage = ({
         return msg.message_status && !msg.message_status.is_deleted_for_me;
     });
   }, [contextMessages]);
+
+  useEffect(() => {
+    // Pastikan socket terhubung dan pesan sudah dimuat
+    if (!socket || !flattenedMessages || flattenedMessages.length === 0) {
+      return;
+    }
+
+    // 1. Kumpulkan semua ID status pesan yang belum dibaca
+    const unreadMessageStatusIds = flattenedMessages
+      .filter(msg => 
+        msg.sender_type !== 'peserta' && // Bukan pesan kita
+        msg.message_status?.status !== 'read' && // Belum dibaca
+        msg.message_status?.message_status_id // Punya status ID
+      )
+      .map(msg => msg.message_status.message_status_id);
+
+    // 2. Jika ada pesan yang belum dibaca, kirim event ke socket
+    if (unreadMessageStatusIds.length > 0) {
+      console.log(`Marking ${unreadMessageStatusIds.length} messages as read for room ${actualChatId}`);
+      socket.emit('markAsRead', {
+        roomId: parseInt(actualChatId),
+        messageStatusIds: unreadMessageStatusIds
+      });
+    }
+
+  }, [flattenedMessages, actualChatId, socket]);
 
   const { messagesContainerRef, showScrollButton, scrollToBottom } = useScrollManager(contextMessages, actualChatId);
 

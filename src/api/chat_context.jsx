@@ -79,6 +79,11 @@ export const ChatProvider = ({ children }) => {
         return newMap;
       });
     };
+    const handleUpdateUnreadCount = (data) => {
+      console.log('Received updateUnreadCount event:', data);
+      // Teruskan event ini ke komponen lain (seperti useRooms)
+      window.dispatchEvent(new CustomEvent('unreadCountUpdated', { detail: data }));
+    };
 
     // Mulai mendengarkan semua event
     socket.on('newMessage', handleNewMessage);
@@ -87,6 +92,7 @@ export const ChatProvider = ({ children }) => {
     socket.on('initialOnlineUsers', handleInitialOnlineUsers);
     socket.on('userStatusUpdate', handleUserStatusUpdate);
     socket.on('typingUpdate', handleTypingUpdate); // <-- Tambahkan listener baru
+    socket.on('updateUnreadCount', handleUpdateUnreadCount);
 
     // Fungsi cleanup
     return () => {
@@ -95,7 +101,8 @@ export const ChatProvider = ({ children }) => {
       socket.off('messageDeleted', handleMessageDeleted);
       socket.off('initialOnlineUsers', handleInitialOnlineUsers);
       socket.off('userStatusUpdate', handleUserStatusUpdate);
-      socket.off('typingUpdate', handleTypingUpdate); // <-- Hapus listener saat cleanup
+      socket.off('typingUpdate', handleTypingUpdate);
+      socket.off('updateUnreadCount', handleUpdateUnreadCount);
     };
   }, [socket, activeChatId]);
 
