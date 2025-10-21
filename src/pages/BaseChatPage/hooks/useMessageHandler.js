@@ -50,6 +50,13 @@ export const useMessageHandler = ({
     socket.emit('sendMessage', payload, (response) => {
       if (response && response.status === 'ok') {
         refetchMessages();
+        // --- AWAL PERUBAHAN ---
+        // 1. Beri tahu daftar chat ('list_chat_page') untuk me-refresh dirinya.
+        // Ini akan membuat room baru (yang tadinya kosong) muncul di daftar
+        // karena filter '!!room.last_time' sekarang akan lolos.
+        console.log("Pesan terkirim, memicu chatListRefresh");
+        window.dispatchEvent(new CustomEvent("chatListRefresh"));
+        // --- AKHIR PERUBAHAN ---
       } else {
         alert("Gagal mengirim pesan: " + (response ? response.message : 'Tidak ada respons dari server'));
       }
@@ -78,6 +85,10 @@ export const useMessageHandler = ({
       setEditingMessage(null);
       setEditText("");
       refetchMessages();
+      // --- AWAL PERUBAHAN ---
+      // 2. Refresh daftar chat saat mengedit juga, untuk memperbarui last_message
+      window.dispatchEvent(new CustomEvent("chatListRefresh"));
+      // --- AKHIR PERUBAHAN ---
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.style.height = 'auto';
@@ -197,6 +208,10 @@ export const useMessageHandler = ({
       if (result.success) {
         refetchMessages();
         if (refetchPinnedMessages) refetchPinnedMessages();
+        // --- AWAL PERUBAHAN ---
+        // 3. Refresh daftar chat saat menghapus juga
+        window.dispatchEvent(new CustomEvent("chatListRefresh"));
+        // --- AKHIR PERUBAHAN ---
       } else {
         alert('Gagal menghapus pesan: ' + (result.error || 'Unknown error'));
       }

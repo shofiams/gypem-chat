@@ -1,8 +1,9 @@
 // src/pages/list_chat_page/index.jsx
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react'; // 1. useMemo diimpor
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useRooms, useRoomOperations } from '../../hooks/useRooms';
-import { useStarredMessages, useStarredMessagesSearch } from '../../hooks/useStarredMessages';
+// Ganti nama import agar tidak konflik
+import { useStarredMessages as useStarredMessagesHook, useStarredMessagesSearch } from '../../hooks/useStarredMessages';
 import { useGlobalSearch } from '../../hooks/useSearch';
 import { useAdmins } from '../../hooks/useAdmins';
 import ChatItem from '../../components/chat/ChatItem';
@@ -32,53 +33,59 @@ export default function ChatPage() {
     const isGroupPage = location.pathname.startsWith('/group');
     const isStarPage = location.pathname === '/starred';
 
+    // 1. 'allRooms' sekarang berisi SEMUA room, termasuk yang 1-on-1 kosong
     const { rooms: allRooms, loading: roomsLoading, error: roomsError, refetch: refetchRooms } = useRooms();
-    const { data: starredMessages, loading: starredLoading, error: starredError, refetch: refetchStarred } = useStarredMessages({ manual: !isStarPage });
+    const { data: starredMessages, loading: starredLoading, error: starredError, refetch: refetchStarred } = useStarredMessagesHook({ manual: !isStarPage });
     const { deleteRooms } = useRoomOperations();
     const { searchResults, performSearch, clearSearch: clearGlobalSearch } = useGlobalSearch();
     const { searchResults: starredSearchResults, performSearch: performStarredSearch, clearSearch: clearStarredSearch } = useStarredMessagesSearch();
 
      const getPageData = () => {
         if (isStarPage) {
-            // Logika baru: Perkaya data starredMessages dengan room_type dari allRooms
             const augmentedStarredMessages = (starredMessages || []).map(msg => {
                 const room = (allRooms || []).find(r => r.room_id === msg.room_id);
                 return {
                     ...msg,
-                    // Tambahkan room_type, default ke 'one_to_one' jika tidak ditemukan
                     room_type: room ? room.room_type : 'one_to_one' 
                 };
             });
             return { data: augmentedStarredMessages, loading: starredLoading, error: starredError };
         }
-        // Logika lama (tidak berubah)
-        const filteredRooms = isGroupPage ? allRooms?.filter(room => room.room_type === 'group') || [] : allRooms || [];
-        return { data: filteredRooms, loading: roomsLoading, error: roomsError };
+        // 2. Kembalikan SEMUA room
+        return { data: allRooms, loading: roomsLoading, error: roomsError };
     };
 
+    // 3. 'chats' adalah data mentah (termasuk kosong)
     const { data: chats, loading: pageLoading } = getPageData(); 
 
     // --- AWAL PERUBAHAN ---
-    // 2. Tambahkan useMemo untuk mengurutkan data 'chats'
-    const sortedChats = useMemo(() => {
-      if (!chats || chats.length === 0) return [];
+    // 4. Buat variabel baru 'displayedChats' untuk memfilter apa yang TAMPIL di list
+    const displayedChats = useMemo(() => {
+        if (isStarPage) {
+            return chats; // Halaman Bintang tidak difilter
+        }
+        if (isGroupPage) {
+            // Halaman Grup hanya menampilkan grup
+            return (chats || []).filter(room => room.room_type === 'group');
+        }
+        // Halaman Chat Utama: Tampilkan grup ATAU chat 1-on-1 yang punya pesan
+        return (chats || []).filter(room => room.room_type === 'group' || !!room.last_time);
+    }, [chats, isStarPage, isGroupPage]);
+    // --- AKHIR PERUBAHAN ---
 
-      // Buat salinan array sebelum di-sort untuk menghindari mutasi state asli
-      return [...chats].sort((a, b) => {
-        // Gunakan 'last_time' untuk list chat (rooms)
-        // Gunakan 'created_at' untuk list starred messages
+
+    // 5. 'sortedChats' sekarang mengurutkan 'displayedChats'
+    const sortedChats = useMemo(() => {
+      if (!displayedChats || displayedChats.length === 0) return [];
+
+      return [...displayedChats].sort((a, b) => {
         const timeA = a.last_time || a.created_at;
         const timeB = b.last_time || b.created_at;
-
-        // Fallback jika tidak ada timestamp
         const dateA = timeA ? new Date(timeA) : new Date(0);
         const dateB = timeB ? new Date(timeB) : new Date(0);
-        
-        // Urutkan dari yang terbaru (descending)
         return dateB - dateA;
       });
-    }, [chats]); // Dependensi: 'chats' dari getPageData
-    // --- AKHIR PERUBAHAN ---
+    }, [displayedChats]); // Dependensi: 'displayedChats'
 
 
     const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, chatId: null });
@@ -118,12 +125,30 @@ export default function ChatPage() {
         return () => clearTimeout(delayedSearch);
     }, [searchQuery, isStarPage, performSearch, performStarredSearch, clearGlobalSearch, clearStarredSearch]);
 
+    // 6. Filter hasil pencarian juga, agar konsisten
     const currentSearchResults = useMemo(() => {
         if (!searchQuery.trim()) return null;
-        return isStarPage ? { starredMessages: starredSearchResults } : searchResults;
-    }, [searchQuery, isStarPage, searchResults, starredSearchResults]);
+        
+        if (isStarPage) {
+            return { starredMessages: starredSearchResults };
+        }
+
+        const filteredRooms = (searchResults?.rooms || []).filter(room => {
+            if (isGroupPage) return room.room_type === 'group';
+            // Halaman Chat Utama: Tampilkan grup ATAU chat 1-on-1 yang punya pesan
+            return room.room_type === 'group' || !!room.last_time;
+        });
+
+        return { 
+            ...searchResults, 
+            rooms: filteredRooms 
+        };
+    }, [searchQuery, isStarPage, isGroupPage, searchResults, starredSearchResults]);
     
-    const getChatById = (chatId) => chats.find(chat => chat.room_id === chatId);
+    // 7. 'getChatById' HARUS menggunakan 'chats' (data lengkap)
+    // Ini agar panel kanan bisa membuka room kosong yang baru dibuat
+    const getChatById = (chatId) => (chats || []).find(chat => chat.room_id == chatId);
+    
     const clearSearch = useCallback(() => {
         setSearchQuery('');
         clearGlobalSearch();
@@ -133,7 +158,7 @@ export default function ChatPage() {
     const handleChatClick = (itemId) => {
         const currentIsMobile = window.innerWidth < 768;
         if (isStarPage) {
-            const starredItem = chats.find(item => item.message_id === itemId);
+            const starredItem = (chats || []).find(item => item.message_id === itemId);
             if (!starredItem) return;
            if (currentIsMobile) {
                 const path = starredItem.room_type === 'group' ? '/group/' : '/chats/';
@@ -143,11 +168,11 @@ export default function ChatPage() {
                 setHighlightMessageId(starredItem.message_id);
             }
         } else {
-            const chat = chats.find(c => c.room_id === itemId);
+            const chat = (chats || []).find(c => c.room_id === itemId);
             if (currentIsMobile) {
                 navigate(chat?.room_type === 'group' ? `/group/${itemId}` : `/chats/${itemId}`);
             } else {
-                setActiveChat(itemId);
+                setActiveChat(chat.room_id);
             }
         }
     };
@@ -193,7 +218,7 @@ export default function ChatPage() {
 
     const getChatToDeleteName = () => {
         if (!chatToDelete) return '';
-        const chat = chats.find(c => c.room_member_id === chatToDelete);
+        const chat = (chats || []).find(c => c.room_member_id === chatToDelete);
         return chat?.name || '';
     };
 
@@ -212,6 +237,8 @@ export default function ChatPage() {
         return () => window.removeEventListener('resize', handleResize);
     }, [isMobile, location.pathname, setActiveChat, clearActiveChat]);
 
+    // --- AWAL PERUBAHAN ---
+    // 8. Listener untuk 'setActiveChat' (untuk room yang sudah ada)
     useEffect(() => {
         const handleSetActiveChat = (event) => {
             const { chatId } = event.detail;
@@ -225,6 +252,34 @@ export default function ChatPage() {
             window.removeEventListener('setActiveChat', handleSetActiveChat);
         };
     }, [setActiveChat]);
+
+    // 9. Listener untuk 'newChatCreated' (untuk room baru, menangani race condition)
+    useEffect(() => {
+      const handleNewChat = async (event) => {
+        const { chatId } = event.detail;
+        console.log('newChatCreated event received, chatId:', chatId);
+        // 1. Refetch dulu data room. Ini akan update 'allRooms'
+        await refetchRooms();
+        // 2. SETELAH refetch selesai, baru set active chat
+        setActiveChat(chatId);
+      };
+      window.addEventListener('newChatCreated', handleNewChat);
+      return () => {
+        window.removeEventListener('newChatCreated', handleNewChat);
+      };
+    }, [refetchRooms, setActiveChat]); // Tambahkan dependensi
+
+
+    // 10. Listener untuk 'chatListRefresh' (ketika pesan pertama dikirim)
+    useEffect(() => {
+        const handleChatListRefresh = () => {
+            console.log("Event chatListRefresh diterima!");
+            isStarPage ? refetchStarred() : refetchRooms();
+        };
+        window.addEventListener('chatListRefresh', handleChatListRefresh);
+        return () => window.removeEventListener('chatListRefresh', handleChatListRefresh);
+    }, [isStarPage, refetchRooms, refetchStarred]);
+    // --- AKHIR PERUBAHAN ---
 
     useEffect(() => {
         const handleKeydown = (e) => {
@@ -253,13 +308,6 @@ export default function ChatPage() {
         };
     }, [activeChatId, isMobile, isStarPage, contextMenu, confirmOpen, clearActiveChat]);
     
-    useEffect(() => {
-        const handleChatListRefresh = () => {
-            isStarPage ? refetchStarred() : refetchRooms();
-        };
-        window.addEventListener('chatListRefresh', handleChatListRefresh);
-        return () => window.removeEventListener('chatListRefresh', handleChatListRefresh);
-    }, [isStarPage, refetchRooms, refetchStarred]);
 
    const renderChatItems = (items, options = {}) => {
         const { onContextMenu = handleContextMenu, isStarredItem = false } = options;
@@ -272,7 +320,7 @@ export default function ChatPage() {
                         {...chat}
                         onContextMenu={isStarredItem ? null : onContextMenu}
                         onClick={handleChatClick}
-                        isSelected={!isMobile && activeChatId === chat.room_id}
+                        isSelected={!isMobile && activeChatId == chat.room_id}
                         highlightQuery={searchQuery}
                         isStarredItem={isStarredItem}
                         chatName={isStarredItem ? chat.room_name : chat.name}
@@ -304,10 +352,8 @@ export default function ChatPage() {
                     </div>
                 )}
                 <ChatList
-                    // --- AWAL PERUBAHAN ---
-                    // 3. Gunakan 'sortedChats' yang sudah diurutkan, bukan 'chats'
+                    // 11. Gunakan 'sortedChats' (yang sudah difilter & diurutkan)
                     chats={sortedChats}
-                    // --- AKHIR PERUBAHAN ---
                     isLoading={pageLoading}
                     searchQuery={searchQuery}
                     searchResults={currentSearchResults}
@@ -331,6 +377,7 @@ export default function ChatPage() {
 
             <main className="flex-1 hidden md:block">
                 <RightPanel
+                    // 12. Ini akan menggunakan 'getChatById' yang mencari di 'allRooms'
                     activeChat={getChatById(activeChatId)}
                     pageConfig={pageConfig}
                     isStarPage={isStarPage}

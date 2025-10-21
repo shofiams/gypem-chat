@@ -1,11 +1,8 @@
 // src/hooks/useRooms.js
 import { useState, useEffect, useCallback } from "react";
 import { roomService } from "../api/roomService";
-// --- AWAL PERUBAHAN ---
-// 1. Import service yang kita butuhkan
 import { messageService } from "../api/messageService";
 import { authService } from "../api/auth";
-// --- AKHIR PERUBAHAN ---
 
 export const useRooms = () => {
   const [rooms, setRooms] = useState([]);
@@ -20,74 +17,79 @@ export const useRooms = () => {
       const result = await roomService.fetchRooms();
 
       if (result.success) {
-        // --- AWAL PERUBAHAN ---
-        // 2. Ambil data pengguna yang sedang login untuk perbandingan
         const currentUser = authService.getCurrentUser();
+        // Null check for currentUser before accessing properties
         const currentUserId = currentUser?.user_id || null;
 
-        // 3. Proses setiap room untuk mendapatkan info pesan terakhir
         const processedRooms = await Promise.all(
-          result.data.map(async (room) => {
-            // Dapatkan detail pesan dari room ini
+          (result.data || []).map(async (room) => { // Added null check for result.data
+            // Ensure room_id is valid before fetching messages
+            if (!room || typeof room.room_id === 'undefined') {
+                 console.warn("Skipping room due to missing room_id:", room);
+                 return { ...room, admin_id: null }; // Return basic room data
+             }
             const messagesResult = await messageService.fetchMessagesByRoom(room.room_id);
-            
+
             let lastMessageDetails = {};
 
-            // Jika pesan ada, ambil yang terakhir
-            if (messagesResult.success && messagesResult.data && messagesResult.data.length > 0) {
-              const allMessages = messagesResult.data.flat();
-              const lastMessage = allMessages[allMessages.length - 1];
-              
-              if (lastMessage) {
-                // Tentukan apakah pesan terakhir adalah milik kita
-                const isMine = lastMessage.sender_type === 'peserta';
-                
-                // Kumpulkan semua properti detail pesan terakhir
-                lastMessageDetails = {
-                  last_message: lastMessage.content,
-                  last_message_type: lastMessage.attachment ? lastMessage.attachment.file_type : 'text',
-                  last_time: lastMessage.created_at,
-                  is_last_message_mine: isMine,
-                  last_message_status: lastMessage.message_status?.status || 'sent',
-                  last_message_updated_at: lastMessage.updated_at,
-                  last_message_created_at: lastMessage.created_at,
-                  last_message_is_starred: lastMessage.message_status?.is_starred || false,
-                  last_message_is_pinned: lastMessage.message_status?.is_pinned || false,
-                  last_message_is_deleted: lastMessage.message_status?.is_deleted_for_me || lastMessage.is_deleted_globally,
-                };
-              }
+            // Added null check for messagesResult.data
+            if (messagesResult.success && messagesResult.data && Array.isArray(messagesResult.data) && messagesResult.data.length > 0) {
+              // Ensure data is an array before flattening
+               const allMessages = Array.isArray(messagesResult.data) ? messagesResult.data.flat() : [];
+               if (allMessages.length > 0) {
+                   const lastMessage = allMessages[allMessages.length - 1];
+
+                   if (lastMessage) {
+                     const isMine = lastMessage.sender_type === 'peserta';
+                     lastMessageDetails = {
+                       last_message: lastMessage.content,
+                       last_message_type: lastMessage.attachment ? lastMessage.attachment.file_type : 'text',
+                       last_time: lastMessage.created_at,
+                       is_last_message_mine: isMine,
+                       last_message_status: lastMessage.message_status?.status || 'sent',
+                       last_message_updated_at: lastMessage.updated_at,
+                       last_message_created_at: lastMessage.created_at,
+                       last_message_is_starred: lastMessage.message_status?.is_starred || false,
+                       last_message_is_pinned: lastMessage.message_status?.is_pinned || false,
+                       last_message_is_deleted: lastMessage.message_status?.is_deleted_for_me || lastMessage.is_deleted_globally || false, // Added default false
+                     };
+                   }
+               }
             }
 
-            // Gabungkan data room asli dengan detail pesan terakhir
+            // Calculate admin_id safely
+            let admin_id = null;
+            if (room.room_type === 'one_to_one' && Array.isArray(room.members)) {
+                const adminMember = room.members.find(m => m && m.member_type === 'admin'); // Added null check for m
+                admin_id = adminMember?.member_id || null; // Use optional chaining
+            }
+
             return {
               ...room,
               ...lastMessageDetails,
-              // Tambahkan 'admin_id' untuk status online (logika ini sudah ada sebelumnya)
-              admin_id: room.room_type === 'one_to_one'
-                ? room.members?.find(m => m.member_type === 'admin')?.member_id
-                : null
+              admin_id: admin_id // Use calculated admin_id
             };
           })
         );
-        
-        console.log("Processed rooms with last message details:", processedRooms);
+
+        console.log("Processed rooms (including empty):", processedRooms);
         setRooms(processedRooms);
         return processedRooms;
-        // --- AKHIR PERUBAHAN ---
 
       } else {
-        setError(result.message);
+        setError(result.message || "Failed to fetch rooms: Unknown error"); // Added default error message
         setRooms([]);
         return [];
       }
     } catch (err) {
+       console.error("Error fetching rooms:", err); // Log the actual error
       setError(err.message || "Failed to fetch rooms");
       setRooms([]);
       return [];
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, []); // Removed messageService from dependency array as it's stable
 
   const addOptimisticRoom = useCallback((optimisticRoom) => {
     setRooms(currentRooms => [optimisticRoom, ...currentRooms]);
@@ -124,17 +126,23 @@ export const useRooms = () => {
   };
 };
 
-// ... (sisa kode di file ini tidak perlu diubah)
+// ... (sisa kode useRoomDetails dan useRoomOperations tetap sama)
 export const useRoomDetails = (roomId) => {
   const [roomDetails, setRoomDetails] = useState(null);
   const [loading, setLoading] = useState(!!roomId);
   const [error, setError] = useState(null);
 
   const fetchRoomDetails = useCallback(async () => {
-    if (!roomId) {
-      setLoading(false);
-      return;
+    // Check if roomId is actually a valid ID (not null, undefined, or potentially an optimistic ID string)
+    if (!roomId || typeof roomId !== 'number') {
+        // console.warn(`fetchRoomDetails: Invalid or missing roomId: ${roomId}. Skipping fetch.`);
+        setLoading(false);
+        // Optionally clear details if the ID becomes invalid
+        // setRoomDetails(null);
+        // setError(null);
+        return;
     }
+
 
     setLoading(true);
     setError(null);
@@ -151,19 +159,20 @@ export const useRoomDetails = (roomId) => {
         return null;
       }
     } catch (err) {
+      // Log specific error for debugging
+      console.error(`Failed to fetch room details for ID ${roomId}:`, err);
       setError(err.message || "Failed to fetch room details");
       setRoomDetails(null);
       return null;
     } finally {
       setLoading(false);
     }
-  }, [roomId]);
+  }, [roomId]); // Dependency is correct
 
   useEffect(() => {
-    if (roomId) {
-      fetchRoomDetails();
-    }
-  }, [roomId, fetchRoomDetails]);
+    // This effect runs whenever roomId changes
+     fetchRoomDetails();
+  }, [fetchRoomDetails]); // fetchRoomDetails includes roomId dependency
 
   return {
     roomDetails,
