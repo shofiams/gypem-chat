@@ -1,7 +1,6 @@
 // src/router/index.jsx
 import { createBrowserRouter, Navigate } from "react-router-dom";
 import ChatPage from "../pages/list_chat_page/index";
-import StarPage from "../pages/list_chat_page";
 import NotFound from "../pages/not_found";
 import PesertaChatPage from "../pages/PesertaChatPage";
 import GroupChatPeserta from "../pages/GroupChatPeserta";
@@ -63,7 +62,7 @@ export const router = createBrowserRouter([
       },
       {
         path: "starred",
-        element: <StarPage />,
+        element: <ChatPage />,
       },
     ],
   },

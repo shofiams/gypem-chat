@@ -67,27 +67,27 @@ const ChatItem = ({
         
         if (messageType === 'image') {
             return (
-                <div className="flex items-center gap-1">
+                <span className="flex items-center gap-1">
                     <img 
                         src={assets.ImageIcon || assets.DefaultAvatar} 
                         alt="image" 
                         className="w-4 h-4 md:w-3.5 md:h-3.5"
                     />
                     <span>{last_message || 'Photo'}</span>
-                </div>
+                </span>
             );
         }
         
         if (messageType === 'dokumen') {
             return (
-                <div className="flex items-center gap-1">
+                <span className="flex items-center gap-1">
                     <img 
                         src={assets.DocumentIcon || assets.DefaultAvatar} 
                         alt="document" 
                         className="w-4 h-4 md:w-3.5 md:h-3.5"
                     />
                     <span>{last_message || 'Document'}</span>
-                </div>
+                </span>
             );
         }
         
