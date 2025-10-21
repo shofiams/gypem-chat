@@ -49,8 +49,10 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
             {icon}
           </span>
 
-          {/* Badge when sidebar is closed */}
-          {badge != null && !isOpen && (
+          {/* --- AWAL PERUBAHAN --- */}
+          {/* 1. Ubah kondisi 'badge != null' menjadi 'badge > 0' */}
+          {badge != null && badge > 0 && !isOpen && (
+          // --- AKHIR PERUBAHAN ---
             <span
               className="
                 absolute -top-1 -right-1
@@ -84,8 +86,10 @@ const SidebarItem = ({ icon, label, isActive, onClick, isOpen, badge }) => {
           </span>
         </div>
 
-        {/* Badge when sidebar is open */}
-        {badge != null && isOpen && (
+        {/* --- AWAL PERUBAHAN --- */}
+        {/* 2. Ubah kondisi 'badge != null' menjadi 'badge > 0' */}
+        {badge != null && badge > 0 && isOpen && (
+        // --- AKHIR PERUBAHAN ---
           <span
             className={`
               w-4 h-4

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useChatContext } from '../../api/use_chat_context';
 import { useRooms } from '../../hooks/useRooms';
@@ -30,8 +30,46 @@ const MainLayout = () => {
   const isChatRoute = (location.pathname.startsWith('/chats/') && location.pathname !== '/chats') || 
                       (location.pathname.startsWith('/group/') && location.pathname !== '/group');
 
-  const { refetch: refetchRooms } = useRooms();
+  const { rooms, refetch: refetchRooms } = useRooms();
   const { refetch: refetchStarred } = useStarredMessages({ manual: true });
+
+  // --- AWAL PERUBAHAN ---
+  // Logika kalkulasi badge telah disesuaikan
+  const { chatBadgeCount, groupBadgeCount } = useMemo(() => {
+    if (!rooms) {
+      return { chatBadgeCount: 0, groupBadgeCount: 0 };
+    }
+  
+    let privateChatCount = 0;
+    let groupChatCount = 0;
+  
+    // Hitung jumlah obrolan unik yang belum dibaca
+    rooms.forEach(room => {
+      if (room.unread_count > 0) {
+        if (room.room_type === 'group') {
+          groupChatCount++;
+        } else if (room.room_type === 'one_to_one') {
+          privateChatCount++;
+        }
+      }
+    });
+  
+    return { 
+      chatBadgeCount: privateChatCount + groupChatCount, // chatBadgeCount = TOTAL (Personal + Grup)
+      groupBadgeCount: groupChatCount                  // groupBadgeCount = HANYA Grup
+    };
+  }, [rooms]); // Kalkulasi ulang saat data 'rooms' berubah
+  // --- AKHIR PERUBAHAN ---
+
+  useEffect(() => {
+    const handleChatListRefresh = () => {
+      console.log("MainLayout: chatListRefresh event received, refetching rooms for badge.");
+      refetchRooms();
+    };
+    window.addEventListener('chatListRefresh', handleChatListRefresh);
+    return () => window.removeEventListener('chatListRefresh', handleChatListRefresh);
+  }, [refetchRooms]);
+
 
   useEffect(() => {
     if (location.pathname === '/' || location.pathname === '') {
@@ -190,6 +228,9 @@ const MainLayout = () => {
           isDefaultProfile={isDefaultProfile}
           isNewMessageOpen={isNewMessageOpen}
           isProfilePopupOpen={isProfilePopupOpen}
+          // Lewatkan props badge count
+          chatBadgeCount={chatBadgeCount}
+          groupBadgeCount={groupBadgeCount}
         />
 
         <div className="flex flex-col flex-1 md:ml-16">
@@ -209,6 +250,9 @@ const MainLayout = () => {
           profileImage={profileImage}
           isDefaultProfile={isDefaultProfile}
           isProfilePopupOpen={isProfilePopupOpen}
+          // Lewatkan props badge count
+          chatBadgeCount={chatBadgeCount}
+          groupBadgeCount={groupBadgeCount}
         />
       )}
 

@@ -7,12 +7,17 @@ import { FiEdit } from "react-icons/fi";
 import { FaRegStar } from "react-icons/fa";
 import { CgProfile } from "react-icons/cg";
 
-const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile, isNewMessageOpen, isProfilePopupOpen, sidebarRef }) => {
+// --- AWAL PERUBAHAN ---
+// 1. Terima props chatBadgeCount dan groupBadgeCount
+const DesktopSidebar = ({ isOpen, toggleSidebar, activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile, isNewMessageOpen, isProfilePopupOpen, sidebarRef, chatBadgeCount, groupBadgeCount }) => {
+  
+  // 2. Gunakan props tersebut di menuItems
   const menuItems = [
-    { icon: <BsChatSquareText size={20} />, label: "Chats", badge: 10, route: "/chats" },
-    { icon: <MdOutlineGroups size={25} />, label: "Group", route: "/group" },
+    { icon: <BsChatSquareText size={20} />, label: "Chats", badge: chatBadgeCount, route: "/chats" },
+    { icon: <MdOutlineGroups size={25} />, label: "Group", badge: groupBadgeCount, route: "/group" },
     { icon: <FiEdit size={20} />, label: "New Message", route: "/new-message", isPopup: true },
   ];
+  // --- AKHIR PERUBAHAN ---
 
   const extraItems = [
     { icon: <FaRegStar size={20} />, label: "Starred Messages", route: "/starred" },

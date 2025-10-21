@@ -2,12 +2,17 @@ import React from 'react';
 import { assets } from "../../../assets/assets";
 import { HiUserCircle } from "react-icons/hi2";
 
-const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile, isProfilePopupOpen }) => {
+// --- AWAL PERUBAHAN ---
+// 1. Terima props chatBadgeCount dan groupBadgeCount
+const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage, isDefaultProfile, isProfilePopupOpen, chatBadgeCount, groupBadgeCount }) => {
+  
+  // 2. Gunakan props tersebut di 'tabs'
   const tabs = [
-    { key: "group", label: "Group", icon: assets.grouplight, iconActive: assets.groupfill, route: "/group" },
-    { key: "chat", label: "Chats", icon: assets.chat, iconActive: assets.chat_click, route: "/chats", badge: 3 },
+    { key: "group", label: "Group", icon: assets.grouplight, iconActive: assets.groupfill, route: "/group", badge: groupBadgeCount },
+    { key: "chat", label: "Chats", icon: assets.chat, iconActive: assets.chat_click, route: "/chats", badge: chatBadgeCount },
     { key: "profile", label: "Profile", iconActive: assets.user_click, route: "/profile", isProfile: true },
   ];
+  // --- AKHIR PERUBAHAN ---
 
   return (
     <>
@@ -40,7 +45,10 @@ const MobileBottomNav = ({ activeRoute, onNavigate, onProfileClick, profileImage
         <img src={isActive ? tab.iconActive : tab.icon} alt={tab.label} className={`${isActive ? "w-10 h-10 z-30" : "w-10 h-10"} transition-all duration-300`} />
       )}
       
-                  {tab.badge && !isActive && <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#FFB400] text-white text-[10px] rounded-full flex items-center justify-center">{tab.badge}</span>}
+                  {/* --- AWAL PERUBAHAN --- */}
+                  {/* 3. Ubah kondisi 'tab.badge' menjadi 'tab.badge > 0' */}
+                  {tab.badge != null && tab.badge > 0 && !isActive && <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#FFB400] text-white text-[10px] rounded-full flex items-center justify-center">{tab.badge}</span>}
+                  {/* --- AKHIR PERUBAHAN --- */}
                 </div>
                 <span className={`transition-all duration-300 ${isActive ? "text-sm text-purple-600 font-bold -mt-7" : "text-sm text-gray-500 mt-1"}`}>{tab.label}</span>
               </button>
