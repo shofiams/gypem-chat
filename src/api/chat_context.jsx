@@ -166,6 +166,11 @@ export const ChatProvider = ({ children }) => {
       });
     };
 
+    const handleUpdateUnreadCount = (data) => {
+      console.log('Received updateUnreadCount event:', data);
+      window.dispatchEvent(new CustomEvent('unreadCountUpdated', { detail: data }));
+    };
+
     // Register all socket listeners
     socket.on('newMessage', handleNewMessage);
     socket.on('messageEdited', handleMessageEdited);
@@ -173,6 +178,7 @@ export const ChatProvider = ({ children }) => {
     socket.on('initialOnlineUsers', handleInitialOnlineUsers);
     socket.on('userStatusUpdate', handleUserStatusUpdate);
     socket.on('typingUpdate', handleTypingUpdate);
+    socket.on('updateUnreadCount', handleUpdateUnreadCount);
 
     return () => {
       socket.off('newMessage', handleNewMessage);
@@ -181,6 +187,7 @@ export const ChatProvider = ({ children }) => {
       socket.off('initialOnlineUsers', handleInitialOnlineUsers);
       socket.off('userStatusUpdate', handleUserStatusUpdate);
       socket.off('typingUpdate', handleTypingUpdate);
+      socket.off('updateUnreadCount', handleUpdateUnreadCount);
     };
   }, [socket, activeChatId]);
 

@@ -8,7 +8,7 @@ import { useRoomOperations, useRooms } from "../hooks/useRooms";
 import { useChatContext } from "../api/use_chat_context";
 import { assets } from "../assets/assets"
 
-const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
+const NewMessagePopup = ({ isOpen, onClose }) => {
   const popupRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -17,10 +17,6 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
   
   const { 
     rooms,
-    refetch: refetchRooms, 
-    addOptimisticRoom, 
-    updateOptimisticRoom, 
-    removeOptimisticRoom 
   } = useRooms();
   const { setActiveChat } = useChatContext();
 
@@ -50,10 +46,9 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
 
     try {
       console.log('Checking for existing room...');
-      const freshRooms = await refetchRooms(); 
 
       // Mencari room berdasarkan nama kontak (case-insensitive)
-      const existingRoom = freshRooms.find(
+      const existingRoom = rooms.find(
         (room) => room.name.toLowerCase() === contact.name.toLowerCase() && room.room_type === "one_to_one"
       );
 
@@ -76,7 +71,7 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
             navigate('/chats');
             // Delay untuk memastikan halaman chat sudah ter-render
             setTimeout(() => {
-              setActiveChat(roomId);
+              window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: roomId } }));
             }, 100);
           }
         }
@@ -85,130 +80,27 @@ const NewMessagePopup = ({ isOpen, onClose, onChatCreated }) => {
       }
 
       console.log('No existing room found. Creating a new one...');
-      const optimisticId = `optimistic_${Date.now()}`;
-      const optimisticRoom = {
-        optimisticId,
-        room_id: optimisticId,
-        name: contact.name,
-        url_photo: contact.profilePhoto,
-        last_message: "Creating chat...",
-        last_time: new Date().toISOString(),
-        unread_count: 0,
-        room_type: "one_to_one",
-      };
-
-      addOptimisticRoom(optimisticRoom);
-      onClose();
-
-      if (isMobile) {
-        navigate(`/chats/${optimisticId}`);
-      } else {
-        if (isOnChatPage) {
-          window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: optimisticId } }));
-        } else {
-          navigate('/chats');
-          setTimeout(() => {
-            setActiveChat(optimisticId);
-          }, 100);
-        }
-      }
 
       const result = await createPrivateRoom(contact.id);
 
-      if (result.success && result.data) {
-        console.log('Room created successfully via API:', result.data);
-        if (onChatCreated) {
-          await onChatCreated();
-        }
-        window.dispatchEvent(new CustomEvent("chatListRefresh"));
-
-        let newRoom = null;
-        let attempts = 0;
-        const maxAttempts = 10;
-        const delayMs = 200;
-
-        while (!newRoom && attempts < maxAttempts) {
-          attempts++;
-          const currentRoomsData = await refetchRooms();
-          newRoom = currentRoomsData.find(
-            (room) => room.name.toLowerCase() === contact.name.toLowerCase() && room.room_type === "one_to_one" && !room.optimisticId
-          );
-          if (!newRoom) await new Promise((resolve) => setTimeout(resolve, delayMs));
-        }
-        
-        if (newRoom) {
-          const roomId = newRoom.room_id || newRoom.id;
-          updateOptimisticRoom(optimisticId, newRoom);
-          
-          if (isMobile) {
-            navigate(`/chats/${roomId}`, { replace: true });
-          } else {
-            if (isOnChatPage) {
-              window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: roomId } }));
-            } else {
-              // Update active chat di context untuk halaman yang baru di-navigate
-              setActiveChat(roomId);
-            }
-          }
-        } else {
-          console.warn('Polling timeout, using API response data');
-          if (result.data.room_id) {
-            updateOptimisticRoom(optimisticId, result.data);
-            if (isMobile) {
-              navigate(`/chats/${result.data.room_id}`, { replace: true });
-            } else {
-              if (isOnChatPage) {
-                window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: result.data.room_id } }));
-              } else {
-                setActiveChat(result.data.room_id);
-              }
-            }
-          } else {
-            console.error('Failed to get room data from polling and API response.');
-            removeOptimisticRoom(optimisticId);
-            if (isMobile) {
-              navigate('/chats', { replace: true });
-            } else {
-              if (isOnChatPage) {
-                window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: null } }));
-              } else {
-                navigate('/chats');
-                setActiveChat(null);
-              }
-            }
-            alert('Chat created but failed to load. Please refresh.');
-          }
+      if (result.success && result.data && result.data.room_id) {
+        const newRoomId = result.data.room_id;
+        console.log('Room created successfully via API, ID:', newRoomId);
+        onClose();
+        window.dispatchEvent(new CustomEvent('newChatCreated', { detail: { chatId: newRoomId } }));
+        if (isMobile) {
+          navigate(`/chats/${newRoomId}`);
+        } else if (!isOnChatPage) {
+           // Jika tidak di halaman /chats, navigasi ke sana
+           navigate('/chats');
         }
       } else {
         console.error("Failed to create room:", result.error);
         alert(result.error || "Failed to create chat. Please try again.");
-        removeOptimisticRoom(optimisticId);
-        if (isMobile) {
-          navigate('/chats', { replace: true });
-        } else {
-          if (isOnChatPage) {
-            window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: null } }));
-          } else {
-            navigate('/chats');
-            setActiveChat(null);
-          }
-        }
       }
     } catch (error) {
       console.error("Error in handleContactClick:", error);
       alert("An unexpected error occurred. Please try again.");
-      const optimisticId = `optimistic_${Date.now()}`;
-      removeOptimisticRoom(optimisticId);
-      if (isMobile) {
-        navigate('/chats', { replace: true });
-      } else {
-        if (isOnChatPage) {
-          window.dispatchEvent(new CustomEvent('setActiveChat', { detail: { chatId: null } }));
-        } else {
-          navigate('/chats');
-          setActiveChat(null);
-        }
-      }
     } finally {
       setProcessingContact(null);
     }

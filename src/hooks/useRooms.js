@@ -48,8 +48,48 @@ export const useRooms = () => {
         if (!isMountedRef.current) return;
 
         if (result.success) {
-          // Proses rooms
-          const processedRooms = processRoomsData(result.data);
+          // Proses rooms dengan data yang sudah ada dari API
+          const processedRooms = (result.data || []).map((room) => {
+            // Ensure room_id is valid
+            if (!room || typeof room.room_id === "undefined") {
+              console.warn("Skipping room due to missing room_id:", room);
+              return { ...room, admin_id: null };
+            }
+
+            // Calculate admin_id safely
+            let admin_id = null;
+            if (
+              room.room_type === "one_to_one" &&
+              Array.isArray(room.members)
+            ) {
+              const adminMember = room.members.find(
+                (m) => m && m.member_type === "admin"
+              );
+              admin_id = adminMember?.member_id || null;
+            }
+
+            // Gunakan data last_message yang sudah ada dari API response
+            // Jika API tidak mengembalikan last_message, tambahkan default values
+            return {
+              ...room,
+              admin_id: admin_id,
+              // Ensure last message fields exist (gunakan dari API atau default)
+              last_message: room.last_message || null,
+              last_message_type: room.last_message_type || "text",
+              last_time: room.last_time || room.updated_at,
+              is_last_message_mine: room.is_last_message_mine || false,
+              last_message_status: room.last_message_status || "sent",
+              last_message_updated_at:
+                room.last_message_updated_at || room.updated_at,
+              last_message_created_at:
+                room.last_message_created_at || room.created_at,
+              last_message_is_starred: room.last_message_is_starred || false,
+              last_message_is_pinned: room.last_message_is_pinned || false,
+              last_message_is_deleted: room.last_message_is_deleted || false,
+            };
+          });
+
+          console.log("Processed rooms:", processedRooms);
 
           // Update state dengan data dari API
           setRooms(processedRooms);
@@ -65,7 +105,7 @@ export const useRooms = () => {
 
           return processedRooms;
         } else {
-          setError(result.message);
+          setError(result.message || "Failed to fetch rooms: Unknown error");
           // Jika API gagal tapi ada cache, pertahankan cache
           if (rooms.length === 0) {
             setRooms([]);
@@ -75,6 +115,7 @@ export const useRooms = () => {
       } catch (err) {
         if (!isMountedRef.current) return;
 
+        console.error("Error fetching rooms:", err);
         const errorMsg = err.message || "Failed to fetch rooms";
         setError(errorMsg);
 
@@ -206,6 +247,35 @@ export const useRooms = () => {
     };
   }, [fetchRooms]);
 
+  // Handle unread count updates dari event
+  useEffect(() => {
+    const handleUnreadCountUpdated = (event) => {
+      const { roomId, unreadCount } = event.detail;
+
+      setRooms((prevRooms) =>
+        prevRooms.map((room) =>
+          room.room_id === roomId
+            ? { ...room, unread_count: unreadCount }
+            : room
+        )
+      );
+
+      // Update cache juga
+      updateCachedRoom({ room_id: roomId, unread_count: unreadCount }).catch(
+        (err) => console.error("Failed to update unread count in cache:", err)
+      );
+    };
+
+    window.addEventListener("unreadCountUpdated", handleUnreadCountUpdated);
+
+    return () => {
+      window.removeEventListener(
+        "unreadCountUpdated",
+        handleUnreadCountUpdated
+      );
+    };
+  }, []);
+
   return {
     rooms,
     loading,
@@ -230,46 +300,45 @@ export const useRoomDetails = (roomId) => {
   const [error, setError] = useState(null);
   const isMountedRef = useRef(true);
 
-  const fetchRoomDetails = useCallback(
-    async () => {
-      if (!roomId) {
-        setLoading(false);
-        return;
-      }
+  const fetchRoomDetails = useCallback(async () => {
+    // Check if roomId is actually a valid ID (not null, undefined, or potentially an optimistic ID string)
+    if (!roomId || typeof roomId !== "number") {
+      setLoading(false);
+      return;
+    }
 
-      setLoading(true);
-      setError(null);
+    setLoading(true);
+    setError(null);
 
-      try {
-        // Langsung fetch dari API
-        console.log(`🌐 Fetching room details for ${roomId} from API...`);
-        const result = await roomService.fetchRoomDetails(roomId);
+    try {
+      // Langsung fetch dari API
+      console.log(`🌐 Fetching room details for ${roomId} from API...`);
+      const result = await roomService.fetchRoomDetails(roomId);
 
-        if (!isMountedRef.current) return;
+      if (!isMountedRef.current) return;
 
-        if (result.success) {
-          setRoomDetails(result.data);
-          return result.data;
-        } else {
-          setError(result.message);
-          setRoomDetails(null);
-          return null;
-        }
-      } catch (err) {
-        if (!isMountedRef.current) return;
-
-        const errorMsg = err.message || "Failed to fetch room details";
-        setError(errorMsg);
+      if (result.success) {
+        setRoomDetails(result.data);
+        return result.data;
+      } else {
+        setError(result.message);
         setRoomDetails(null);
         return null;
-      } finally {
-        if (isMountedRef.current) {
-          setLoading(false);
-        }
       }
-    },
-    [roomId]
-  );
+    } catch (err) {
+      if (!isMountedRef.current) return;
+
+      console.error(`Failed to fetch room details for ID ${roomId}:`, err);
+      const errorMsg = err.message || "Failed to fetch room details";
+      setError(errorMsg);
+      setRoomDetails(null);
+      return null;
+    } finally {
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+    }
+  }, [roomId]);
 
   useEffect(() => {
     isMountedRef.current = true;

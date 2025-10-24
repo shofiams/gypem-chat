@@ -60,11 +60,7 @@ export default function ChatPage() {
             return { data: augmentedStarredMessages, loading: starredLoading, error: starredError };
         }
         
-        const filteredRooms = isGroupPage 
-            ? allRooms?.filter(room => room.room_type === 'group') || [] 
-            : allRooms || [];
-        
-        return { data: filteredRooms, loading: roomsLoading, error: roomsError };
+        return { data: allRooms, loading: roomsLoading, error: roomsError };
     };
 
     const { data: chats, loading: pageLoading } = getPageData(); 
@@ -75,6 +71,28 @@ export default function ChatPage() {
     const [chatToDelete, setChatToDelete] = useState(null);
     const confirmRef = useRef(null);
     const prevPathnameRef = useRef(location.pathname);
+
+    const displayedChats = useMemo(() => {
+        if (isStarPage) {
+            return chats; 
+        }
+        if (isGroupPage) {
+            return (chats || []).filter(room => room.room_type === 'group');
+        }
+        return (chats || []).filter(room => room.room_type === 'group' || !!room.last_time);
+    }, [chats, isStarPage, isGroupPage]);
+
+    const sortedChats = useMemo(() => {
+      if (!displayedChats || displayedChats.length === 0) return [];
+
+      return [...displayedChats].sort((a, b) => {
+        const timeA = a.last_time || a.created_at;
+        const timeB = b.last_time || b.created_at;
+        const dateA = timeA ? new Date(timeA) : new Date(0);
+        const dateB = timeB ? new Date(timeB) : new Date(0);
+        return dateB - dateA;
+      });
+    }, [displayedChats]);
 
     // Clear search ketika pindah halaman
     useEffect(() => {
@@ -111,10 +129,22 @@ export default function ChatPage() {
 
     const currentSearchResults = useMemo(() => {
         if (!searchQuery.trim()) return null;
-        return isStarPage ? { starredMessages: starredSearchResults } : searchResults;
-    }, [searchQuery, isStarPage, searchResults, starredSearchResults]);
+        if (isStarPage) {
+            return { starredMessages: starredSearchResults };
+        }
+
+        const filteredRooms = (searchResults?.rooms || []).filter(room => {
+            if (isGroupPage) return room.room_type === 'group';
+            return room.room_type === 'group' || !!room.last_time;
+        });
+
+        return { 
+            ...searchResults, 
+            rooms: filteredRooms 
+        };
+    }, [searchQuery, isStarPage, isGroupPage, searchResults, starredSearchResults]);
     
-    const getChatById = (chatId) => chats.find(chat => chat.room_id === chatId);
+    const getChatById = (chatId) => (chats || []).find(chat => chat.room_id == chatId);
     
     const clearSearch = useCallback(() => {
         setSearchQuery('');
@@ -127,7 +157,7 @@ export default function ChatPage() {
         const currentIsMobile = window.innerWidth < 768;
         
         if (isStarPage) {
-            const starredItem = chats.find(item => item.message_id === itemId);
+            const starredItem = (chats || []).find(item => item.message_id === itemId);
             if (!starredItem) return;
             
             if (currentIsMobile) {
@@ -138,7 +168,7 @@ export default function ChatPage() {
                 setHighlightMessageId(starredItem.message_id);
             }
         } else {
-            const chat = chats.find(c => c.room_id === itemId);
+            const chat = (chats || []).find(c => c.room_id === itemId);
             if (!chat) return;
             
             // Check apakah room ada di cache
@@ -153,7 +183,7 @@ export default function ChatPage() {
             if (currentIsMobile) {
                 navigate(chat?.room_type === 'group' ? `/group/${itemId}` : `/chats/${itemId}`);
             } else {
-                setActiveChat(itemId);
+                setActiveChat(chat.room_id);
             }
         }
     }, [isStarPage, chats, checkRoomCache, navigate, setActiveChat]);
@@ -211,7 +241,7 @@ export default function ChatPage() {
 
     const getChatToDeleteName = () => {
         if (!chatToDelete) return '';
-        const chat = chats.find(c => c.room_member_id === chatToDelete);
+        const chat = (chats || []).find(c => c.room_member_id === chatToDelete);
         return chat?.name || '';
     };
 
@@ -243,6 +273,28 @@ export default function ChatPage() {
         window.addEventListener('setActiveChat', handleSetActiveChat);
         return () => window.removeEventListener('setActiveChat', handleSetActiveChat);
     }, [setActiveChat]);
+
+    useEffect(() => {
+      const handleNewChat = async (event) => {
+        const { chatId } = event.detail;
+        console.log('newChatCreated event received, chatId:', chatId);
+        await refetchRooms();
+        setActiveChat(chatId);
+      };
+      window.addEventListener('newChatCreated', handleNewChat);
+      return () => {
+        window.removeEventListener('newChatCreated', handleNewChat);
+      };
+    }, [refetchRooms, setActiveChat]);
+
+    useEffect(() => {
+        const handleChatListRefresh = () => {
+            console.log("Event chatListRefresh diterima!");
+            isStarPage ? refetchStarred() : refetchRooms();
+        };
+        window.addEventListener('chatListRefresh', handleChatListRefresh);
+        return () => window.removeEventListener('chatListRefresh', handleChatListRefresh);
+    }, [isStarPage, refetchRooms, refetchStarred]);
 
     // ===== SOCKET LISTENERS FOR REAL-TIME UPDATES =====
     useEffect(() => {
@@ -326,17 +378,6 @@ export default function ChatPage() {
             document.removeEventListener('mousedown', handleClickOutside);
         };
     }, [activeChatId, isMobile, isStarPage, contextMenu, confirmOpen, clearActiveChat]);
-    
-    // Listen to chatListRefresh event
-    useEffect(() => {
-        const handleChatListRefresh = () => {
-            console.log('🔄 Chat list refresh requested');
-            isStarPage ? refetchStarred() : refetchRooms(true); // force API fetch
-        };
-        
-        window.addEventListener('chatListRefresh', handleChatListRefresh);
-        return () => window.removeEventListener('chatListRefresh', handleChatListRefresh);
-    }, [isStarPage, refetchRooms, refetchStarred]);
 
     const renderChatItems = (items, options = {}) => {
         const { onContextMenu = handleContextMenu, isStarredItem = false } = options;
@@ -350,7 +391,7 @@ export default function ChatPage() {
                         {...chat}
                         onContextMenu={isStarredItem ? null : onContextMenu}
                         onClick={handleChatClick}
-                        isSelected={!isMobile && activeChatId === chat.room_id}
+                        isSelected={!isMobile && activeChatId == chat.room_id}
                         highlightQuery={searchQuery}
                         isStarredItem={isStarredItem}
                         chatName={isStarredItem ? chat.room_name : chat.name}
@@ -401,7 +442,7 @@ export default function ChatPage() {
                 )}
                 
                 <ChatList
-                    chats={getChatById ? chats.filter(chat => isGroupPage ? chat.room_type === 'group' : true) : chats}
+                    chats={sortedChats}
                     isLoading={pageLoading}
                     searchQuery={searchQuery}
                     searchResults={currentSearchResults}
