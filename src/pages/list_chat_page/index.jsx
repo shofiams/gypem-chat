@@ -188,6 +188,30 @@ export default function ChatPage() {
         }
     }, [isStarPage, chats, checkRoomCache, navigate, setActiveChat]);
     
+    // Handler untuk klik message dari search results
+    const handleMessageClick = useCallback((messageId) => {
+        const message = currentSearchResults?.messages?.find(m => m.message_id === messageId);
+        
+        if (!message) return;
+        
+        const currentIsMobile = window.innerWidth < 768;
+        
+        // Tentukan room_type dari message
+        const room = allRooms.find(r => r.room_id === message.room_id);
+        const isGroup = room?.room_type === 'group';
+        
+        if (currentIsMobile) {
+            // Mobile: navigate dengan highlight query param
+            const path = isGroup ? '/group/' : '/chats/';
+            navigate(`${path}${message.room_id}?highlight=${messageId}`);
+        } else {
+            // Desktop: set active chat dan highlight message
+            setActiveChat(message.room_id);
+            setHighlightMessageId(messageId);
+        }
+        
+    }, [currentSearchResults, allRooms, navigate, setActiveChat]);
+    
     const handleContextMenu = (e, roomMemberId) => {
         if (isStarPage) return;
         e.preventDefault();
@@ -449,18 +473,7 @@ export default function ChatPage() {
                     isStarPage={isStarPage}
                     pageConfig={pageConfig}
                     renderChatItems={renderChatItems}
-                    handleMessageClick={(id) => {
-                        const message = currentSearchResults.messages.find(m => m.message_id === id);
-                        if(message) {
-                            const currentIsMobile = window.innerWidth < 768;
-                            if (currentIsMobile) {
-                                navigate(`/chats/${message.room_id}?highlight=${message.message_id}`);
-                            } else {
-                                setActiveChat(message.room_id);
-                                setHighlightMessageId(message.message_id);
-                            }
-                        }
-                    }}
+                    handleMessageClick={handleMessageClick}
                 />
             </aside>
 
