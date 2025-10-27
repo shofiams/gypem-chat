@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
 export const useChatBubbleState = (props) => {
-  const { isLastBubble } = props;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
@@ -57,28 +56,42 @@ export const useChatBubbleState = (props) => {
 
   useEffect(() => {
     if (dropdownOpen) {
-      const calculateDropdownPosition = () => {
-        if (!buttonRef.current) return "below";
+      const timer = setTimeout(() => {
+        const calculateDropdownPosition = () => {
+          if (!buttonRef.current) return "below";
 
-        const buttonRect = buttonRef.current.getBoundingClientRect();
-        const viewportHeight = window.innerHeight;
-        const spaceBelow = viewportHeight - buttonRect.bottom;
-        const spaceAbove = buttonRect.top;
-        const dropdownHeight = props.groupChatMode ? 120 : 280;
+          const buttonRect = buttonRef.current.getBoundingClientRect();
+          const spaceAbove = buttonRect.top;
 
-        if (spaceBelow < dropdownHeight && spaceAbove > dropdownHeight) {
-          return "above";
-        }
+          const dropdownHeight =
+            dropdownRef.current?.offsetHeight ||
+            (props.groupChatMode ? 130 : 280);
 
-        if (isLastBubble && spaceAbove > 200) {
-          return "above";
-        }
+          const chatFooterEl = document.querySelector(
+            ".p-3.flex.items-center.gap-2"
+          )?.parentElement;
+          const footerTop = chatFooterEl
+            ? chatFooterEl.getBoundingClientRect().top
+            : window.innerHeight;
 
-        return "below";
-      };
-      setDropdownPosition(calculateDropdownPosition());
+          const collidesWithFooter =
+            buttonRect.bottom + dropdownHeight > footerTop;
+
+          if (collidesWithFooter) {
+            if (spaceAbove > dropdownHeight) {
+              return "above";
+            }
+          }
+
+          return "below";
+        };
+
+        setDropdownPosition(calculateDropdownPosition());
+      }, 0);
+
+      return () => clearTimeout(timer);
     }
-  }, [dropdownOpen, isLastBubble, props.groupChatMode]);
+  }, [dropdownOpen, props.groupChatMode]);
 
   return {
     state: {

@@ -151,7 +151,7 @@ const ChatFooter = ({
             disabled={editingMessage ? !editText.trim() : !message.trim()}
             className="ml-2 p-1 rounded-full transition-opacity disabled:opacity-50"
           >
-            <img src={editingMessage ? assets.Ceklis : assets.Send} alt="Send" className="w-6 h-6" />
+            <img src={assets.Send} alt="Send" className="w-6 h-6" />
           </button>
         </div>
       </div>
