@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { getContrast, darken } from "color2k";
-import { useParams, useLocation } from "react-router-dom"; // 1. Import useLocation
+import { useParams, useLocation, useNavigate } from "react-router-dom"; 
 import BaseChatPage from "./BaseChatPage";
 import GroupPopup from "../components/GroupPopup/GroupPopup";
 import { useRoomDetails } from "../hooks/useRooms"; 
@@ -73,10 +73,12 @@ const GroupChatPeserta = ({
   onClose, 
   chatId: propChatId, 
   highlightMessageId: propHighlightMessageId = null, // Ganti nama prop
-  onMessageHighlight = null 
+  onMessageHighlight = null,
+  onNavigateOnDesktop
 }) => {
 
   const { chatId: paramChatId } = useParams();
+  const navigate = useNavigate();
   const chatId = isEmbedded ? propChatId : paramChatId;
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
@@ -100,6 +102,23 @@ const GroupChatPeserta = ({
   
   const getSenderColor = (sender) => {
     return generateMemberColorWithColor2k(sender);
+  };
+
+  const handleNavigateToMessage = (messageId) => {
+    if (!chatId || !messageId) return;
+
+    const isMobile = window.innerWidth < 768;
+    setIsPopupOpen(false); // Selalu tutup popup
+
+    if (isMobile) {
+      // Di mobile, navigasi ke halaman chat
+      navigate(`/group/${chatId}?highlight=${messageId}`);
+    } else {
+      // Di desktop, panggil callback untuk menyorot pesan
+      if (onNavigateOnDesktop) {
+        onNavigateOnDesktop(messageId);
+      }
+    }
   };
 
   const readOnlyFooter = (
@@ -164,6 +183,7 @@ const GroupChatPeserta = ({
           onClose={() => setIsPopupOpen(false)}
           roomId={chatId}
           onLeaveSuccess={refetchRoomDetails}
+          onNavigateToMessage={handleNavigateToMessage}
         />
       )}
     </>

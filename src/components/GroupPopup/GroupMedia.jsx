@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { FiMessageSquare } from "react-icons/fi";
 
 // Icon components sebagai pengganti react-icons
 const ImageIcon = ({ className = "w-6 h-6" }) => (
@@ -9,7 +10,7 @@ const ImageIcon = ({ className = "w-6 h-6" }) => (
   </svg>
 );
 
-export default function GroupMedia({ mediaList = [] }) {
+export default function GroupMedia({ mediaList = [], onNavigateToMessage }) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [imageLoadError, setImageLoadError] = useState({});
@@ -144,13 +145,19 @@ export default function GroupMedia({ mediaList = [] }) {
       {/* Lightbox Modal */}
       {lightboxOpen && photoList[currentIndex] && (
         <div
-  className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[9999]"
-  style={{ padding: "5%" }}
-  onClick={closeLightbox}
->
-
+          className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[9999]"
+          style={{ padding: "5%" }}
+          onClick={closeLightbox}
+        >
           {/* Bar kanan atas */}
           <div className="absolute top-4 right-4 flex items-center gap-3 z-10">
+            <button
+              onClick={(e) => { e.stopPropagation(); if (onNavigateToMessage) onNavigateToMessage(photoList[currentIndex].messageId); }}
+              className="bg-black bg-opacity-50 hover:bg-opacity-70 text-white w-10 h-10 flex items-center justify-center rounded-full transition-all outline-none"
+              title="Go to message"
+            >
+              <FiMessageSquare size={20} />
+            </button>
             <button
               onClick={(e) => { e.stopPropagation(); downloadPhoto(); }}
               className="bg-black bg-opacity-50 hover:bg-opacity-70 text-white w-10 h-10 flex items-center justify-center rounded-full transition-all outline-none"

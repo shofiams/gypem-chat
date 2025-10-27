@@ -109,10 +109,12 @@ export default function ChatPage() {
             setSearchQuery('');
             clearGlobalSearch();
             clearStarredSearch();
+            clearActiveChat();
+            setHighlightMessageId(null);
         }
         
         prevPathnameRef.current = currentPathname;
-    }, [location.pathname, clearGlobalSearch, clearStarredSearch]);
+    }, [location.pathname, clearGlobalSearch, clearStarredSearch, clearActiveChat]);
 
     // Debounced search
     useEffect(() => {
@@ -378,7 +380,7 @@ export default function ChatPage() {
             if (e.key === 'Escape') {
                 if (activeChatId && !isMobile) {
                     clearActiveChat();
-                    if (isStarPage) setHighlightMessageId(null);
+                    setHighlightMessageId(null);
                 }
                 if (contextMenu.visible) setContextMenu({ ...contextMenu, visible: false });
                 if (confirmOpen) closeConfirm();
@@ -401,7 +403,7 @@ export default function ChatPage() {
             document.removeEventListener('keydown', handleKeydown);
             document.removeEventListener('mousedown', handleClickOutside);
         };
-    }, [activeChatId, isMobile, isStarPage, contextMenu, confirmOpen, clearActiveChat]);
+    }, [activeChatId, isMobile, contextMenu, confirmOpen, clearActiveChat]);
 
     const renderChatItems = (items, options = {}) => {
         const { onContextMenu = handleContextMenu, isStarredItem = false } = options;

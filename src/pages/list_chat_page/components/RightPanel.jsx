@@ -27,6 +27,7 @@ const RightPanel = ({
           }}
           highlightMessageId={messageToHighlight}
           onMessageHighlight={() => setHighlightMessageId(null)}
+          onNavigateOnDesktop={(messageId) => setHighlightMessageId(messageId)}
         />
       );
     } else {
@@ -40,6 +41,7 @@ const RightPanel = ({
           }}
           highlightMessageId={messageToHighlight}
           onMessageHighlight={() => setHighlightMessageId(null)}
+          onNavigateOnDesktop={(messageId) => setHighlightMessageId(messageId)}
         />
       );
     }

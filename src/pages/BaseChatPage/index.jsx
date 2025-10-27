@@ -114,7 +114,6 @@ const BaseChatPage = ({
   }, [contextMessages]);
 
   useEffect(() => {
-    // Pastikan socket terhubung dan pesan sudah dimuat
     if (!socket || !flattenedMessages || flattenedMessages.length === 0) {
       return;
     }
@@ -134,7 +133,6 @@ const BaseChatPage = ({
         messageStatusIds: unreadMessageStatusIds
       });
     }
-
   }, [flattenedMessages, actualChatId, socket]);
 
   const { messagesContainerRef, showScrollButton, scrollToBottom } = useScrollManager(contextMessages, actualChatId);
@@ -160,10 +158,9 @@ const BaseChatPage = ({
       scrollToBottom, 
   });
 
-  // EFEK UNTUK REFETCH PESAN KETIKA ADA PESAN BARU MASUK
+  // Refetch messages on updates
   useEffect(() => {
     const handleMessagesUpdate = (event) => {
-      // Hanya refetch jika event ini untuk chat yang sedang aktif
       if (event.detail.roomId === actualChatId) {
         console.log(`Refetching messages for room ${actualChatId} due to messagesUpdated event.`);
         refetchMessages();
@@ -174,9 +171,10 @@ const BaseChatPage = ({
     return () => {
       window.removeEventListener('messagesUpdated', handleMessagesUpdate);
     };
-  }, [actualChatId, refetchMessages]); // <-- Dependencies
+  }, [actualChatId, refetchMessages]);
 
-   useEffect(() => {
+  // Reset selection mode on chat change
+  useEffect(() => {
     if (setIsSelectionMode) setIsSelectionMode(false);
     if (setSelectedMessages) setSelectedMessages(new Set());
   }, [actualChatId, setIsSelectionMode, setSelectedMessages]);
@@ -222,29 +220,65 @@ const BaseChatPage = ({
   const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
   const messageRefs = useRef({});
 
+  const scrollToMessage = useCallback((messageId) => {
+    const element = messageRefs.current[messageId];
+    if (!element) {
+      console.warn(`Message element with ID ${messageId} not found in refs.`);
+      return;
+    }
+    
+    // Scroll to center
+    element.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    
+    // Apply highlight effect
+    element.style.transition = 'background-color 0.5s ease-out';
+    element.style.backgroundColor = 'rgba(255, 229, 100, 0.5)'; 
+    
+    // Remove highlight after 1.5s
+    setTimeout(() => {
+      element.style.backgroundColor = 'transparent';
+      // Clear transition after animation completes
+      setTimeout(() => {
+        if (element) element.style.transition = '';
+      }, 500);
+    }, 1500);
+  }, []);
+
+  // ========== HIGHLIGHT FROM URL/PROPS ==========
   useEffect(() => {
-    // Cek jika ada prop highlightId dan pesan sudah dimuat
     if (propHighlightMessageId && flattenedMessages.length > 0) {
       const messageIdToScroll = parseInt(propHighlightMessageId, 10);
       
-      // Pastikan pesan ada di daftar sebelum melakukan scroll
-      const messageExists = flattenedMessages.some(m => m.message_id === messageIdToScroll);
+      // Check if message exists
+      const messageExists = flattenedMessages.some(
+        m => m.message_id === messageIdToScroll
+      );
 
       if (messageExists) {
-        // Panggil fungsi scroll setelah jeda singkat untuk memastikan DOM siap
-        setTimeout(() => {
+        // Delay to ensure DOM is ready
+        const scrollTimer = setTimeout(() => {
           scrollToMessage(messageIdToScroll);
         }, 100);
 
-        // Jika ada callback onMessageHighlight, panggil setelah efek sorot selesai
-        if (onMessageHighlight) {
-          setTimeout(() => {
+        // Clear parent state after highlight finishes
+        const clearTimer = setTimeout(() => {
+          if (onMessageHighlight) {
             onMessageHighlight();
-          }, 2000); // Durasi sorotan + jeda
-        }
+          }
+        }, 1600); // 2s after scroll (1.5s highlight + 0.5s buffer)
+
+        // Cleanup timers
+        return () => {
+          clearTimeout(scrollTimer);
+          clearTimeout(clearTimer);
+        };
       }
     }
-  }, [propHighlightMessageId, flattenedMessages]);
+  }, [propHighlightMessageId, flattenedMessages, scrollToMessage, onMessageHighlight]);
+
 
   useEffect(() => {
     if (clientSidePinnedMessages && currentPinnedIndex >= clientSidePinnedMessages.length) {
@@ -271,44 +305,19 @@ const BaseChatPage = ({
     const currentPin = clientSidePinnedMessages[validIndex];
 
     if (currentPin && messageRefs.current[currentPin.message_id]) {
-      messageRefs.current[currentPin.message_id].scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      const element = messageRefs.current[currentPin.message_id];
-      element.style.transition = 'background-color 0.5s';
-      element.style.backgroundColor = 'rgba(255, 229, 100, 0.5)';
-      setTimeout(() => {
-        element.style.backgroundColor = 'transparent';
-      }, 1500);
+      scrollToMessage(currentPin.message_id);
     }
   };
 
-  const handleReplyClick = (messageId) => {
-    const messageElement = messageRefs.current[messageId];
-    if (messageElement) {
-      messageElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      });
-
-      // Efek sorotan sementara
-      messageElement.style.transition = 'background-color 0.5s ease-out';
-      messageElement.style.backgroundColor = 'rgba(255, 229, 100, 0.5)'; // Warna kuning sorotan
-      setTimeout(() => {
-        messageElement.style.backgroundColor = 'transparent';
-        // Hapus transisi setelah selesai agar tidak mengganggu interaksi lain
-        setTimeout(() => {
-            messageElement.style.transition = ''; 
-        }, 500);
-      }, 1500); // Durasi sorotan 1.5 detik
+  const handleReplyClick = useCallback((messageId) => {
+    if (messageRefs.current[messageId]) {
+      scrollToMessage(messageId);
     } else {
-        console.warn(`Pesan dengan ID ${messageId} tidak ditemukan.`);
-        // Mungkin tambahkan notifikasi untuk pengguna di sini
+      console.warn(`Pesan dengan ID ${messageId} tidak ditemukan.`);
     }
-  };
-  // --- AKHIR PERUBAHAN ---
+  }, [scrollToMessage]);
 
+  // ========== SELECTION MODE ==========
   const handleStartSelection = (messageId) => {
     setIsSelectionMode(true);
     setSelectedMessages(new Set([messageId]));
@@ -336,9 +345,7 @@ const BaseChatPage = ({
     const allAreSenderMessages = idsToDelete.every(id => {
         if (!id) return true; 
         const msg = flattenedMessages.find(m => m.message_id === id);
-        if (!msg) {
-            return true; 
-        }
+        if (!msg) return true; 
         return msg.sender_type === 'peserta';
     });
 
@@ -359,6 +366,7 @@ const BaseChatPage = ({
       return;
     }
 
+    // Search messages
     const results = flattenedMessages.filter(msg => 
       !msg.is_deleted_globally && 
       msg.content && 
@@ -371,6 +379,7 @@ const BaseChatPage = ({
       setCurrentSearchIndex(0);
       scrollToMessage(results[0].message_id);
       
+      // Auto-clear highlight after 1.5s
       searchHighlightTimer.current = setTimeout(() => {
         setHighlightedMessageId(null);
         searchHighlightTimer.current = null;
@@ -379,16 +388,18 @@ const BaseChatPage = ({
       setCurrentSearchIndex(-1);
       setHighlightedMessageId(null);
     }
-  }, [flattenedMessages]);
+  }, [flattenedMessages, scrollToMessage]);
   
-    const navigateSearchResults = (direction) => {
+  const navigateSearchResults = useCallback((direction) => {
     if (searchResults.length === 0) return;
     
+    // Clear existing timer
     if (searchHighlightTimer.current) {
       clearTimeout(searchHighlightTimer.current);
       searchHighlightTimer.current = null;
     }
     
+    // Calculate new index
     let newIndex;
     if (direction === 'next') {
       newIndex = currentSearchIndex + 1 >= searchResults.length ? 0 : currentSearchIndex + 1;
@@ -399,37 +410,21 @@ const BaseChatPage = ({
     setCurrentSearchIndex(newIndex);
     scrollToMessage(searchResults[newIndex].message_id);
     
+    // Auto-clear highlight
     searchHighlightTimer.current = setTimeout(() => {
       setHighlightedMessageId(null);
       searchHighlightTimer.current = null;
     }, 1500);
-  };
-  
-    const scrollToMessage = (messageId) => {
-    const element = messageRefs.current[messageId];
-    if (element) {
-      // Gulir elemen ke tengah tampilan
-      element.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+  }, [searchResults, currentSearchIndex, scrollToMessage]);
 
-      // Beri efek sorotan (highlight)
-      element.style.transition = 'background-color 0.5s ease-out';
-      element.style.backgroundColor = 'rgba(255, 229, 100, 0.5)'; // Warna kuning sorotan
-
-      // Hapus efek sorotan setelah beberapa saat
-      const timeoutDuration = searchQuery ? 1500 : 1500; // Durasi highlight 1.5 detik
-
-      setTimeout(() => {
-          element.style.backgroundColor = 'transparent';
-          // Hapus transisi setelah selesai agar tidak mengganggu interaksi lain
-          setTimeout(() => {
-              if(element) element.style.transition = ''; 
-          }, 500);
-      }, timeoutDuration);
-    }
-};
+  // Cleanup search timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchHighlightTimer.current) {
+        clearTimeout(searchHighlightTimer.current);
+      }
+    };
+  }, []);
 
   const renderMessage = useCallback((msg, idx, arr) => {
     if (msg.reply_to_message && msg.reply_to_message.reply_to_message_id) {
@@ -517,7 +512,24 @@ const BaseChatPage = ({
         />
       </div>
     );
-  }, [isSelectionMode, selectedMessages, flattenedMessages, customChatBubbleProps, showSenderNames, getSenderColor, setReplyingMessage, setEditingMessage, setEditText, pinMessage, unpinMessage, refetchMessages, refetchPinnedMessages, searchQuery, openDropdownId]);
+  }, [
+    isSelectionMode, 
+    selectedMessages, 
+    flattenedMessages, 
+    customChatBubbleProps, 
+    showSenderNames, 
+    getSenderColor, 
+    setReplyingMessage, 
+    setEditingMessage, 
+    setEditText, 
+    pinMessage, 
+    unpinMessage, 
+    refetchMessages, 
+    refetchPinnedMessages, 
+    searchQuery, 
+    openDropdownId,
+    handleReplyClick
+  ]);
 
 
   return (
@@ -555,16 +567,16 @@ const BaseChatPage = ({
       )}
 
       <div className="flex-1 flex flex-col min-h-0 relative">
-          <MessageList
-        messages={flattenedMessages}
-        messagesContainerRef={messagesContainerRef}
-        renderMessage={renderMessage}
-        isLoading={messagesLoading} // Tambahkan prop ini
-        onBackgroundClick={() => {
-          setShowEmojiPicker(false);
-          setOpenDropdownId(null);
-        }} 
-    />
+        <MessageList
+          messages={flattenedMessages}
+          messagesContainerRef={messagesContainerRef}
+          renderMessage={renderMessage}
+          isLoading={messagesLoading}
+          onBackgroundClick={() => {
+            setShowEmojiPicker(false);
+            setOpenDropdownId(null);
+          }} 
+        />
 
         {showScrollButton && !isSelectionMode && (
           <button

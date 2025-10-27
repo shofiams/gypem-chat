@@ -11,14 +11,14 @@ import {
 import { useRoomDetails } from "../../hooks/useRooms";
 import { useRoomMedia } from "../../hooks/useMessages";
 import { authService } from "../../api/auth";
-import logo from "../../assets/User.svg";
+import logo from "../../assets/DefaultAvatar.svg";
 import GroupOverview from "./GroupOverview";
 import GroupMembers from "./GroupMembers";
 import GroupMedia from "./GroupMedia";
 import GroupFiles from "./GroupFiles";
 import GroupLinks from "./GroupLinks";
 
-export default function GroupPopup({ onClose, roomId, onLeaveSuccess }) {
+export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigateToMessage }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [seeMore, setSeeMore] = useState(false);
   const [seeAllMembers, setSeeAllMembers] = useState(false);
@@ -344,17 +344,20 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess }) {
             {activeTab === "links" && (
               <GroupLinks 
                 links={links || []} 
+                onNavigateToMessage={onNavigateToMessage}
               />
             )}
             {activeTab === "media" && (
               <GroupMedia 
                 mediaList={mediaList || []} 
                 openLightbox={openLightbox} 
+                onNavigateToMessage={onNavigateToMessage}
               />
             )}
             {activeTab === "files" && (
               <GroupFiles 
                 files={files || []} 
+                onNavigateToMessage={onNavigateToMessage}
               />
             )}
           </div>
