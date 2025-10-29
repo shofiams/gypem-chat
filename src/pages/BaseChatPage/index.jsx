@@ -1,5 +1,3 @@
-// src/pages/BaseChatPage/index.jsx
-
 import React, { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useChatHeader } from "../../hooks/useChatHeader";
@@ -7,8 +5,6 @@ import { useMessagesByRoom, usePinnedMessagesByRoom, useMessageOperations } from
 import { messageService } from "../../api/messageService";
 import FileUploadPopup from "../../components/FileUploadPopup";
 import ChatBubblePeserta from "../../components/ChatBubblePeserta"; 
-
-// --- Import Hooks & Komponen Modular ---
 import { useChatState } from "./hooks/useChatState";
 import { useMessageHandler } from "./hooks/useMessageHandler";
 import { useScrollManager } from "./hooks/useScrollManager";
@@ -19,6 +15,7 @@ import ChatFooter from "./components/ChatFooter";
 import DeleteMessageModal from "./components/DeleteMessageModal";
 import { assets } from "../../assets/assets";
 import ImageViewerModal from "../../components/ChatBubblePeserta/components/ImageViewerModal";
+import { useChatContext } from "../../api/use_chat_context";
 
 const formatMessageTime = (created_at) => {
   if (!created_at) return "";
@@ -41,6 +38,10 @@ const getTimeGroupingProps = (currentMsg, currentIndex, allMessages) => {
   const currentTime = formatMessageTime(currentMsg.created_at);
   const nextTime = nextMsg ? formatMessageTime(nextMsg.created_at) : null;
 
+  const currentMessageDate = new Date(currentMsg.created_at).toDateString();
+  const previousMessageDate = previousMsg ? new Date(previousMsg.created_at).toDateString() : null;
+  const isFirstMessageOfDay = !previousMsg || currentMessageDate !== previousMessageDate;
+
   const isLastInTimeGroup = !nextMsg ||
     nextSender !== currentSender ||
     nextTime !== currentTime;
@@ -50,6 +51,7 @@ const getTimeGroupingProps = (currentMsg, currentIndex, allMessages) => {
     nextMessageTime: nextTime,
     nextMessageSender: nextSender,
     previousMessageSender: previousSender,
+    isFirstMessageOfDay: isFirstMessageOfDay,
   };
 };
 
@@ -72,10 +74,11 @@ const BaseChatPage = ({
   const navigate = useNavigate();
   const actualChatId = isEmbedded ? propChatId : paramChatId;
 
-  const { data: contextMessages, refetch: refetchMessages } = useMessagesByRoom(actualChatId);
+  const { data: contextMessages, loading: messagesLoading, refetch: refetchMessages } = useMessagesByRoom(actualChatId);
   const { refetch: refetchPinnedMessages } = usePinnedMessagesByRoom(actualChatId);
   const { pinMessage, unpinMessage, starMessages, unstarMessages } = useMessageOperations();
   const chatInfo = useChatHeader(actualChatId, isGroupChat);
+  const { socket } = useChatContext();
   
   const [openDropdownId, setOpenDropdownId] = useState(null);
 
@@ -106,10 +109,33 @@ const BaseChatPage = ({
   const flattenedMessages = useMemo(() => {
     if (!contextMessages || contextMessages.length === 0) return [];
     return contextMessages.flat().filter(msg => {
-        if (msg.is_deleted_globally) return true;
-        return !(!msg.message_status || msg.message_status.is_deleted_for_me);
+        return msg.message_status && !msg.message_status.is_deleted_for_me;
     });
   }, [contextMessages]);
+
+  useEffect(() => {
+    if (!socket || !flattenedMessages || flattenedMessages.length === 0) {
+      return;
+    }
+
+    const unreadMessageStatusIds = flattenedMessages
+      .filter(msg => 
+        msg.sender_type !== 'peserta' &&
+        msg.message_status?.status !== 'read' && 
+        msg.message_status?.message_status_id 
+      )
+      .map(msg => msg.message_status.message_status_id);
+
+    if (unreadMessageStatusIds.length > 0) {
+      console.log(`Marking ${unreadMessageStatusIds.length} messages as read for room ${actualChatId}`);
+      socket.emit('markAsRead', {
+        roomId: parseInt(actualChatId),
+        messageStatusIds: unreadMessageStatusIds
+      });
+    }
+  }, [flattenedMessages, actualChatId, socket]);
+
+  const { messagesContainerRef, showScrollButton, scrollToBottom } = useScrollManager(contextMessages, actualChatId);
 
   const {
     handleSend,
@@ -128,15 +154,30 @@ const BaseChatPage = ({
       setShowDeleteModal,
       flattenedMessages: flattenedMessages,
       inputRef,
-      selectedDeleteOption, setSelectedDeleteOption
+      selectedDeleteOption, setSelectedDeleteOption,
+      scrollToBottom, 
   });
 
-   useEffect(() => {
+  // Refetch messages on updates
+  useEffect(() => {
+    const handleMessagesUpdate = (event) => {
+      if (event.detail.roomId === actualChatId) {
+        console.log(`Refetching messages for room ${actualChatId} due to messagesUpdated event.`);
+        refetchMessages();
+      }
+    };
+
+    window.addEventListener('messagesUpdated', handleMessagesUpdate);
+    return () => {
+      window.removeEventListener('messagesUpdated', handleMessagesUpdate);
+    };
+  }, [actualChatId, refetchMessages]);
+
+  // Reset selection mode on chat change
+  useEffect(() => {
     if (setIsSelectionMode) setIsSelectionMode(false);
     if (setSelectedMessages) setSelectedMessages(new Set());
   }, [actualChatId, setIsSelectionMode, setSelectedMessages]);
-
-  const { messagesContainerRef, showScrollButton, scrollToBottom } = useScrollManager(contextMessages, actualChatId);
 
   const [isImageViewerOpen, setImageViewerOpen] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -171,16 +212,73 @@ const BaseChatPage = ({
     });
   };
 
-  // --- AWAL PERUBAHAN 1: Filter pesan yang dihapus dari daftar pin ---
   const clientSidePinnedMessages = useMemo(() => {
     if (!flattenedMessages) return [];
-    // Tambahkan filter !msg.is_deleted_globally
     return flattenedMessages.filter(msg => msg.message_status?.is_pinned && !msg.is_deleted_globally);
   }, [flattenedMessages]);
-  // --- AKHIR PERUBAHAN 1 ---
 
   const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
   const messageRefs = useRef({});
+
+  const scrollToMessage = useCallback((messageId) => {
+    const element = messageRefs.current[messageId];
+    if (!element) {
+      console.warn(`Message element with ID ${messageId} not found in refs.`);
+      return;
+    }
+    
+    // Scroll to center
+    element.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    
+    // Apply highlight effect
+    element.style.transition = 'background-color 0.5s ease-out';
+    element.style.backgroundColor = 'rgba(255, 229, 100, 0.5)'; 
+    
+    // Remove highlight after 1.5s
+    setTimeout(() => {
+      element.style.backgroundColor = 'transparent';
+      // Clear transition after animation completes
+      setTimeout(() => {
+        if (element) element.style.transition = '';
+      }, 500);
+    }, 1500);
+  }, []);
+
+  // ========== HIGHLIGHT FROM URL/PROPS ==========
+  useEffect(() => {
+    if (propHighlightMessageId && flattenedMessages.length > 0) {
+      const messageIdToScroll = parseInt(propHighlightMessageId, 10);
+      
+      // Check if message exists
+      const messageExists = flattenedMessages.some(
+        m => m.message_id === messageIdToScroll
+      );
+
+      if (messageExists) {
+        // Delay to ensure DOM is ready
+        const scrollTimer = setTimeout(() => {
+          scrollToMessage(messageIdToScroll);
+        }, 100);
+
+        // Clear parent state after highlight finishes
+        const clearTimer = setTimeout(() => {
+          if (onMessageHighlight) {
+            onMessageHighlight();
+          }
+        }, 1600); // 2s after scroll (1.5s highlight + 0.5s buffer)
+
+        // Cleanup timers
+        return () => {
+          clearTimeout(scrollTimer);
+          clearTimeout(clearTimer);
+        };
+      }
+    }
+  }, [propHighlightMessageId, flattenedMessages, scrollToMessage, onMessageHighlight]);
+
 
   useEffect(() => {
     if (clientSidePinnedMessages && currentPinnedIndex >= clientSidePinnedMessages.length) {
@@ -207,19 +305,19 @@ const BaseChatPage = ({
     const currentPin = clientSidePinnedMessages[validIndex];
 
     if (currentPin && messageRefs.current[currentPin.message_id]) {
-      messageRefs.current[currentPin.message_id].scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      const element = messageRefs.current[currentPin.message_id];
-      element.style.transition = 'background-color 0.5s';
-      element.style.backgroundColor = 'rgba(255, 229, 100, 0.5)';
-      setTimeout(() => {
-        element.style.backgroundColor = 'transparent';
-      }, 1500);
+      scrollToMessage(currentPin.message_id);
     }
   };
 
+  const handleReplyClick = useCallback((messageId) => {
+    if (messageRefs.current[messageId]) {
+      scrollToMessage(messageId);
+    } else {
+      console.warn(`Pesan dengan ID ${messageId} tidak ditemukan.`);
+    }
+  }, [scrollToMessage]);
+
+  // ========== SELECTION MODE ==========
   const handleStartSelection = (messageId) => {
     setIsSelectionMode(true);
     setSelectedMessages(new Set([messageId]));
@@ -247,16 +345,13 @@ const BaseChatPage = ({
     const allAreSenderMessages = idsToDelete.every(id => {
         if (!id) return true; 
         const msg = flattenedMessages.find(m => m.message_id === id);
-        if (!msg) {
-            return true; 
-        }
+        if (!msg) return true; 
         return msg.sender_type === 'peserta';
     });
 
     return allAreSenderMessages ? 'sender-only' : 'receiver-included';
   };
   
-  // --- AWAL PERUBAHAN 2: Filter pesan yang dihapus dari hasil pencarian ---
   const handleSearch = useCallback((query) => {
     if (searchHighlightTimer.current) {
       clearTimeout(searchHighlightTimer.current);
@@ -271,8 +366,9 @@ const BaseChatPage = ({
       return;
     }
 
+    // Search messages
     const results = flattenedMessages.filter(msg => 
-      !msg.is_deleted_globally && // Tambahkan kondisi ini
+      !msg.is_deleted_globally && 
       msg.content && 
       msg.content.toLowerCase().includes(query.toLowerCase())
     ).reverse();
@@ -283,6 +379,7 @@ const BaseChatPage = ({
       setCurrentSearchIndex(0);
       scrollToMessage(results[0].message_id);
       
+      // Auto-clear highlight after 1.5s
       searchHighlightTimer.current = setTimeout(() => {
         setHighlightedMessageId(null);
         searchHighlightTimer.current = null;
@@ -291,17 +388,18 @@ const BaseChatPage = ({
       setCurrentSearchIndex(-1);
       setHighlightedMessageId(null);
     }
-  }, [flattenedMessages]);
-  // --- AKHIR PERUBAHAN 2 ---
+  }, [flattenedMessages, scrollToMessage]);
   
-    const navigateSearchResults = (direction) => {
+  const navigateSearchResults = useCallback((direction) => {
     if (searchResults.length === 0) return;
     
+    // Clear existing timer
     if (searchHighlightTimer.current) {
       clearTimeout(searchHighlightTimer.current);
       searchHighlightTimer.current = null;
     }
     
+    // Calculate new index
     let newIndex;
     if (direction === 'next') {
       newIndex = currentSearchIndex + 1 >= searchResults.length ? 0 : currentSearchIndex + 1;
@@ -312,26 +410,39 @@ const BaseChatPage = ({
     setCurrentSearchIndex(newIndex);
     scrollToMessage(searchResults[newIndex].message_id);
     
+    // Auto-clear highlight
     searchHighlightTimer.current = setTimeout(() => {
       setHighlightedMessageId(null);
       searchHighlightTimer.current = null;
     }, 1500);
-  };
-  
-    const scrollToMessage = (messageId) => {
-    if (messageRefs.current[messageId]) {
-      messageRefs.current[messageId].scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      setHighlightedMessageId(messageId);
-      if (!searchQuery) {
-        setTimeout(() => setHighlightedMessageId(null), 800);
+  }, [searchResults, currentSearchIndex, scrollToMessage]);
+
+  // Cleanup search timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchHighlightTimer.current) {
+        clearTimeout(searchHighlightTimer.current);
       }
-    }
-  };
+    };
+  }, []);
 
   const renderMessage = useCallback((msg, idx, arr) => {
+    if (msg.reply_to_message && msg.reply_to_message.reply_to_message_id) {
+      const originalMessage = flattenedMessages.find(
+        (m) => m.message_id === msg.reply_to_message.reply_to_message_id
+      );
+
+      if (originalMessage) {
+        if (!msg.reply_to_message.sender_type) {
+          msg.reply_to_message.sender_type = originalMessage.sender_type;
+        }
+
+        if (originalMessage.attachment) {
+          msg.reply_to_message.attachment = originalMessage.attachment;
+        }
+      }
+    }
+
     const timeGroupingProps = getTimeGroupingProps(msg, idx, arr);
     const formattedTime = formatMessageTime(msg.created_at);
     
@@ -348,6 +459,7 @@ const BaseChatPage = ({
           onToggleDropdown={() => handleToggleDropdown(msg.message_id)}
           onCloseDropdown={() => setOpenDropdownId(null)}
           onReply={(replyData) => setReplyingMessage(replyData)}
+          onReplyClick={handleReplyClick} 
           onImageClick={() => openImageViewer(msg.message_id)}
           onPin={async (messageStatusId) => {
             const result = await pinMessage(messageStatusId);
@@ -391,7 +503,7 @@ const BaseChatPage = ({
           onToggleSelection={() => handleToggleSelection(msg.message_id)}
           isPinned={msg.message_status?.is_pinned}
           isStarred={msg.message_status?.is_starred}
-          showSenderName={showSenderNames && msg.sender_type !== 'peserta' && (idx === 0 || arr[idx - 1].sender_name !== msg.sender_name)}
+          showSenderName={showSenderNames}
           getSenderColor={getSenderColor}
           isLastBubble={idx === arr.length - 1}
           searchQuery={searchQuery}
@@ -400,7 +512,24 @@ const BaseChatPage = ({
         />
       </div>
     );
-  }, [isSelectionMode, selectedMessages, flattenedMessages, customChatBubbleProps, showSenderNames, getSenderColor, setReplyingMessage, setEditingMessage, setEditText, pinMessage, unpinMessage, refetchMessages, refetchPinnedMessages, searchQuery, openDropdownId]);
+  }, [
+    isSelectionMode, 
+    selectedMessages, 
+    flattenedMessages, 
+    customChatBubbleProps, 
+    showSenderNames, 
+    getSenderColor, 
+    setReplyingMessage, 
+    setEditingMessage, 
+    setEditText, 
+    pinMessage, 
+    unpinMessage, 
+    refetchMessages, 
+    refetchPinnedMessages, 
+    searchQuery, 
+    openDropdownId,
+    handleReplyClick
+  ]);
 
 
   return (
@@ -439,18 +568,19 @@ const BaseChatPage = ({
 
       <div className="flex-1 flex flex-col min-h-0 relative">
         <MessageList
-            messages={flattenedMessages}
-            messagesContainerRef={messagesContainerRef}
-            renderMessage={renderMessage}
-            onBackgroundClick={() => {
-              setShowEmojiPicker(false);
-              setOpenDropdownId(null);
-            }} 
+          messages={flattenedMessages}
+          messagesContainerRef={messagesContainerRef}
+          renderMessage={renderMessage}
+          isLoading={messagesLoading}
+          onBackgroundClick={() => {
+            setShowEmojiPicker(false);
+            setOpenDropdownId(null);
+          }} 
         />
 
         {showScrollButton && !isSelectionMode && (
           <button
-            onClick={scrollToBottom}
+            onClick={() => scrollToBottom('smooth')} 
             className="absolute bottom-24 right-5 z-40 w-10 h-10 bg-white rounded-full flex items-center justify-center shadow-lg"
           >
             <img src={assets.ArrowDownThin} alt="Scroll to bottom" className="w-6 h-6" />
@@ -493,7 +623,7 @@ const BaseChatPage = ({
             if (result.success) {
                 setReplyingMessage(null);
                 refetchMessages();
-                setTimeout(scrollToBottom, 100);
+                setTimeout(() => scrollToBottom('auto'), 100);
             }
         }}
         fileButtonRef={fileButtonRef}
@@ -507,7 +637,7 @@ const BaseChatPage = ({
             setCurrentDeleteBehavior(null);
         }}
         onConfirm={() => {
-            console.log("Delete button clicked in modal."); // DEBUG
+            console.log("Delete button clicked in modal.");
             handleFinalDelete();
         }}
         isSelectionMode={isSelectionMode}

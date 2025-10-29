@@ -22,23 +22,56 @@ const ChatFooter = ({
   canSendMessages,
   customFooter
 }) => {
-  // Jika tidak bisa mengirim pesan (mode read-only)
   if (!canSendMessages) {
     return customFooter ? <div>{customFooter}</div> : null;
   }
 
+  const renderReplyPreview = () => {
+    // Prioritas 1: Jika membalas gambar
+    if (replyingMessage.image) {
+      return (
+        <div className="flex items-center gap-1.5">
+          <img
+            src={assets.ImageIcon}
+            alt="image icon"
+            className="w-4 h-4 flex-shrink-0"
+            style={{ filter: 'brightness(0) opacity(0.6)' }}
+          />
+          <span>Photo</span>
+        </div>
+      );
+    }
+    // Prioritas 2: Jika membalas file
+    if (replyingMessage.file) {
+      return (
+        <div className="flex items-center gap-1.5">
+          <img
+            src={assets.File}
+            alt="file icon"
+            className="w-4 h-4 flex-shrink-0"
+            style={{ filter: 'grayscale(1) opacity(0.5)' }}
+          />
+          <span className="truncate">{replyingMessage.file.name}</span>
+        </div>
+      );
+    }
+    // Fallback: Jika membalas teks biasa
+    return <span className="truncate">{replyingMessage.message}</span>;
+  };
+  // --- AKHIR PERUBAHAN ---
+
   return (
     <div className="border-t">
-      {/* Tampilan saat membalas pesan */}
       {replyingMessage && (
         <div className="flex items-center justify-between bg-gray-100 px-3 py-2 border-l-4 border-[#bd2cfc]">
           <div>
             <p className="text-xs font-semibold text-[#bd2cfc]">
-              {replyingMessage.sender || "Anda"}
+              {replyingMessage.sender || "You"}
             </p>
-            <p className="text-xs text-gray-600 truncate w-48">
-              {replyingMessage.message || replyingMessage.file?.name || "Gambar"}
-            </p>
+            {/* Menggunakan fungsi render yang baru */}
+            <div className="text-xs text-gray-600 w-48">
+              {renderReplyPreview()}
+            </div>
           </div>
           <button onClick={onCancelReply} className="hover:opacity-80 transition">
             <img src={assets.Cancel} alt="Cancel" className="w-6 h-6" />
@@ -46,7 +79,6 @@ const ChatFooter = ({
         </div>
       )}
 
-      {/* Tampilan saat mengedit pesan */}
       {editingMessage && (
         <div className="flex items-center justify-between bg-[#4C0D68]/10 px-3 py-2 border-l-4 border-[#4C0D68]">
           <div>
@@ -63,7 +95,6 @@ const ChatFooter = ({
         </div>
       )}
 
-      {/* Input utama */}
       <div className="relative p-3 flex items-center gap-2">
         <div className="relative">
           <button
@@ -73,20 +104,18 @@ const ChatFooter = ({
             <img src={assets.Happy} alt="emoji" className="w-6 h-6" />
           </button>
           {showEmojiPicker && (
-            // --- PERUBAHAN UTAMA DI SINI ---
             <div 
               className="absolute bottom-12 left-0 z-50"
-              onClick={(e) => e.stopPropagation()} // Tambahkan ini
+              onClick={(e) => e.stopPropagation()}
             >
               <EmojiPicker onEmojiClick={(emojiData) => {
-                 // Logika untuk menambahkan emoji ke input
                  const textarea = inputRef.current;
                  const start = textarea.selectionStart;
                  const end = textarea.selectionEnd;
                  const currentValue = editingMessage ? editText : message;
                  const newValue = currentValue.substring(0, start) + emojiData.emoji + currentValue.substring(end);
                  
-                 onInputChange({ target: { value: newValue } }); // Memanggil handler dari parent
+                 onInputChange({ target: { value: newValue } });
                  
                  setTimeout(() => {
                    textarea.selectionStart = textarea.selectionEnd = start + emojiData.emoji.length;
@@ -94,7 +123,6 @@ const ChatFooter = ({
                  }, 0);
               }} />
             </div>
-            // --- ---
           )}
         </div>
 
@@ -123,7 +151,7 @@ const ChatFooter = ({
             disabled={editingMessage ? !editText.trim() : !message.trim()}
             className="ml-2 p-1 rounded-full transition-opacity disabled:opacity-50"
           >
-            <img src={editingMessage ? assets.Ceklis : assets.Send} alt="Send" className="w-6 h-6" />
+            <img src={assets.Send} alt="Send" className="w-6 h-6" />
           </button>
         </div>
       </div>

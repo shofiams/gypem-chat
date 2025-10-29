@@ -10,19 +10,18 @@ import {
 
 import { useRoomDetails } from "../../hooks/useRooms";
 import { useRoomMedia } from "../../hooks/useMessages";
-import logo from "../../assets/User.svg";
+import { authService } from "../../api/auth";
+import logo from "../../assets/DefaultAvatar.svg";
 import GroupOverview from "./GroupOverview";
 import GroupMembers from "./GroupMembers";
 import GroupMedia from "./GroupMedia";
 import GroupFiles from "./GroupFiles";
 import GroupLinks from "./GroupLinks";
 
-export default function GroupPopup({ onClose, roomId }) {
+export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigateToMessage }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [seeMore, setSeeMore] = useState(false);
   const [seeAllMembers, setSeeAllMembers] = useState(false);
-  const [exitLoading, setExitLoading] = useState(false);
-  const [exitText, setExitText] = useState("Exit Group");
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   
@@ -33,9 +32,47 @@ export default function GroupPopup({ onClose, roomId }) {
   const popupRef = useRef(null);
   const hideTimeout = useRef(null);
 
-  // Use hooks for data fetching
-  const { roomDetails, loading: roomLoading, error: roomError } = useRoomDetails(roomId);
+  const currentUser = useMemo(() => authService.getCurrentUser(), []);
+
+  const { roomDetails, loading: roomLoading, error: roomError, refetch: refetchRoomDetails } = useRoomDetails(roomId);
   
+  const currentUserMemberInfo = useMemo(() => {
+    if (!roomDetails?.members || !currentUser) {
+      return { id: null, isLeft: false };
+    }
+    
+    const currentUserId = currentUser?.user_id || currentUser?.admin_id;
+    
+    if (!currentUserId) {
+      return { id: null, isLeft: false };
+    }
+    
+    // Filter semua member dengan member_id yang sama dengan user_id
+    const matchingMembers = roomDetails.members.filter(m => m.member_id === currentUserId);
+    
+    // Prioritas: peserta yang tidak is_left, lalu yang terbaru
+    const member = matchingMembers.find(m => !m.is_left && m.member_type === 'peserta') ||
+                   matchingMembers.find(m => m.member_type === 'peserta') ||
+                   matchingMembers[matchingMembers.length - 1]; // fallback ke yang terakhir
+
+    return {
+      id: member ? member.room_member_id : null,
+      isLeft: member ? member.is_left : false,
+    };
+  }, [roomDetails, currentUser]);
+
+  const handleActionSuccess = (isDelete = false) => {
+    if (isDelete) {
+      onClose();
+      window.dispatchEvent(new CustomEvent('chatListRefresh'));
+    } else {
+      refetchRoomDetails();
+      if (onLeaveSuccess){
+        onLeaveSuccess();
+      }
+    }
+  };
+
   const { 
     mediaList, 
     files, 
@@ -45,40 +82,21 @@ export default function GroupPopup({ onClose, roomId }) {
     refetch: refetchMedia 
   } = useRoomMedia(roomId);
 
-  // --- TAMBAHAN: useEffect untuk mendengarkan event sinkronisasi ---
   useEffect(() => {
     const handleMessagesUpdate = (event) => {
-      // Cek apakah update ini untuk room yang sedang dibuka
       if (event.detail.roomId === roomId) {
-        console.log(`Sync event received for room ${roomId}. Refetching media...`);
-        refetchMedia(); // Panggil fungsi refetch dari useRoomMedia
+        refetchMedia();
       }
     };
-
-    // Daftarkan event listener saat komponen mount
     window.addEventListener('messagesUpdated', handleMessagesUpdate);
-
-    // Hapus event listener saat komponen unmount untuk mencegah memory leak
     return () => {
       window.removeEventListener('messagesUpdated', handleMessagesUpdate);
     };
-  }, [roomId, refetchMedia]); // Dependencies: roomId dan refetchMedia
-  // ---
+  }, [roomId, refetchMedia]);
   
   const loading = roomLoading || mediaLoading;
   const error = roomError || mediaError;
-
-  // Debug logging untuk memastikan data terambil
-  useEffect(() => {
-    if (roomId) {
-      console.log('GroupPopup - Room ID:', roomId);
-      console.log('Media Data:', { mediaList, files, links });
-      console.log('Loading:', { roomLoading, mediaLoading });
-      console.log('Errors:', { roomError, mediaError });
-    }
-  }, [roomId, mediaList, files, links, roomLoading, mediaLoading, roomError, mediaError]);
-
-  // Detect screen resize
+  
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener("resize", handleResize);
@@ -89,13 +107,11 @@ export default function GroupPopup({ onClose, roomId }) {
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-
     const handleInteraction = () => {
       setShowScrollbar(true);
       if (hideTimeout.current) clearTimeout(hideTimeout.current);
       hideTimeout.current = setTimeout(() => setShowScrollbar(false), 2000);
     };
-
     ["scroll", "wheel", "touchstart", "pointerdown"].forEach((event) => {
       el.addEventListener(event, handleInteraction);
     });
@@ -115,79 +131,50 @@ export default function GroupPopup({ onClose, roomId }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
-  // ✅ PERUBAHAN: Process members data dari API dengan foto profil yang benar
   const processedMembers = useMemo(() => {
     if (!roomDetails?.members) return [];
-    
-    const API_BASE_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
-    
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_FILE; 
     const mappedMembers = roomDetails.members.map(member => {
       let photoUrl = null;
-      
-      // Cek apakah profile_photo sudah berupa URL lengkap atau hanya nama file
       if (member.profile_photo) {
-        if (member.profile_photo.startsWith('http')) {
-          // Sudah berupa URL lengkap
-          photoUrl = member.profile_photo;
-        } else {
-          // Hanya nama file, perlu ditambahkan base URL
-          photoUrl = `${API_BASE_URL}/uploads/${member.profile_photo}`;
-        }
+        photoUrl = member.profile_photo.startsWith('http://') || member.profile_photo.startsWith('https://') 
+          ? member.profile_photo 
+          : `${API_BASE_URL}/uploads/${member.profile_photo}`;
       }
-      
       return {
-        name: member.name, // Menggunakan 'name' bukan 'nama'
+        name: member.name,
         isAdmin: member.member_type === 'admin',
-        photo: photoUrl // Menggunakan URL foto profil dari API
+        photo: photoUrl
       };
     });
-
-    // ✅ SORTING: Admin di paling atas, lalu urutkan berdasarkan abjad
-    const sortedMembers = mappedMembers.sort((a, b) => {
-      // Jika salah satu admin dan yang lain bukan, admin di atas
+    return mappedMembers.sort((a, b) => {
       if (a.isAdmin && !b.isAdmin) return -1;
       if (!a.isAdmin && b.isAdmin) return 1;
-      
-      // Jika keduanya admin atau keduanya bukan admin, urutkan berdasarkan nama (abjad)
       return a.name.localeCompare(b.name, 'id', { sensitivity: 'base' });
     });
-
-    // ✅ Debug logging untuk memeriksa URL gambar
-    console.log('Processed Members with Photos:', sortedMembers.map(m => ({
-      name: m.name,
-      isAdmin: m.isAdmin,
-      photo: m.photo
-    })));
-
-    return sortedMembers;
   }, [roomDetails]);
 
   const roomInfo = useMemo(() => {
-    const API_BASE_URL = import.meta.env.VITE_API_UPLOAD_PHOTO;
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_FILE;
+
+    if (!roomDetails) {
+      return {
+        logo: logo,
+        name: 'Loading...',
+        description: 'Loading description...'
+      };
+    }
+
+    const photoPath = roomDetails.room?.description?.url_photo;
+    const fullLogoUrl = photoPath ? `${API_BASE_URL}/uploads/${photoPath}` : logo;
     
-    const photoPath = roomDetails?.room?.description?.url_photo;
-    
-    const fullLogoUrl = photoPath 
-      ? `${API_BASE_URL}/uploads/${photoPath}`
-      : logo;
     return {
       logo: fullLogoUrl,
-      name: roomDetails?.room?.description?.name || 'Group',
-      description: roomDetails?.room?.description?.description || 'No description available'
+      name: roomDetails.room?.description?.name || 'Group',
+      description: roomDetails.room?.description?.description || 'No description available'
     };
   }, [roomDetails]);
 
-  // Handle exit/delete group
-  const handleExit = () => {
-    setExitLoading(true);
-    // TODO: Implement actual API call for leave/delete group
-    setTimeout(() => {
-      setExitLoading(false);
-      setExitText("Delete Group");
-    }, 1500);
-  };
-
-  // ✅ PERUBAHAN: Tambahkan handler untuk refresh data
   const handleRefreshData = () => {
     if (refetchMedia) {
       refetchMedia();
@@ -273,13 +260,10 @@ export default function GroupPopup({ onClose, roomId }) {
         .custom-scroll.scroll-hidden::-webkit-scrollbar-thumb { opacity: 0; }
         .custom-scroll.scroll-visible::-webkit-scrollbar-thumb { opacity: 1; }
       `}</style>
-
       <div
         ref={popupRef}
         className={`fixed z-50 bg-white shadow-lg overflow-hidden 
-          ${isMobile
-            ? "top-0 left-0 w-full h-full"
-            : "h-[450px] w-[650px] top-[10px] left-[390px] rounded-xl"}`}
+          ${isMobile ? "top-0 left-0 w-full h-full" : "h-[450px] w-[650px] top-[10px] left-[390px] rounded-xl"}`}
       >
         {/* Mobile Header */}
         {isMobile && (
@@ -293,7 +277,7 @@ export default function GroupPopup({ onClose, roomId }) {
 
         <div className="flex h-full">
           {/* Sidebar */}
-          {isMobile ? (
+           {isMobile ? (
             <div className="w-14 min-w-[3.5rem] bg-gray-50 border-r border-gray-200 flex flex-col items-center py-2 gap-6">
               {tabs.map(({ id, icon: Icon }) => (
                 <button
@@ -344,13 +328,12 @@ export default function GroupPopup({ onClose, roomId }) {
                 seeMore={seeMore}
                 setSeeMore={setSeeMore}
                 descriptionText={roomInfo.description}
-                handleExit={handleExit}
-                exitLoading={exitLoading}
-                exitText={exitText}
-                setExitText={setExitText}
+                onActionSuccess={handleActionSuccess}
+                currentUserRoomMemberId={currentUserMemberInfo.id}
+                isLeft={currentUserMemberInfo.isLeft}
               />
             )}
-            {activeTab === "members" && (
+             {activeTab === "members" && (
               <GroupMembers
                 members={processedMembers}
                 seeAllMembers={seeAllMembers}
@@ -361,17 +344,20 @@ export default function GroupPopup({ onClose, roomId }) {
             {activeTab === "links" && (
               <GroupLinks 
                 links={links || []} 
+                onNavigateToMessage={onNavigateToMessage}
               />
             )}
             {activeTab === "media" && (
               <GroupMedia 
                 mediaList={mediaList || []} 
                 openLightbox={openLightbox} 
+                onNavigateToMessage={onNavigateToMessage}
               />
             )}
             {activeTab === "files" && (
               <GroupFiles 
                 files={files || []} 
+                onNavigateToMessage={onNavigateToMessage}
               />
             )}
           </div>

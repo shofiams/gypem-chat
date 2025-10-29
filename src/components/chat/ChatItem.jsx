@@ -1,7 +1,9 @@
+// src/components/chat/ChatItem.jsx
 import React from 'react';
 import { assets } from '../../assets/assets';
 import { formatTime } from '../../api/roomService';
 import { escapeRegex } from '../../utils/regex';
+import { useChatContext } from '../../api/use_chat_context';
 
 const ChatItem = ({
     room_id,
@@ -11,11 +13,18 @@ const ChatItem = ({
     description,
     url_photo,
     last_message,
+    last_message_type,
     last_time,
     unread_count,
     is_archived,
     is_pinned,
-    // API fields for starred messages
+    is_last_message_mine,
+    last_message_status,
+    last_message_updated_at,
+    last_message_created_at,
+    last_message_is_starred,
+    last_message_is_pinned,
+    last_message_is_deleted,
     message_id,
     content,
     sender,
@@ -24,21 +33,111 @@ const ChatItem = ({
     file_path,
     reply_to_message,
     message_status,
-    // Component props
     onContextMenu,
     isSelected,
     highlightQuery,
     onClick,
     isStarredItem = false,
-    chatName
+    chatName,
+    admin_id,
 }) => {
+
+    const { onlineUsers, typingUsers } = useChatContext();
+
+    const onlineUserKey = `admin-${admin_id}`;
+    const isOnline = room_type === 'one_to_one' && onlineUsers.has(onlineUserKey);
+
+    const usersTypingInRoom = typingUsers.get(room_id);
+    const isSomeoneTyping = usersTypingInRoom && usersTypingInRoom.length > 0;
 
     const API_BASE_URL = import.meta.env.VITE_API_BASE_URL.replace("/api/", "");
 
     const getPhotoUrl = (url) => {
-        if (!url) return assets.user;
+        if (!url) return null;
         if (url.startsWith("http")) return url;
         return `${API_BASE_URL}/uploads/${url}`;
+    };
+
+    const renderLastMessageContent = () => {
+        if (isSomeoneTyping) {
+            return <span className="text-purple-600">mengetik...</span>;
+        }
+
+        const messageType = last_message_type || 'text';
+        
+        if (messageType === 'image') {
+            return (
+                <span className="flex items-center gap-1">
+                    <img 
+                        src={assets.ImageIcon || assets.DefaultAvatar} 
+                        alt="image" 
+                        className="w-4 h-4 md:w-3.5 md:h-3.5"
+                    />
+                    <span>{last_message || 'Photo'}</span>
+                </span>
+            );
+        }
+        
+        if (messageType === 'dokumen') {
+            return (
+                <span className="flex items-center gap-1">
+                    <img 
+                        src={assets.DocumentIcon || assets.DefaultAvatar} 
+                        alt="document" 
+                        className="w-4 h-4 md:w-3.5 md:h-3.5"
+                    />
+                    <span>{last_message || 'Document'}</span>
+                </span>
+            );
+        }
+        
+        return <span>{last_message}</span>;
+    };
+
+    const renderLastMessageStatus = () => {
+        if (!is_last_message_mine || isSomeoneTyping) return null;
+        
+        const wasEdited = last_message_updated_at && 
+            new Date(last_message_updated_at) > new Date(last_message_created_at);
+        
+        return (
+            <div className="flex items-center gap-0.5 flex-shrink-0 mr-1">
+                {wasEdited && (
+                    <span className="text-[9px] md:text-[8px] opacity-70 mr-0.5">diedit</span>
+                )}
+
+                {last_message_is_starred && !last_message_is_deleted && (
+                    <img
+                        src={assets.StarFill2}
+                        alt="starred"
+                        className="w-3 h-3 md:w-2.5 md:h-2.5"
+                        style={{
+                            filter: "brightness(0) saturate(100%) invert(48%) sepia(85%) saturate(1374%) hue-rotate(186deg) brightness(97%) contrast(96%)",
+                        }}
+                    />
+                )}
+
+                {last_message_is_pinned && !last_message_is_deleted && (
+                    <img
+                        src={assets.PinFill}
+                        alt="pinned"
+                        className="w-3 h-3 md:w-2.5 md:h-2.5"
+                        style={{
+                            filter: "brightness(0) saturate(100%) invert(14%) sepia(71%) saturate(2034%) hue-rotate(269deg) brightness(92%) contrast(100%)",
+                        }}
+                    />
+                )}
+
+                <img
+                    src={assets.Ceklis}
+                    alt="sent"
+                    className="w-4 h-4 md:w-3.5 md:h-3.5"
+                    style={{
+                        filter: "brightness(0) saturate(100%) invert(48%) sepia(85%) saturate(1374%) hue-rotate(186deg) brightness(97%) contrast(96%)",
+                    }}
+                />
+            </div>
+        );
     };
 
     const highlightText = (text, query) => {
@@ -68,7 +167,6 @@ const ChatItem = ({
         });
     };
 
-    // Long press for mobile
     let pressTimer = null;
 
     const handleTouchStart = (e) => {
@@ -83,7 +181,6 @@ const ChatItem = ({
         if (pressTimer) clearTimeout(pressTimer);
     };
 
-    // Different layout for starred items
     if (isStarredItem) {
         const displayTime = formatTime(created_at);
         const displayMessage = content;
@@ -126,7 +223,6 @@ const ChatItem = ({
         );
     }
 
-    // Regular chat item layout
     const displayTime = formatTime(last_time);
 
     return (
@@ -148,31 +244,28 @@ const ChatItem = ({
         >
             <div
                 className={`
-          flex items-center px-4 py-3 cursor-pointer min-h-[70px] 
-          md:px-3 md:py-2 md:min-h-[52px]
-          ${isSelected ? 'bg-[#efe6f3]' : 'hover:bg-gray-100'}
-          transition-colors duration-150
-          rounded-lg
-          mx-2
-          relative
-        `}
+                    flex items-center px-4 py-3 cursor-pointer min-h-[70px] 
+                    md:px-3 md:py-2 md:min-h-[52px]
+                    ${isSelected ? 'bg-[#efe6f3]' : 'hover:bg-gray-100'}
+                    transition-colors duration-150
+                    rounded-lg
+                    mx-2
+                    relative
+                `}
             >
-                <div className="relative flex-shrink-0">
+            <div className="relative flex-shrink-0 w-12 h-12 md:w-10 md:h-10">
+                <div className="w-full h-full rounded-full overflow-hidden">
                     <img
-                        src={getPhotoUrl(url_photo)}
+                        src={url_photo ? getPhotoUrl(url_photo) : assets.DefaultAvatar}
                         alt={name}
-                        className="w-12 h-12 md:w-10 md:h-10 rounded-full object-cover"
+                        className="w-full h-full object-cover"
                         crossOrigin="anonymous"
-                        onLoad={() => console.log("✅ Image loaded:", getPhotoUrl(url_photo))}
-                        onError={(e) => {
-                            console.error("❌ Image error:", getPhotoUrl(url_photo));
-                            console.error("Error details:", e);
-                            if (e.target.src !== assets.user) {
-                                e.target.src = assets.user;
-                            }
-                        }}
                     />
                 </div>
+                {isOnline && (
+                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 md:w-3 md:h-3 bg-yellow-400 rounded-full border-2 border-white"></div>
+                )}
+            </div>
 
                 <div className="flex-1 ml-4 md:ml-3 min-w-0">
                     <div className="flex items-center justify-between">
@@ -182,15 +275,17 @@ const ChatItem = ({
                             </h3>
 
                             <div className="flex items-center gap-x-1 min-w-0">
-                                <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight mt-0">
-                                    {last_message}
+                                {renderLastMessageStatus()}
+                                
+                                <p className="text-gray-500 truncate text-sm md:text-[11px] leading-tight mt-0 flex items-center">
+                                    {renderLastMessageContent()}
                                 </p>
                             </div>
                         </div>
 
                         <div className="flex flex-col items-end ml-3 shrink-0">
                             <span className="text-xs md:text-[10px] text-gray-400 leading-tight">{displayTime}</span>
-                            {unread_count > 0 && (
+                            {unread_count > 0 && !isSomeoneTyping && (
                                 <span
                                     className="bg-purple-800 text-white text-xs md:text-[9px] rounded-full w-5 h-5 md:w-4 md:h-4 flex items-center justify-center leading-none mt-1"
                                     aria-label={`${unread_count} unread`}

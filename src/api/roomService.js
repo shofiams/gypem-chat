@@ -82,7 +82,7 @@ export const roomService = {
     }
   },
 
-  leaveRoom: async (roomMemberId) => {
+leaveRoom: async (roomMemberId) => {
     try {
       const res = await axiosInstance.delete(`/rooms/${roomMemberId}/leave`);
       return {
@@ -98,7 +98,7 @@ export const roomService = {
       };
     }
   },
-
+  
   // delete room
   deleteRooms: async (roomMemberIds) => {
     try {
@@ -157,12 +157,38 @@ export const formatTime = (isoString) => {
     }
   }
 
-  // Jika lebih dari 3 jam, tampilkan waktu spesifik
-  return date
-    .toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    })
-    .replace(":", ".");
+  // Mengatur waktu 'now' ke awal hari untuk perbandingan yang akurat
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+  const startOfYesterday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() - 1
+  );
+
+  // Jika tanggalnya hari ini
+  if (date >= startOfToday) {
+    return date
+      .toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      })
+      .replace(":", ".");
+  }
+
+  // Jika tanggalnya kemarin
+  if (date >= startOfYesterday) {
+    return "Yesterday";
+  }
+
+  // Jika lebih lama dari seminggu
+  return date.toLocaleDateString('en-ID', {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 };

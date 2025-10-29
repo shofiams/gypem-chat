@@ -1,7 +1,7 @@
 import React from "react";
 import DropdownMenuPeserta from "../../DropdownMenuPeserta";
 
-const DropdownMenu = (props) => {
+const Toggle = (props) => {
   const {
     dropdownOpen,
     dropdownRef,
@@ -25,6 +25,20 @@ const DropdownMenu = (props) => {
 
   if (!dropdownOpen) return null;
 
+  const getDropdownHeight = () => {
+    if (groupChatMode) {
+      return 130;
+    }
+    if (isSender && !!content) {
+      return 240;
+    }
+    return 205;
+  };
+
+  const dropdownHeight = getDropdownHeight();
+  const gapBelow = 5; 
+  const gapAbove = 30;
+
   return (
     <div
       className="fixed inset-0 z-[9999]"
@@ -40,12 +54,13 @@ const DropdownMenu = (props) => {
               ? `${
                   buttonRef.current?.getBoundingClientRect().top +
                   window.scrollY -
-                  (groupChatMode ? 130 : 240)
+                  dropdownHeight - 
+                  gapAbove
                 }px`
               : `${
                   buttonRef.current?.getBoundingClientRect().bottom +
                   window.scrollY +
-                  5
+                  gapBelow
                 }px`,
           left: isSender
             ? `${
@@ -82,4 +97,4 @@ const DropdownMenu = (props) => {
   );
 };
 
-export default DropdownMenu;
+export default Toggle;

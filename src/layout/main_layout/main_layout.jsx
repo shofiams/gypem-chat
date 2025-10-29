@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useChatContext } from '../../api/use_chat_context';
 import { useRooms } from '../../hooks/useRooms';
 import { useStarredMessages } from '../../hooks/useStarredMessages';
+import { getSocket, disconnectSocket } from '../../api/socketService';
 
 // Import komponen yang sudah dimodularisasi
 import DesktopSidebar from '../main_layout/components/DekstopSidebar';
@@ -20,7 +21,8 @@ const MainLayout = () => {
   const [isProfilePopupOpen, setIsProfilePopupOpen] = useState(false);
   const [profileImage, setProfileImage] = useState("");
   
-  const { clearActiveChat, setActiveChat } = useChatContext();
+  // const { clearActiveChat, setActiveChat } = useChatContext();
+  const { clearActiveChat, setActiveChat, setSocket } = useChatContext();
   const navigate = useNavigate();
   const location = useLocation();
   const sidebarRef = useRef(null);
@@ -28,8 +30,42 @@ const MainLayout = () => {
   const isChatRoute = (location.pathname.startsWith('/chats/') && location.pathname !== '/chats') || 
                       (location.pathname.startsWith('/group/') && location.pathname !== '/group');
 
-  const { refetch: refetchRooms } = useRooms();
+  const { rooms, refetch: refetchRooms } = useRooms();
   const { refetch: refetchStarred } = useStarredMessages({ manual: true });
+
+  const { chatBadgeCount, groupBadgeCount } = useMemo(() => {
+    if (!rooms) {
+      return { chatBadgeCount: 0, groupBadgeCount: 0 };
+    }
+
+    let privateChatCount = 0;
+    let groupChatCount = 0;
+
+    // Hitung jumlah obrolan unik yang belum dibaca
+    rooms.forEach(room => {
+      if (room.unread_count > 0) {
+        if (room.room_type === 'group') {
+          groupChatCount++;
+        } else if (room.room_type === 'one_to_one') {
+          privateChatCount++;
+        }
+      }
+    });
+
+    return { 
+      chatBadgeCount: privateChatCount + groupChatCount, 
+      groupBadgeCount: groupChatCount                  
+    };
+  }, [rooms]);
+
+  useEffect(() => {
+    const handleChatListRefresh = () => {
+      console.log("MainLayout: chatListRefresh event received, refetching rooms for badge.");
+      refetchRooms();
+    };
+    window.addEventListener('chatListRefresh', handleChatListRefresh);
+    return () => window.removeEventListener('chatListRefresh', handleChatListRefresh);
+  }, [refetchRooms]);
 
   useEffect(() => {
     if (location.pathname === '/' || location.pathname === '') {
@@ -118,6 +154,22 @@ const MainLayout = () => {
   }, [navigate, setActiveChat, clearActiveChat, location.pathname]);
 
   useEffect(() => {
+  const handleSetActiveChatEvent = (event) => {
+    const { chatId } = event.detail;
+    console.log('MainLayout: setActiveChat event received, chatId:', chatId);
+    if (chatId) {
+      setActiveChat(chatId);
+    }
+  };
+  
+  window.addEventListener('setActiveChat', handleSetActiveChatEvent);
+  
+  return () => {
+    window.removeEventListener('setActiveChat', handleSetActiveChatEvent);
+  };
+}, [setActiveChat]);
+
+  useEffect(() => {
     const handleOutsideClick = (e) => {
       if (window.innerWidth < 768 || !isSidebarOpen || !sidebarRef.current) return;
       if (!sidebarRef.current.contains(e.target)) setIsSidebarOpen(false);
@@ -129,6 +181,30 @@ const MainLayout = () => {
       window.removeEventListener('touchstart', handleOutsideClick);
     };
   }, [isSidebarOpen]);
+
+  // EFEK UNTUK MANAJEMEN KONEKSI SOCKET
+  useEffect(() => {
+    const isChatFeature = location.pathname.startsWith('/chats') || location.pathname.startsWith('/group');
+  
+    if (isChatFeature) {
+      // Jika berada di fitur chat, buat koneksi
+      console.log("Navigated to a chat page, connecting socket...");
+      const socketInstance = getSocket();
+      setSocket(socketInstance);
+    } else {
+      // Jika di luar fitur chat, putuskan koneksi
+      console.log("Navigated away from chat pages, disconnecting socket...");
+      disconnectSocket();
+      setSocket(null);
+    }
+  
+    // Fungsi cleanup ini akan berjalan saat MainLayout di-unmount (misalnya saat logout)
+    return () => {
+      console.log("MainLayout is unmounting. Ensuring socket is disconnected.");
+      disconnectSocket();
+      setSocket(null);
+    };
+  }, [location.pathname, setSocket]);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -148,6 +224,8 @@ const MainLayout = () => {
           isDefaultProfile={isDefaultProfile}
           isNewMessageOpen={isNewMessageOpen}
           isProfilePopupOpen={isProfilePopupOpen}
+          chatBadgeCount={chatBadgeCount}
+          groupBadgeCount={groupBadgeCount}
         />
 
         <div className="flex flex-col flex-1 md:ml-16">
@@ -167,6 +245,8 @@ const MainLayout = () => {
           profileImage={profileImage}
           isDefaultProfile={isDefaultProfile}
           isProfilePopupOpen={isProfilePopupOpen}
+          chatBadgeCount={chatBadgeCount}
+          groupBadgeCount={groupBadgeCount}
         />
       )}
 

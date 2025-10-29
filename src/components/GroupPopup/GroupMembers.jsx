@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import defaultAvatar from "../../assets/User.svg";
+import { assets } from "../../assets/assets";
 
 export default function GroupMembers({
   members,
@@ -21,7 +21,7 @@ export default function GroupMembers({
             const hasImageError = imageErrors[memberKey];
             
             // ✅ PERBAIKAN: Logika yang lebih sederhana dan stabil
-            let imageSource = defaultAvatar; // Default pertama
+            let imageSource = assets.DefaultAvatar; // Default pertama
             
             if (!hasImageError && member.photo) {
               // Hanya gunakan member.photo jika belum error dan ada photo-nya
@@ -37,6 +37,7 @@ export default function GroupMembers({
                 <img
                   src={imageSource}
                   alt={member.name}
+                  crossOrigin="anonymous"
                   className="w-9 h-9 rounded-full mr-3 object-cover border border-gray-300"
                   onError={() => {
                     // ✅ Hanya set error, tidak ada kondisi

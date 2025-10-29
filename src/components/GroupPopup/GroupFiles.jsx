@@ -1,8 +1,8 @@
 import React from "react";
-import { FiDownload } from "react-icons/fi";
+import { FiDownload, FiMessageSquare } from "react-icons/fi";
 import { FaFilePdf, FaFileWord, FaFileImage, FaFileVideo, FaFileExcel, FaFilePowerpoint, FaFileArchive, FaFile } from "react-icons/fa";
 
-export default function GroupFiles({ files }) {
+export default function GroupFiles({ files, onNavigateToMessage }) {
 
   // --- FUNGSI INI TELAH DIPERBARUI AGAR LEBIH PINTAR ---
   const getFileIcon = (type = '', fileName = '') => {
@@ -105,10 +105,12 @@ export default function GroupFiles({ files }) {
         {files.map((file, idx) => (
           <div
             key={idx}
-            onClick={() => handleOpenFile(file.url)}
-            className="flex items-center justify-between bg-gray-50 rounded-lg p-3 shadow-sm hover:bg-gray-100 transition min-h-[50px] group cursor-pointer"
+            className="flex items-center justify-between bg-gray-50 rounded-lg p-3 shadow-sm hover:bg-gray-100 transition min-h-[50px] group"
           >
-            <div className="flex items-center space-x-3 flex-1 min-w-0">
+            <div
+              onClick={() => handleOpenFile(file.url)}
+              className="flex items-center space-x-3 flex-1 min-w-0 cursor-pointer"
+            >
               {getFileIcon(file.type, file.name)}
               <div className="min-w-0 flex-1">
                 <p className="text-gray-800 text-sm font-medium truncate">
@@ -121,16 +123,28 @@ export default function GroupFiles({ files }) {
                 )}
               </div>
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                handleDownload(file);
-              }}
-              className="p-2 hover:bg-gray-200 rounded-full transition opacity-70 group-hover:opacity-100 ml-2"
-              title="Download file"
-            >
-              <FiDownload className="w-4 h-4 text-gray-600" />
-            </button>
+            <div className="flex items-center ml-2 opacity-70 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (onNavigateToMessage) onNavigateToMessage(file.messageId);
+                }}
+                className="p-2 hover:bg-gray-200 rounded-full transition"
+                title="Go to message"
+              >
+                <FiMessageSquare className="w-4 h-4 text-gray-600" />
+              </button>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload(file);
+                }}
+                className="p-2 hover:bg-gray-200 rounded-full transition"
+                title="Download file"
+              >
+                <FiDownload className="w-4 h-4 text-gray-600" />
+              </button>
+            </div>
           </div>
         ))}
       </div>

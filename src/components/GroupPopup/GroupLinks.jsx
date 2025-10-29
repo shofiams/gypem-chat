@@ -1,5 +1,5 @@
 import React, { useState } from "react"; // MODIFIKASI: Import useState
-import { FiExternalLink, FiLink, FiCheck } from "react-icons/fi"; // MODIFIKASI: Import FiCheck
+import { FiExternalLink, FiLink, FiCheck, FiMessageSquare } from "react-icons/fi"; // MODIFIKASI: Import FiCheck
 
 // Daftar ekstensi file yang TIDAK kita anggap sebagai 'link web'
 const excludedExtensions = new Set([
@@ -10,7 +10,7 @@ const excludedExtensions = new Set([
   'zip', 'rar', '7z', 'tar', 'gz'
 ]);
 
-export default function GroupLinks({ links }) {
+export default function GroupLinks({ links, onNavigateToMessage }) {
   // BARU: State untuk melacak URL yang baru saja disalin
   const [copiedUrl, setCopiedUrl] = useState(null);
 
@@ -119,7 +119,10 @@ export default function GroupLinks({ links }) {
                   </div>
                 </div>
                 {/* MODIFIKASI: Logika untuk tombol copy dan open */}
-                <div className="flex items-center space-x-2 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center space-x-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                   <button onClick={(e) => { e.stopPropagation(); if (onNavigateToMessage) onNavigateToMessage(linkObj.messageId); }} className="p-1 hover:bg-gray-200 rounded transition-colors" title="Go to message">
+                    <FiMessageSquare className="w-4 h-4 text-gray-600" />
+                  </button>
                   {copiedUrl === url ? (
                     <div className="flex items-center space-x-1 text-green-600">
                       <FiCheck className="w-4 h-4" />
