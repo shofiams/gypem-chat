@@ -15,7 +15,12 @@ export const useStarredMessages = (opts = {}) => {
       const result = await starredMessagesService.fetchAllStarredMessages();
 
       if (result.success) {
-        setData(result.data);
+        // Filter pesan yang belum dihapus
+        const filteredData = result.data.filter(msg => 
+          msg.message_status && 
+          msg.message_status.is_deleted_for_me === false
+        );
+        setData(filteredData);
       } else {
         setError(result.message);
         setData([]);

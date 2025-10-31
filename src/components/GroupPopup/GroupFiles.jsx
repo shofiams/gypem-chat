@@ -1,8 +1,8 @@
 import React from "react";
-import { FiDownload, FiMessageSquare } from "react-icons/fi"; // Tambahkan FiMessageSquare
+import { FiDownload, FiMessageSquare } from "react-icons/fi";
 import { FaFilePdf, FaFileWord, FaFileImage, FaFileVideo, FaFileExcel, FaFilePowerpoint, FaFileArchive, FaFile } from "react-icons/fa";
 
-export default function GroupFiles({ files, onNavigateToMessage }) { // Terima prop
+export default function GroupFiles({ files, onNavigateToMessage }) {
 
   // --- FUNGSI INI TELAH DIPERBARUI AGAR LEBIH PINTAR ---
   const getFileIcon = (type = '', fileName = '') => {
@@ -48,7 +48,7 @@ export default function GroupFiles({ files, onNavigateToMessage }) { // Terima p
     if (lowerCaseType.includes('image')) return <FaFileImage className="text-purple-500 w-6 h-6 flex-shrink-0" />;
     if (lowerCaseType.includes('video')) return <FaFileVideo className="text-pink-500 w-6 h-6 flex-shrink-0" />;
     if (lowerCaseType.includes('zip') || lowerCaseType.includes('archive')) return <FaFileArchive className="text-yellow-500 w-6 h-6 flex-shrink-0" />;
-
+    
     // Prioritas 3: Jika semua gagal, tampilkan ikon default.
     return <FaFile className="text-gray-500 w-6 h-6 flex-shrink-0" />;
   };

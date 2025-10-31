@@ -1,12 +1,12 @@
 import React, { useState, useMemo } from "react";
 import { getContrast, darken } from "color2k";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useLocation, useNavigate } from "react-router-dom"; 
 import BaseChatPage from "./BaseChatPage";
 import GroupPopup from "../components/GroupPopup/GroupPopup";
-import { useRoomDetails } from "../hooks/useRooms";
-import { authService } from "../api/auth";
+import { useRoomDetails } from "../hooks/useRooms"; 
+import { authService } from "../api/auth"; 
 
-// ... (fungsi helper hashString, hslToHex, generateMemberColorWithColor2k tidak berubah) ...
+// ... (Fungsi hashString, hslToHex, dan generateMemberColorWithColor2k tetap sama)
 const hashString = (str) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
@@ -28,22 +28,30 @@ const hslToHex = (h, s, l) => {
 };
 const generateMemberColorWithColor2k = (memberName) => {
   if (!memberName) return "#4C0D68";
+  
   const hash = hashString(memberName);
+  
   const goldenAngle = 137.508;
   let hue = (hash * goldenAngle) % 360;
+  
   const problematicRanges = [
     [45, 75],
     [75, 110],
   ];
+  
   for (const [start, end] of problematicRanges) {
     if (hue >= start && hue <= end) {
       hue = (hue + (end - start + 15)) % 360;
     }
   }
+  
   const saturation = 80 + (hash % 20);
   const lightness = 45 + (hash % 15);
+  
   let color = hslToHex(hue, saturation, lightness);
+  
   let contrast = getContrast(color, '#ffffff');
+  
   let attempts = 0;
   while (contrast < 4.5 && attempts < 10) {
     if (contrast < 3) {
@@ -51,19 +59,22 @@ const generateMemberColorWithColor2k = (memberName) => {
     } else {
       color = darken(color, 0.15);
     }
+    
     contrast = getContrast(color, '#ffffff');
     attempts++;
   }
+  
   return color;
 };
 
-const GroupChatPeserta = ({
-  isEmbedded = false,
-  onClose,
-  chatId: propChatId,
-  highlightMessageId = null,
+
+const GroupChatPeserta = ({ 
+  isEmbedded = false, 
+  onClose, 
+  chatId: propChatId, 
+  highlightMessageId: propHighlightMessageId = null, // Ganti nama prop
   onMessageHighlight = null,
-  onNavigateOnDesktop // <-- TERIMA PROPERTI BARU
+  onNavigateOnDesktop
 }) => {
 
   const { chatId: paramChatId } = useParams();
@@ -71,6 +82,15 @@ const GroupChatPeserta = ({
   const chatId = isEmbedded ? propChatId : paramChatId;
   const [isPopupOpen, setIsPopupOpen] = useState(false);
 
+  // --- AWAL PERUBAHAN ---
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const urlHighlightId = queryParams.get('highlight');
+
+  // Prioritaskan ID dari URL (untuk mobile), jika tidak ada, gunakan dari prop (untuk desktop)
+  const highlightMessageId = urlHighlightId || propHighlightMessageId;
+  // --- AKHIR PERUBAHAN ---
+  
   const { roomDetails, refetch: refetchRoomDetails, loading  } = useRoomDetails(chatId);
   const currentUser = useMemo(() => authService.getCurrentUser(), []);
 
@@ -79,12 +99,11 @@ const GroupChatPeserta = ({
     const member = roomDetails.members.find(m => m.member_id === currentUser.user_id);
     return member ? !member.is_left : false;
   }, [roomDetails, currentUser]);
-
+  
   const getSenderColor = (sender) => {
     return generateMemberColorWithColor2k(sender);
   };
 
-  // --- FUNGSI DIPERBARUI ---
   const handleNavigateToMessage = (messageId) => {
     if (!chatId || !messageId) return;
 
@@ -150,12 +169,12 @@ const GroupChatPeserta = ({
         customFooter={
           loading
             ? loadingFooter
-            : isMember
-              ? readOnlyFooter
+            : isMember 
+              ? readOnlyFooter 
               : notMemberFooter
         }
         onGroupHeaderClick={() => setIsPopupOpen(true)}
-        highlightMessageId={highlightMessageId}
+        highlightMessageId={highlightMessageId} // 2. Gunakan highlightMessageId yang sudah diperbarui
         onMessageHighlight={onMessageHighlight}
       />
 

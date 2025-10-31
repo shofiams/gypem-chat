@@ -22,7 +22,7 @@ const PinnedMessage = ({ pinnedMessages, currentIndex, onNavigate, onClick }) =>
             style={{ filter: 'brightness(0) invert(1)' }} 
           />
           <span className="truncate">
-            {hasCaption ? currentPin.content : 'Image'}
+            {hasCaption ? currentPin.content : 'Photo'}
           </span>
         </div>
       );

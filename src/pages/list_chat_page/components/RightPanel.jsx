@@ -7,17 +7,15 @@ import { HiUserCircle } from "react-icons/hi2";
 const RightPanel = ({ 
     activeChat, 
     pageConfig, 
-    isStarPage, 
     highlightId,
     highlightMessageId, 
     clearActiveChat,
     setHighlightMessageId 
 }) => {
   if (activeChat) {
-    const handleMessageHighlight = () => {
-      setHighlightMessageId(null);
-    };
 
+    const messageToHighlight = highlightMessageId || highlightId;
+    
     if (activeChat.room_type === 'group') {
       return (
         <GroupChatPeserta
@@ -25,12 +23,10 @@ const RightPanel = ({
           isEmbedded={true}
           onClose={() => {
             clearActiveChat();
-            if (isStarPage) setHighlightMessageId(null);
+            setHighlightMessageId(null);
           }}
-          // Logika baru: Prioritaskan highlight dari state (desktop nav) atau dari URL
-          highlightMessageId={highlightMessageId || highlightId}
-          // Selalu teruskan fungsi callback untuk membersihkan state
-          onMessageHighlight={handleMessageHighlight}
+          highlightMessageId={messageToHighlight}
+          onMessageHighlight={() => setHighlightMessageId(null)}
           onNavigateOnDesktop={(messageId) => setHighlightMessageId(messageId)}
         />
       );
@@ -41,11 +37,10 @@ const RightPanel = ({
           isEmbedded={true}
           onClose={() => {
             clearActiveChat();
-            if (isStarPage) setHighlightMessageId(null);
+            setHighlightMessageId(null);
           }}
-          // Terapkan logika yang sama di sini
-          highlightMessageId={highlightMessageId || highlightId}
-          onMessageHighlight={handleMessageHighlight}
+          highlightMessageId={messageToHighlight}
+          onMessageHighlight={() => setHighlightMessageId(null)}
           onNavigateOnDesktop={(messageId) => setHighlightMessageId(messageId)}
         />
       );

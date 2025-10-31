@@ -18,13 +18,13 @@ import GroupMedia from "./GroupMedia";
 import GroupFiles from "./GroupFiles";
 import GroupLinks from "./GroupLinks";
 
-export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigateToMessage }) { // Tambahkan onNavigateToMessage
+export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigateToMessage }) {
   const [activeTab, setActiveTab] = useState("overview");
   const [seeMore, setSeeMore] = useState(false);
   const [seeAllMembers, setSeeAllMembers] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
-
+  
   const [showScrollbar, setShowScrollbar] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
 
@@ -35,21 +35,21 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigate
   const currentUser = useMemo(() => authService.getCurrentUser(), []);
 
   const { roomDetails, loading: roomLoading, error: roomError, refetch: refetchRoomDetails } = useRoomDetails(roomId);
-
+  
   const currentUserMemberInfo = useMemo(() => {
     if (!roomDetails?.members || !currentUser) {
       return { id: null, isLeft: false };
     }
-
+    
     const currentUserId = currentUser?.user_id || currentUser?.admin_id;
-
+    
     if (!currentUserId) {
       return { id: null, isLeft: false };
     }
-
+    
     // Filter semua member dengan member_id yang sama dengan user_id
     const matchingMembers = roomDetails.members.filter(m => m.member_id === currentUserId);
-
+    
     // Prioritas: peserta yang tidak is_left, lalu yang terbaru
     const member = matchingMembers.find(m => !m.is_left && m.member_type === 'peserta') ||
                    matchingMembers.find(m => m.member_type === 'peserta') ||
@@ -73,13 +73,13 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigate
     }
   };
 
-  const {
-    mediaList,
-    files,
-    links,
-    loading: mediaLoading,
+  const { 
+    mediaList, 
+    files, 
+    links, 
+    loading: mediaLoading, 
     error: mediaError,
-    refetch: refetchMedia
+    refetch: refetchMedia 
   } = useRoomMedia(roomId);
 
   useEffect(() => {
@@ -93,10 +93,10 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigate
       window.removeEventListener('messagesUpdated', handleMessagesUpdate);
     };
   }, [roomId, refetchMedia]);
-
+  
   const loading = roomLoading || mediaLoading;
   const error = roomError || mediaError;
-
+  
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener("resize", handleResize);
@@ -131,16 +131,14 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigate
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
- const processedMembers = useMemo(() => {
+  const processedMembers = useMemo(() => {
     if (!roomDetails?.members) return [];
-    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_FILE;
-    const activeMembers = roomDetails.members.filter(member => !member.is_left);
-
-    const mappedMembers = activeMembers.map(member => {
+    const API_BASE_URL = import.meta.env.VITE_API_BASE_URL_FILE; 
+    const mappedMembers = roomDetails.members.map(member => {
       let photoUrl = null;
       if (member.profile_photo) {
-        photoUrl = member.profile_photo.startsWith('http://') || member.profile_photo.startsWith('https://')
-          ? member.profile_photo
+        photoUrl = member.profile_photo.startsWith('http://') || member.profile_photo.startsWith('https://') 
+          ? member.profile_photo 
           : `${API_BASE_URL}/uploads/${member.profile_photo}`;
       }
       return {
@@ -169,7 +167,7 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigate
 
     const photoPath = roomDetails.room?.description?.url_photo;
     const fullLogoUrl = photoPath ? `${API_BASE_URL}/uploads/${photoPath}` : logo;
-
+    
     return {
       logo: fullLogoUrl,
       name: roomDetails.room?.description?.name || 'Group',
@@ -203,14 +201,14 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigate
           <h3 className="text-lg font-semibold mb-2 text-red-600">Error</h3>
           <p className="text-gray-700 mb-4">{error}</p>
           <div className="flex space-x-2">
-            <button
+            <button 
               onClick={handleRefreshData}
               className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded transition"
             >
               Retry
             </button>
-            <button
-              onClick={onClose}
+            <button 
+              onClick={onClose} 
               className="flex-1 px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded transition"
             >
               Close
@@ -223,25 +221,25 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigate
 
   const tabs = [
     { id: "overview", label: "Overview", icon: Grid },
-    {
-      id: "members",
-      label: `Members`,
-      icon: Users
+    { 
+      id: "members", 
+      label: `Members`, 
+      icon: Users 
     },
-    {
-      id: "media",
-      label: `Photos`,
-      icon: ImageIcon
+    { 
+      id: "media", 
+      label: `Photos`, 
+      icon: ImageIcon 
     },
-    {
-      id: "files",
-      label: `Files`,
-      icon: FileText
+    { 
+      id: "files", 
+      label: `Files`, 
+      icon: FileText 
     },
-    {
-      id: "links",
-      label: `Links`,
-      icon: LinkIcon
+    { 
+      id: "links", 
+      label: `Links`, 
+      icon: LinkIcon 
     },
   ];
 
@@ -264,7 +262,7 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigate
       `}</style>
       <div
         ref={popupRef}
-        className={`fixed z-50 bg-white shadow-lg overflow-hidden
+        className={`fixed z-50 bg-white shadow-lg overflow-hidden 
           ${isMobile ? "top-0 left-0 w-full h-full" : "h-[450px] w-[650px] top-[10px] left-[390px] rounded-xl"}`}
       >
         {/* Mobile Header */}
@@ -344,22 +342,22 @@ export default function GroupPopup({ onClose, roomId, onLeaveSuccess, onNavigate
               />
             )}
             {activeTab === "links" && (
-              <GroupLinks
-                links={links || []}
-                onNavigateToMessage={onNavigateToMessage} // <-- Pass prop
+              <GroupLinks 
+                links={links || []} 
+                onNavigateToMessage={onNavigateToMessage}
               />
             )}
             {activeTab === "media" && (
-              <GroupMedia
-                mediaList={mediaList || []}
-                openLightbox={openLightbox}
-                onNavigateToMessage={onNavigateToMessage} // <-- Pass prop
+              <GroupMedia 
+                mediaList={mediaList || []} 
+                openLightbox={openLightbox} 
+                onNavigateToMessage={onNavigateToMessage}
               />
             )}
             {activeTab === "files" && (
-              <GroupFiles
-                files={files || []}
-                onNavigateToMessage={onNavigateToMessage} // <-- Pass prop
+              <GroupFiles 
+                files={files || []} 
+                onNavigateToMessage={onNavigateToMessage}
               />
             )}
           </div>

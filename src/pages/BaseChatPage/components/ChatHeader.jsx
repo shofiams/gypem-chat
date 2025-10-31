@@ -1,17 +1,15 @@
+// src/pages/BaseChatPage/components/ChatHeader.jsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { assets } from '../../../assets/assets';
 import { HiUserCircle } from "react-icons/hi2";
 
 const ChatHeader = ({
-  // Props untuk header normal
   chatInfo,
   isEmbedded,
   onClose,
   onGroupHeaderClick,
   isGroupChat,
-
-  // Props untuk header mode seleksi
   isSelectionMode,
   selectedCount,
   onCancelSelection,
@@ -23,13 +21,9 @@ const ChatHeader = ({
   searchResults,
   currentSearchIndex,
   navigateSearchResults,
-  
-  // Props untuk online status (sementara default true)
-  isOnline = true
 }) => {
   const navigate = useNavigate();
 
-  // Jika dalam mode seleksi, tampilkan header seleksi
   if (isSelectionMode) {
     return (
       <div className="flex items-center justify-between p-3 border-b bg-white">
@@ -56,7 +50,6 @@ const ChatHeader = ({
     );
   }
 
-  // Jika tidak, tampilkan header chat normal
   return (
     <>
       <div className="flex items-center gap-3 p-3 border-b">
@@ -82,8 +75,7 @@ const ChatHeader = ({
               className="w-full h-full object-cover"
             />
           </div>
-          {/* Bubble kuning online indicator - sementara tampil di semua kontak */}
-          {isOnline && (
+          {chatInfo?.isOnline && !isGroupChat && (
             <div className="absolute bottom-0 right-0 w-3 h-3 bg-yellow-400 rounded-full border-2 border-white"></div>
           )}
         </div>

@@ -26,8 +26,6 @@ const ChatFooter = ({
     return customFooter ? <div>{customFooter}</div> : null;
   }
 
-  // --- AWAL PERUBAHAN ---
-  // Fungsi untuk merender konten preview balasan dengan benar
   const renderReplyPreview = () => {
     // Prioritas 1: Jika membalas gambar
     if (replyingMessage.image) {
@@ -37,9 +35,9 @@ const ChatFooter = ({
             src={assets.ImageIcon}
             alt="image icon"
             className="w-4 h-4 flex-shrink-0"
-            style={{ filter: 'grayscale(1) opacity(0.5)' }}
+            style={{ filter: 'brightness(0) opacity(0.6)' }}
           />
-          <span>Gambar</span>
+          <span>Photo</span>
         </div>
       );
     }
@@ -153,7 +151,7 @@ const ChatFooter = ({
             disabled={editingMessage ? !editText.trim() : !message.trim()}
             className="ml-2 p-1 rounded-full transition-opacity disabled:opacity-50"
           >
-            <img src={editingMessage ? assets.Ceklis : assets.Send} alt="Send" className="w-6 h-6" />
+            <img src={assets.Send} alt="Send" className="w-6 h-6" />
           </button>
         </div>
       </div>

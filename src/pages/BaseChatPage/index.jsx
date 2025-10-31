@@ -1,5 +1,3 @@
-// src/pages/BaseChatPage/index.jsx
-
 import React, { useMemo, useCallback, useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useChatHeader } from "../../hooks/useChatHeader";
@@ -7,8 +5,6 @@ import { useMessagesByRoom, usePinnedMessagesByRoom, useMessageOperations } from
 import { messageService } from "../../api/messageService";
 import FileUploadPopup from "../../components/FileUploadPopup";
 import ChatBubblePeserta from "../../components/ChatBubblePeserta"; 
-
-// --- Import Hooks & Komponen Modular ---
 import { useChatState } from "./hooks/useChatState";
 import { useMessageHandler } from "./hooks/useMessageHandler";
 import { useScrollManager } from "./hooks/useScrollManager";
@@ -19,6 +15,7 @@ import ChatFooter from "./components/ChatFooter";
 import DeleteMessageModal from "./components/DeleteMessageModal";
 import { assets } from "../../assets/assets";
 import ImageViewerModal from "../../components/ChatBubblePeserta/components/ImageViewerModal";
+import { useChatContext } from "../../api/use_chat_context";
 
 const formatMessageTime = (created_at) => {
   if (!created_at) return "";
@@ -77,10 +74,11 @@ const BaseChatPage = ({
   const navigate = useNavigate();
   const actualChatId = isEmbedded ? propChatId : paramChatId;
 
-  const { data: contextMessages, refetch: refetchMessages } = useMessagesByRoom(actualChatId);
+  const { data: contextMessages, loading: messagesLoading, refetch: refetchMessages } = useMessagesByRoom(actualChatId);
   const { refetch: refetchPinnedMessages } = usePinnedMessagesByRoom(actualChatId);
   const { pinMessage, unpinMessage, starMessages, unstarMessages } = useMessageOperations();
   const chatInfo = useChatHeader(actualChatId, isGroupChat);
+  const { socket } = useChatContext();
   
   const [openDropdownId, setOpenDropdownId] = useState(null);
 
@@ -115,6 +113,28 @@ const BaseChatPage = ({
     });
   }, [contextMessages]);
 
+  useEffect(() => {
+    if (!socket || !flattenedMessages || flattenedMessages.length === 0) {
+      return;
+    }
+
+    const unreadMessageStatusIds = flattenedMessages
+      .filter(msg => 
+        msg.sender_type !== 'peserta' &&
+        msg.message_status?.status !== 'read' && 
+        msg.message_status?.message_status_id 
+      )
+      .map(msg => msg.message_status.message_status_id);
+
+    if (unreadMessageStatusIds.length > 0) {
+      console.log(`Marking ${unreadMessageStatusIds.length} messages as read for room ${actualChatId}`);
+      socket.emit('markAsRead', {
+        roomId: parseInt(actualChatId),
+        messageStatusIds: unreadMessageStatusIds
+      });
+    }
+  }, [flattenedMessages, actualChatId, socket]);
+
   const { messagesContainerRef, showScrollButton, scrollToBottom } = useScrollManager(contextMessages, actualChatId);
 
   const {
@@ -138,7 +158,23 @@ const BaseChatPage = ({
       scrollToBottom, 
   });
 
-   useEffect(() => {
+  // Refetch messages on updates
+  useEffect(() => {
+    const handleMessagesUpdate = (event) => {
+      if (event.detail.roomId === actualChatId) {
+        console.log(`Refetching messages for room ${actualChatId} due to messagesUpdated event.`);
+        refetchMessages();
+      }
+    };
+
+    window.addEventListener('messagesUpdated', handleMessagesUpdate);
+    return () => {
+      window.removeEventListener('messagesUpdated', handleMessagesUpdate);
+    };
+  }, [actualChatId, refetchMessages]);
+
+  // Reset selection mode on chat change
+  useEffect(() => {
     if (setIsSelectionMode) setIsSelectionMode(false);
     if (setSelectedMessages) setSelectedMessages(new Set());
   }, [actualChatId, setIsSelectionMode, setSelectedMessages]);
@@ -184,56 +220,71 @@ const BaseChatPage = ({
   const [currentPinnedIndex, setCurrentPinnedIndex] = useState(0);
   const messageRefs = useRef({});
 
+  const scrollToMessage = useCallback((messageId) => {
+    const element = messageRefs.current[messageId];
+    if (!element) {
+      console.warn(`Message element with ID ${messageId} not found in refs.`);
+      return;
+    }
+    
+    // Scroll to center
+    element.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+    
+    // Apply highlight effect
+    element.style.transition = 'background-color 0.5s ease-out';
+    element.style.backgroundColor = 'rgba(255, 229, 100, 0.5)'; 
+    
+    // Remove highlight after 1.5s
+    setTimeout(() => {
+      element.style.backgroundColor = 'transparent';
+      // Clear transition after animation completes
+      setTimeout(() => {
+        if (element) element.style.transition = '';
+      }, 500);
+    }, 1500);
+  }, []);
+
+  // ========== HIGHLIGHT FROM URL/PROPS ==========
+  useEffect(() => {
+    if (propHighlightMessageId && flattenedMessages.length > 0) {
+      const messageIdToScroll = parseInt(propHighlightMessageId, 10);
+      
+      // Check if message exists
+      const messageExists = flattenedMessages.some(
+        m => m.message_id === messageIdToScroll
+      );
+
+      if (messageExists) {
+        // Delay to ensure DOM is ready
+        const scrollTimer = setTimeout(() => {
+          scrollToMessage(messageIdToScroll);
+        }, 100);
+
+        // Clear parent state after highlight finishes
+        const clearTimer = setTimeout(() => {
+          if (onMessageHighlight) {
+            onMessageHighlight();
+          }
+        }, 1600); // 2s after scroll (1.5s highlight + 0.5s buffer)
+
+        // Cleanup timers
+        return () => {
+          clearTimeout(scrollTimer);
+          clearTimeout(clearTimer);
+        };
+      }
+    }
+  }, [propHighlightMessageId, flattenedMessages, scrollToMessage, onMessageHighlight]);
+
+
   useEffect(() => {
     if (clientSidePinnedMessages && currentPinnedIndex >= clientSidePinnedMessages.length) {
       setCurrentPinnedIndex(0);
     }
   }, [clientSidePinnedMessages, currentPinnedIndex]);
-
-  // --- AWAL PERUBAHAN ---
-  const scrollToMessage = (messageId) => {
-    if (messageRefs.current[messageId]) {
-      const element = messageRefs.current[messageId];
-      element.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
-      // Efek sorotan visual dengan warna kuning
-      element.style.transition = 'background-color 0.5s ease-out';
-      element.style.backgroundColor = 'rgba(255, 229, 100, 0.5)';
-      setTimeout(() => {
-        element.style.backgroundColor = 'transparent';
-      }, 1500); // Durasi sorotan 1.5 detik
-    }
-  };
-
-  // useEffect yang disempurnakan untuk menangani sorotan dari properti
-  useEffect(() => {
-    if (propHighlightMessageId && flattenedMessages.length > 0) {
-      const messageExists = flattenedMessages.some(m => m.message_id == propHighlightMessageId);
-      if (messageExists) {
-        // Beri jeda singkat untuk memastikan DOM sudah siap
-        const scrollTimer = setTimeout(() => {
-          scrollToMessage(propHighlightMessageId);
-        }, 100);
-
-        // Jadwalkan pembersihan state di komponen induk setelah efek selesai
-        const clearParentStateTimer = setTimeout(() => {
-          if (onMessageHighlight) {
-            onMessageHighlight();
-          }
-        }, 2000); // 2 detik, lebih lama dari durasi highlight
-
-        // Fungsi cleanup untuk mencegah memory leak
-        return () => {
-          clearTimeout(scrollTimer);
-          clearTimeout(clearParentStateTimer);
-        };
-      }
-    }
-  }, [propHighlightMessageId, flattenedMessages]);
-  // --- AKHIR PERUBAHAN ---
-
 
   const navigatePinnedMessage = (direction) => {
     if (!clientSidePinnedMessages || clientSidePinnedMessages.length <= 1) return;
@@ -258,15 +309,15 @@ const BaseChatPage = ({
     }
   };
 
-  const handleReplyClick = (messageId) => {
-    const messageElement = messageRefs.current[messageId];
-    if (messageElement) {
+  const handleReplyClick = useCallback((messageId) => {
+    if (messageRefs.current[messageId]) {
       scrollToMessage(messageId);
     } else {
-        console.warn(`Pesan dengan ID ${messageId} tidak ditemukan.`);
+      console.warn(`Pesan dengan ID ${messageId} tidak ditemukan.`);
     }
-  };
+  }, [scrollToMessage]);
 
+  // ========== SELECTION MODE ==========
   const handleStartSelection = (messageId) => {
     setIsSelectionMode(true);
     setSelectedMessages(new Set([messageId]));
@@ -294,9 +345,7 @@ const BaseChatPage = ({
     const allAreSenderMessages = idsToDelete.every(id => {
         if (!id) return true; 
         const msg = flattenedMessages.find(m => m.message_id === id);
-        if (!msg) {
-            return true; 
-        }
+        if (!msg) return true; 
         return msg.sender_type === 'peserta';
     });
 
@@ -306,6 +355,7 @@ const BaseChatPage = ({
   const handleSearch = useCallback((query) => {
     if (searchHighlightTimer.current) {
       clearTimeout(searchHighlightTimer.current);
+      searchHighlightTimer.current = null;
     }
 
     setSearchQuery(query);
@@ -316,6 +366,7 @@ const BaseChatPage = ({
       return;
     }
 
+    // Search messages
     const results = flattenedMessages.filter(msg => 
       !msg.is_deleted_globally && 
       msg.content && 
@@ -328,22 +379,27 @@ const BaseChatPage = ({
       setCurrentSearchIndex(0);
       scrollToMessage(results[0].message_id);
       
+      // Auto-clear highlight after 1.5s
       searchHighlightTimer.current = setTimeout(() => {
         setHighlightedMessageId(null);
+        searchHighlightTimer.current = null;
       }, 1500);
     } else {
       setCurrentSearchIndex(-1);
       setHighlightedMessageId(null);
     }
-  }, [flattenedMessages]);
+  }, [flattenedMessages, scrollToMessage]);
   
-    const navigateSearchResults = (direction) => {
+  const navigateSearchResults = useCallback((direction) => {
     if (searchResults.length === 0) return;
     
+    // Clear existing timer
     if (searchHighlightTimer.current) {
       clearTimeout(searchHighlightTimer.current);
+      searchHighlightTimer.current = null;
     }
     
+    // Calculate new index
     let newIndex;
     if (direction === 'next') {
       newIndex = currentSearchIndex + 1 >= searchResults.length ? 0 : currentSearchIndex + 1;
@@ -354,10 +410,21 @@ const BaseChatPage = ({
     setCurrentSearchIndex(newIndex);
     scrollToMessage(searchResults[newIndex].message_id);
     
+    // Auto-clear highlight
     searchHighlightTimer.current = setTimeout(() => {
       setHighlightedMessageId(null);
+      searchHighlightTimer.current = null;
     }, 1500);
-  };
+  }, [searchResults, currentSearchIndex, scrollToMessage]);
+
+  // Cleanup search timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchHighlightTimer.current) {
+        clearTimeout(searchHighlightTimer.current);
+      }
+    };
+  }, []);
 
   const renderMessage = useCallback((msg, idx, arr) => {
     if (msg.reply_to_message && msg.reply_to_message.reply_to_message_id) {
@@ -445,7 +512,24 @@ const BaseChatPage = ({
         />
       </div>
     );
-  }, [isSelectionMode, selectedMessages, flattenedMessages, customChatBubbleProps, showSenderNames, getSenderColor, setReplyingMessage, setEditingMessage, setEditText, pinMessage, unpinMessage, refetchMessages, refetchPinnedMessages, searchQuery, openDropdownId]);
+  }, [
+    isSelectionMode, 
+    selectedMessages, 
+    flattenedMessages, 
+    customChatBubbleProps, 
+    showSenderNames, 
+    getSenderColor, 
+    setReplyingMessage, 
+    setEditingMessage, 
+    setEditText, 
+    pinMessage, 
+    unpinMessage, 
+    refetchMessages, 
+    refetchPinnedMessages, 
+    searchQuery, 
+    openDropdownId,
+    handleReplyClick
+  ]);
 
 
   return (
@@ -484,13 +568,14 @@ const BaseChatPage = ({
 
       <div className="flex-1 flex flex-col min-h-0 relative">
         <MessageList
-            messages={flattenedMessages}
-            messagesContainerRef={messagesContainerRef}
-            renderMessage={renderMessage}
-            onBackgroundClick={() => {
-              setShowEmojiPicker(false);
-              setOpenDropdownId(null);
-            }} 
+          messages={flattenedMessages}
+          messagesContainerRef={messagesContainerRef}
+          renderMessage={renderMessage}
+          isLoading={messagesLoading}
+          onBackgroundClick={() => {
+            setShowEmojiPicker(false);
+            setOpenDropdownId(null);
+          }} 
         />
 
         {showScrollButton && !isSelectionMode && (
