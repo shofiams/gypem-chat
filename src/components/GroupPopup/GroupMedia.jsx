@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { FiMessageSquare } from "react-icons/fi"; // Import ikon
+import { FiMessageSquare } from "react-icons/fi";
 
 // Icon components sebagai pengganti react-icons
 const ImageIcon = ({ className = "w-6 h-6" }) => (
