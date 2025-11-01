@@ -124,10 +124,13 @@ const BubbleWrapper = React.forwardRef((props, ref) => {
           )}
         </div>
 
+        {/* --- AWAL PERUBAHAN --- */}
         {/* Tampilkan timestamp di bawah bubble jika kondisi terpenuhi */}
         {shouldShowTime() && !isSelectionMode && (
           <span className="text-[10px] text-gray-500 mt-1 px-1">{time}</span>
         )}
+        {/* --- AKHIR PERUBAHAN --- */}
+
       </div>
     </div>
   );

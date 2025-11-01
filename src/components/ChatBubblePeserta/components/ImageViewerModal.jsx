@@ -35,7 +35,8 @@ const ImageViewerModal = (props) => {
     setIsLoading(false);
     setError(true);
   };
-
+  
+  // --- AWAL PERUBAHAN ---
   const handleDownload = async (e) => {
     // 1. Hentikan perambatan event agar tidak menutup modal
     e.stopPropagation(); 
@@ -145,7 +146,8 @@ const ImageViewerModal = (props) => {
           </button>
         </>
       )}
-
+      {/* --- AKHIR PERUBAHAN --- */}
+      
       <div className="relative max-w-[90vw] max-h-[90vh] flex flex-col items-center justify-center">
         <div className="relative flex items-center justify-center">
           {isLoading && (
