@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { HiUserCircle } from "react-icons/hi2"; // Mengganti FaUserCircle
+import { HiUserCircle } from "react-icons/hi2"; 
 
 export default function ProfilePopup({
   isOpen,

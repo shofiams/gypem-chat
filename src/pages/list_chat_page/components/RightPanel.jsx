@@ -7,13 +7,15 @@ import { HiUserCircle } from "react-icons/hi2";
 const RightPanel = ({ 
     activeChat, 
     pageConfig, 
-    isStarPage, 
     highlightId,
     highlightMessageId, 
     clearActiveChat,
     setHighlightMessageId 
 }) => {
   if (activeChat) {
+
+    const messageToHighlight = highlightMessageId || highlightId;
+    
     if (activeChat.room_type === 'group') {
       return (
         <GroupChatPeserta
@@ -21,10 +23,11 @@ const RightPanel = ({
           isEmbedded={true}
           onClose={() => {
             clearActiveChat();
-            if (isStarPage) setHighlightMessageId(null);
+            setHighlightMessageId(null);
           }}
-          highlightMessageId={isStarPage ? highlightMessageId : highlightId}
-          onMessageHighlight={isStarPage ? () => setHighlightMessageId(null) : null}
+          highlightMessageId={messageToHighlight}
+          onMessageHighlight={() => setHighlightMessageId(null)}
+          onNavigateOnDesktop={(messageId) => setHighlightMessageId(messageId)}
         />
       );
     } else {
@@ -34,10 +37,11 @@ const RightPanel = ({
           isEmbedded={true}
           onClose={() => {
             clearActiveChat();
-            if (isStarPage) setHighlightMessageId(null);
+            setHighlightMessageId(null);
           }}
-          highlightMessageId={isStarPage ? highlightMessageId : highlightId}
-          onMessageHighlight={isStarPage ? () => setHighlightMessageId(null) : null}
+          highlightMessageId={messageToHighlight}
+          onMessageHighlight={() => setHighlightMessageId(null)}
+          onNavigateOnDesktop={(messageId) => setHighlightMessageId(messageId)}
         />
       );
     }

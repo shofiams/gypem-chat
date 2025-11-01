@@ -36,10 +36,8 @@ const Toggle = (props) => {
   };
 
   const dropdownHeight = getDropdownHeight();
-  
-  const gapBelow = 5; // Jarak untuk dropdown yang muncul ke Bawah (tetap)
-
-  const gapAbove = 30; 
+  const gapBelow = 5; 
+  const gapAbove = 30;
 
   return (
     <div
@@ -56,13 +54,13 @@ const Toggle = (props) => {
               ? `${
                   buttonRef.current?.getBoundingClientRect().top +
                   window.scrollY -
-                  dropdownHeight - // Mengurangi tinggi dropdown
-                  gapAbove         // Menggunakan jarak untuk di ATAS
+                  dropdownHeight - 
+                  gapAbove
                 }px`
               : `${
                   buttonRef.current?.getBoundingClientRect().bottom +
                   window.scrollY +
-                  gapBelow         // Menggunakan jarak untuk di BAWAH
+                  gapBelow
                 }px`,
           left: isSender
             ? `${

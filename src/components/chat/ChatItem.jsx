@@ -67,27 +67,27 @@ const ChatItem = ({
         
         if (messageType === 'image') {
             return (
-                <div className="flex items-center gap-1">
+                <span className="flex items-center gap-1">
                     <img 
                         src={assets.ImageIcon || assets.DefaultAvatar} 
                         alt="image" 
                         className="w-4 h-4 md:w-3.5 md:h-3.5"
                     />
                     <span>{last_message || 'Photo'}</span>
-                </div>
+                </span>
             );
         }
         
         if (messageType === 'dokumen') {
             return (
-                <div className="flex items-center gap-1">
+                <span className="flex items-center gap-1">
                     <img 
                         src={assets.DocumentIcon || assets.DefaultAvatar} 
                         alt="document" 
                         className="w-4 h-4 md:w-3.5 md:h-3.5"
                     />
                     <span>{last_message || 'Document'}</span>
-                </div>
+                </span>
             );
         }
         
@@ -112,7 +112,7 @@ const ChatItem = ({
                         alt="starred"
                         className="w-3 h-3 md:w-2.5 md:h-2.5"
                         style={{
-                            filter: "brightness(0) saturate(100%) invert(14%) sepia(71%) saturate(2034%) hue-rotate(269deg) brightness(92%) contrast(100%)",
+                            filter: "brightness(0) saturate(100%) invert(48%) sepia(85%) saturate(1374%) hue-rotate(186deg) brightness(97%) contrast(96%)",
                         }}
                     />
                 )}
@@ -148,7 +148,7 @@ const ChatItem = ({
         const tokens = q.split(/\s+/).filter(Boolean).map(t => t.toLowerCase());
         if (tokens.length === 0) return text;
 
-        const pattern = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+        const pattern = tokens.map(escapeRegex).join('|');
         const regex = new RegExp(`(${pattern})`, 'gi');
 
         const parts = String(text).split(regex);
@@ -244,14 +244,14 @@ const ChatItem = ({
         >
             <div
                 className={`
-          flex items-center px-4 py-3 cursor-pointer min-h-[70px] 
-          md:px-3 md:py-2 md:min-h-[52px]
-          ${isSelected ? 'bg-[#efe6f3]' : 'hover:bg-gray-100'}
-          transition-colors duration-150
-          rounded-lg
-          mx-2
-          relative
-        `}
+                    flex items-center px-4 py-3 cursor-pointer min-h-[70px] 
+                    md:px-3 md:py-2 md:min-h-[52px]
+                    ${isSelected ? 'bg-[#efe6f3]' : 'hover:bg-gray-100'}
+                    transition-colors duration-150
+                    rounded-lg
+                    mx-2
+                    relative
+                `}
             >
             <div className="relative flex-shrink-0 w-12 h-12 md:w-10 md:h-10">
                 <div className="w-full h-full rounded-full overflow-hidden">

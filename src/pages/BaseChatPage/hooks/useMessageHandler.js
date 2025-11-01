@@ -50,6 +50,7 @@ export const useMessageHandler = ({
     socket.emit('sendMessage', payload, (response) => {
       if (response && response.status === 'ok') {
         refetchMessages();
+        window.dispatchEvent(new CustomEvent("chatListRefresh"));
       } else {
         alert("Gagal mengirim pesan: " + (response ? response.message : 'Tidak ada respons dari server'));
       }
@@ -78,6 +79,7 @@ export const useMessageHandler = ({
       setEditingMessage(null);
       setEditText("");
       refetchMessages();
+      window.dispatchEvent(new CustomEvent("chatListRefresh"));
       setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.style.height = 'auto';
@@ -197,6 +199,7 @@ export const useMessageHandler = ({
       if (result.success) {
         refetchMessages();
         if (refetchPinnedMessages) refetchPinnedMessages();
+        window.dispatchEvent(new CustomEvent("chatListRefresh"));
       } else {
         alert('Gagal menghapus pesan: ' + (result.error || 'Unknown error'));
       }

@@ -9,7 +9,6 @@ const MessageList = ({
   messagesContainerRef,
   renderMessage,
   onBackgroundClick,
-  isLoading
 }) => {
   const hasMessages = Array.isArray(messages) && messages.length > 0;
 
@@ -23,11 +22,7 @@ const MessageList = ({
       }}
       onClick={onBackgroundClick}
     >
-      {isLoading ? (
-        <div className="flex items-center justify-center h-full">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-400"></div>
-        </div>
-      ) : hasMessages ? (
+      { hasMessages ? (
         messages.map((msg, idx, arr) => {
           const prevMsg = arr[idx - 1];
           const showDateSeparator = !prevMsg || new Date(msg.created_at).toDateString() !== new Date(prevMsg.created_at).toDateString();

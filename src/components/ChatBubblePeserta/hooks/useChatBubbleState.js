@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 
 export const useChatBubbleState = (props) => {
-  const { isLastBubble } = props;
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
   const [showCopied, setShowCopied] = useState(false);
@@ -57,41 +56,42 @@ export const useChatBubbleState = (props) => {
 
   useEffect(() => {
     if (dropdownOpen) {
-      // Dijalankan setelah render untuk memastikan dropdownRef sudah ada
       const timer = setTimeout(() => {
         const calculateDropdownPosition = () => {
           if (!buttonRef.current) return "below";
 
           const buttonRect = buttonRef.current.getBoundingClientRect();
           const spaceAbove = buttonRect.top;
-          
-          // Dapatkan tinggi dropdown secara dinamis, dengan fallback ke estimasi
-          const dropdownHeight = dropdownRef.current?.offsetHeight || (props.groupChatMode ? 130 : 280);
 
-          // Cari elemen footer chat. Selector ini menargetkan parent dari input field
-          const chatFooterEl = document.querySelector('.p-3.flex.items-center.gap-2')?.parentElement;
-          const footerTop = chatFooterEl ? chatFooterEl.getBoundingClientRect().top : window.innerHeight;
+          const dropdownHeight =
+            dropdownRef.current?.offsetHeight ||
+            (props.groupChatMode ? 130 : 280);
 
-          // Kondisi 1: Cek tabrakan dengan footer
-          const collidesWithFooter = buttonRect.bottom + dropdownHeight > footerTop;
+          const chatFooterEl = document.querySelector(
+            ".p-3.flex.items-center.gap-2"
+          )?.parentElement;
+          const footerTop = chatFooterEl
+            ? chatFooterEl.getBoundingClientRect().top
+            : window.innerHeight;
+
+          const collidesWithFooter =
+            buttonRect.bottom + dropdownHeight > footerTop;
 
           if (collidesWithFooter) {
-            // Jika bertabrakan, cek apakah ada cukup ruang di atas
             if (spaceAbove > dropdownHeight) {
               return "above";
             }
           }
-          
-          // Default, tampilkan di bawah
+
           return "below";
         };
-        
+
         setDropdownPosition(calculateDropdownPosition());
-      }, 0); // Timeout 0 untuk menunda eksekusi setelah DOM update
+      }, 0);
 
       return () => clearTimeout(timer);
     }
-  }, [dropdownOpen, props.groupChatMode]); // Dependensi utama
+  }, [dropdownOpen, props.groupChatMode]);
 
   return {
     state: {

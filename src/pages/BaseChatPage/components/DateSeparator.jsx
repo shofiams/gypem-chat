@@ -7,20 +7,26 @@ const DateSeparator = ({ timestamp }) => {
     const date = new Date(isoString);
     const now = new Date();
 
-    if (date.toDateString() === now.toDateString()) {
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+    const startOfLast7Days = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+
+    if (date >= startOfToday) {
       return "Today";
     }
     
-    const yesterday = new Date(now);
-    yesterday.setDate(now.getDate() - 1);
-    if (date.toDateString() === yesterday.toDateString()) {
+    if (date >= startOfYesterday) {
       return "Yesterday";
     }
 
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
+    if (date >= startOfLast7Days) {
+      return date.toLocaleDateString('en-US', { weekday: 'long' });
+    }
+
+    return date.toLocaleDateString('en-ID', {
+      day: 'numeric',
       month: 'long',
-      day: 'numeric'
+      year: 'numeric',
     });
   };
 
